@@ -29,6 +29,7 @@ import { DOC_LINKS } from '../../../../../lib/doc-util'
 import { PluginContext } from '../../../../../lib/PluginContext'
 import { CancelBackState, cancelNavigation, NavigationPath } from '../../../../../NavigationPath'
 import {
+    ClusterCurator,
     ClusterCuratorDefinition,
     ClusterCuratorKind,
     createClusterCurator,
@@ -71,7 +72,7 @@ import {
     clusterCuratorSupportedCurationsValue,
     validClusterCuratorTemplatesValue,
 } from '../../../../../selectors'
-import { TemplateSummaryExpandable } from '../../../../../components/TemplateSummaryModal'
+import { TemplateLinkOut, TemplateSummaryExpandable } from '../../../../../components/TemplateSummaryModal'
 
 const acmSchema = [...schema, ...kac]
 
@@ -749,6 +750,7 @@ const AutomationTemplate = (props: { state: State; dispatch: Dispatch<Action> })
         state: { clusterName, templateName },
         dispatch,
     } = props
+    const [selectedTemplateName, setSelectedTemplateName] = useState<ClusterCurator | undefined>()
 
     const onChangeAutomationTemplate = useCallback(
         (template) => {
@@ -773,6 +775,7 @@ const AutomationTemplate = (props: { state: State; dispatch: Dispatch<Action> })
                 // TODO: include namespace in key
                 const curatorTemplate = curatorTemplates.find((t) => t.metadata.name === template)
                 if (curatorTemplate) {
+                    setSelectedTemplateName(curatorTemplate)
                     const curator = {
                         ...ClusterCuratorDefinition,
                         metadata: {
@@ -871,6 +874,7 @@ const AutomationTemplate = (props: { state: State; dispatch: Dispatch<Action> })
                     )
                 })}
             </AcmSelect>
+            <TemplateLinkOut templateCurator={selectedTemplateName} />
             <TemplateSummaryExpandable clusterCurator={resources.find((r) => r.kind === ClusterCuratorKind)} />
         </>
     )
