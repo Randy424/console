@@ -1,14 +1,13 @@
 /* Copyright Contributors to the Open Cluster Management project */
 
 import { AcmLoadingPage, AcmPage, AcmPageHeader, AcmSecondaryNav, AcmSecondaryNavItem } from '../../ui-components'
-import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useContext, useEffect, useState } from 'react'
 import { Link, Redirect, Route, Switch, useLocation } from 'react-router-dom'
-import { useSetRecoilState } from 'recoil'
-import { discoveredApplicationsState, discoveredOCPAppResourcesState } from '../../atoms'
 import { useTranslation } from '../../lib/acm-i18next'
 import { queryRemoteArgoApps, queryOCPAppResources } from '../../lib/search'
 import { useQuery } from '../../lib/useQuery'
 import { NavigationPath } from '../../NavigationPath'
+import { PluginContext } from '../../lib/PluginContext'
 
 const ApplicationsOverviewPage = lazy(() => import('./Overview'))
 const AdvancedConfigurationPage = lazy(() => import('./AdvancedConfiguration'))
@@ -25,6 +24,15 @@ export default function ApplicationsPage() {
     useEffect(startPolling, [startPolling])
     useEffect(startPollingOCPResources, [startPollingOCPResources])
     const [timedOut, setTimedOut] = useState<boolean>()
+
+    const { dataContext } = useContext(PluginContext)
+    const { recoil, atoms } = useContext(dataContext)
+    const { useSetRecoilState } = recoil
+    const {
+        discoveredApplicationsState,
+        discoveredOCPAppResourcesState
+    } = atoms
+
 
     const setDiscoveredAppilcations = useSetRecoilState(discoveredApplicationsState)
     const setDiscoveredOCPAppResources = useSetRecoilState(discoveredOCPAppResourcesState)
