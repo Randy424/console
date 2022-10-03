@@ -28,11 +28,7 @@ export default function ApplicationsPage() {
     const { dataContext } = useContext(PluginContext)
     const { recoil, atoms } = useContext(dataContext)
     const { useSetRecoilState } = recoil
-    const {
-        discoveredApplicationsState,
-        discoveredOCPAppResourcesState
-    } = atoms
-
+    const { discoveredApplicationsState, discoveredOCPAppResourcesState } = atoms
 
     const setDiscoveredAppilcations = useSetRecoilState(discoveredApplicationsState)
     const setDiscoveredOCPAppResources = useSetRecoilState(discoveredOCPAppResourcesState)

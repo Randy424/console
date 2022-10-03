@@ -10,7 +10,7 @@ import { Dispatch, SetStateAction, useContext, useEffect, useState } from 'react
 // include monaco editor
 import MonacoEditor from 'react-monaco-editor'
 import { useHistory, useLocation } from 'react-router-dom'
-import { useRecoilState } from '../../shared-recoil'
+import { useRecoilState, useSharedAtoms } from '../../shared-recoil'
 import TemplateEditor from '../../components/TemplateEditor'
 import { getErrorInfo } from '../../components/ErrorPage'
 import { useTranslation } from '../../lib/acm-i18next'
@@ -39,7 +39,6 @@ import ObjTemplate from './CreateApplication/Subscription/templates/templateObje
 import otherTemplate from './CreateApplication/Subscription/templates/templateOther.hbs'
 import placementTemplate from './CreateApplication/Subscription/templates/templatePlacement.hbs'
 import { useAllClusters } from '../Infrastructure/Clusters/ManagedClusters/components/useAllClusters'
-import { PluginContext } from '../../lib/PluginContext'
 
 interface CreationStatus {
     status: string
@@ -96,11 +95,8 @@ export default function CreateSubscriptionApplicationPage() {
 export function CreateSubscriptionApplication(setTitle: Dispatch<SetStateAction<string>>) {
     const history = useHistory()
     const { t } = useTranslation()
-    const { dataContext } = useContext(PluginContext)
-    const { atoms } = useContext(dataContext)
     const { ansibleJobState, applicationsState, channelsState, placementRulesState, secretsState, subscriptionsState } =
-        atoms
-
+        useSharedAtoms()
     const toastContext = useContext(AcmToastContext)
     const [secrets] = useRecoilState(secretsState)
     const providerConnections = secrets.map(unpackProviderConnection)
