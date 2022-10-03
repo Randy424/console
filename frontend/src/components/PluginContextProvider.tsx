@@ -32,7 +32,7 @@ export function PluginContextProvider(props: { children?: ReactNode }) {
 
     // ACM Custom extensions
     const acmExtensions = IsAcmExtensions()
-    debugger
+
     return contextProvider?.properties?.context ? (
         <PluginContext.Provider
             value={{
