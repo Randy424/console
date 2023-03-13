@@ -1,4 +1,3 @@
-/// <reference types="cypress" />
 //
 // Command library
 // imported and executed by e2e support file at the start of each spec
@@ -51,13 +50,25 @@ Cypress.Commands.add('multiselect', { prevSubject: 'element' }, (subject: JQuery
 // Login
 // cy.session & cacheAcrossSpecs option will preserve session cache (cookies) across specs
 // 'local-user' is the session id for caching and restoring session
-Cypress.Commands.add('login', () => {
+Cypress.Commands.add('login', (user?: string, password?: string) => {
   cy.session(
-    'local-user',
+    user,
     () => {
-      cy.exec('oc whoami -t').then((result) => {
-        cy.setCookie('acm-access-token-cookie', result.stdout)
-      })
+      if (process.env.NODE_ENV === 'production' || password) {
+        const baseUrl = Cypress.env('BASE_URL')
+        const username = user || Cypress.env('OPTIONS_HUB_USER')
+        const pass = password || Cypress.env('OPTIONS_HUB_PASSWORD')
+        cy.exec(`oc login ${baseUrl} -u ${username} -p ${pass}`).then(() => {
+          cy.exec('oc whoami -t').then((result) => {
+            cy.setCookie('acm-access-token-cookie', result.stdout)
+          })
+        })
+      } else {
+        // simple auth for local development environments
+        cy.exec('oc whoami -t').then((result) => {
+          cy.setCookie('acm-access-token-cookie', result.stdout)
+        })
+      }
       cy.exec('curl --insecure https://localhost:3000', { timeout: 120000 })
     },
     { cacheAcrossSpecs: true }
