@@ -38,6 +38,8 @@
 //   }
 // }
 
+import 'cypress-wait-until'
+
 Cypress.Commands.add('multiselect', { prevSubject: 'element' }, (subject: JQuery<HTMLElement>, text: string) => {
   cy.wrap(subject)
     .click()

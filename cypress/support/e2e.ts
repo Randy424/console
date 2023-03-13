@@ -24,9 +24,22 @@ declare global {
   namespace Cypress {
     interface Chainable {
       multiselect(value: string): Chainable<Element>
-      login(): Chainable<void>
+      login(user?: string, password?: string): Chainable<void>
       createNamespace(namespace: string): Chainable<void>
       deleteNamespace(namespace: string): Chainable<void>
+    }
+    interface SuiteConfigOverrides {
+      /**
+       * List of tags for this suite
+       * @example a single tag
+       *  describe('block with config tag', { tags: '@smoke' }, () => {})
+       * @example multiple tags
+       *  describe('block with config tag', { tags: ['@smoke', '@slow'] }, () => {})
+       */
+      tags?: string | string[]
+    }
+    interface TestConfigOverrides {
+      tags?: string | string[]
     }
   }
 }
