@@ -1,42 +1,5 @@
 //
 // Command library
-// imported and executed by e2e support file at the start of each spec
-// ***********************************************
-// This example commands.ts shows you how to
-// create various custom commands and overwrite
-// existing commands.
-//
-// For more comprehensive examples of custom
-// commands please read more here:
-// https://on.cypress.io/custom-commands
-// ***********************************************
-//
-//
-// -- This is a parent command --
-// Cypress.Commands.add('login', (email, password) => { ... })
-//
-//
-// -- This is a child command --
-// Cypress.Commands.add('drag', { prevSubject: 'element'}, (subject, options) => { ... })
-//
-//
-// -- This is a dual command --
-// Cypress.Commands.add('dismiss', { prevSubject: 'optional'}, (subject, options) => { ... })
-//
-//
-// -- This will overwrite an existing command --
-// Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
-//
-// declare global {
-//   namespace Cypress {
-//     interface Chainable {
-//       login(email: string, password: string): Chainable<void>
-//       drag(subject: string, options?: Partial<TypeOptions>): Chainable<Element>
-//       dismiss(subject: string, options?: Partial<TypeOptions>): Chainable<Element>
-//       visit(originalFn: CommandOriginalFn, url: string, options: Partial<VisitOptions>): Chainable<Element>
-//     }
-//   }
-// }
 
 import 'cypress-wait-until'
 
@@ -85,3 +48,26 @@ Cypress.Commands.add('createNamespace', (namespace: string) => {
 Cypress.Commands.add('deleteNamespace', (namespace: string) => {
   cy.exec(`oc delete namespace ${namespace}`)
 })
+
+Cypress.Commands.add(
+  'paste',
+  {
+    // @ts-ignore
+    prevSubject: true,
+    element: true,
+  },
+  ($element, text) => {
+    const subString = text.substr(0, text.length - 1)
+    const lastChar = text.slice(-1)
+
+    $element.text(subString)
+    $element.val(subString)
+    cy.get($element)
+      .type(lastChar)
+      .then(() => {
+        if ($element.val() !== text)
+          // first usage only setStates the last character for some reason
+          cy.get($element).clear().type(text)
+      })
+  }
+)

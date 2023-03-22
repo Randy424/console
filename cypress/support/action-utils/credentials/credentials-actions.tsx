@@ -3,9 +3,10 @@
  * Copyright (c) 2023 Red Hat, Inc.
  ****************************************************************************** */
 
-import { commonElementSelectors, commonPageMethods } from '../common/commonSelectors'
-import { genericFunctions } from '../../support/genericFunctions'
-import { acm23xheaderMethods, acmHeaderSelectors } from '../header'
+import { elements, elementsText } from '../../selectors'
+import { resourceTable, modal } from '../component-methods/resourceTable'
+import { selectOrTypeInInputDropDown, clickNext, clickAdd } from '../../genericFunctions'
+import { acm23xheaderMethods, acmHeaderSelectors } from '../../header'
 
 // import { credsActions } from '../../action-utils/credentials/credentials-actions'
 import * as credentialAPI from '../../api-utils/credentials-api'
@@ -176,7 +177,7 @@ export const credsActions = {
  */
 export const credentialsPages = {
   shouldLoad: () => {
-    cy.get(commonElementSelectors.elements.pageClassKey, { timeout: 10000 }).should(
+    cy.get(elements.pageClassKey, { timeout: 10000 }).should(
       'contain',
       acmHeaderSelectors.leftNavigation.listItemsText.credentials
     )
@@ -189,14 +190,14 @@ export const credentialsPages = {
     credentialAPI.getAllCredentials().then((creds) => {
       if (Array.isArray(creds.body.items) && !creds.body.items.length) {
         cy.log('There are no credentials yet. Click a element for adding new credential')
-        cy.get(commonElementSelectors.elements.mainSection)
-          .contains(commonElementSelectors.elements.a, credentialsPageSelectors.elementText.addCredential, {
+        cy.get(elements.mainSection)
+          .contains(elements.a, credentialsPageSelectors.elementText.addCredential, {
             timeout: 200000,
           })
           .click()
       } else {
-        cy.get(commonElementSelectors.elements.mainSection)
-          .contains(commonElementSelectors.elements.button, credentialsPageSelectors.elementText.addCredential, {
+        cy.get(elements.mainSection)
+          .contains(elements.button, credentialsPageSelectors.elementText.addCredential, {
             timeout: 200000,
           })
           .click()
@@ -208,47 +209,42 @@ export const credentialsPages = {
   goToEditCredentialPage: (name, namespace) => {
     acm23xheaderMethods.goToCredentials()
     credRowExist(name, namespace)
-    commonPageMethods.resourceTable.openRowMenu(name)
-    commonPageMethods.resourceTable.buttonShouldClickable(credentialsPageSelectors.tableRowOptionsMenu.editCredential)
+    resourceTable.openRowMenu(name)
+    resourceTable.buttonShouldClickable(credentialsPageSelectors.tableRowOptionsMenu.editCredential)
     cy.get(credentialsPageSelectors.tableRowOptionsMenu.editCredential).click()
-    commonPageMethods.modal.shouldBeOpen()
+    modal.shouldBeOpen()
   },
 
   goToCredentialDetail: (name, namespace) => {
     acm23xheaderMethods.goToCredentials()
     credRowExist(name, namespace)
-    cy.get(credentialsPageSelectors.tableColumnFields.name).contains(commonElementSelectors.elements.a, name).click()
+    cy.get(credentialsPageSelectors.tableColumnFields.name).contains(elements.a, name).click()
   },
 
   goToDeleteCredentialByOption: (name, namespace) => {
     acm23xheaderMethods.goToCredentials()
     credRowExist(name, namespace)
-    commonPageMethods.resourceTable.openRowMenu(name)
-    commonPageMethods.resourceTable.buttonShouldClickable(credentialsPageSelectors.tableRowOptionsMenu.deleteCredential)
+    resourceTable.openRowMenu(name)
+    resourceTable.buttonShouldClickable(credentialsPageSelectors.tableRowOptionsMenu.deleteCredential)
     cy.get(credentialsPageSelectors.tableRowOptionsMenu.deleteCredential).click()
-    commonPageMethods.modal.shouldBeOpen()
+    modal.shouldBeOpen()
   },
 
   goToDeleteCredentialByAction: (name, namespace) => {
     acm23xheaderMethods.goToCredentials()
     credRowExist(name, namespace)
     cy.get(credentialsPageSelectors.tableColumnFields.name)
-      .contains(commonElementSelectors.elements.a, name)
+      .contains(elements.a, name)
       .parent()
       .parent()
       .prev()
-      .find(commonElementSelectors.elements.input)
+      .find(elements.input)
       .check()
       .should('be.checked')
-    cy.get(commonElementSelectors.elements.toolbarContentSection).within(() =>
-      cy.get(commonElementSelectors.elements.actionsButton).should('exist').click()
-    )
+    cy.get(elements.toolbarContentSection).within(() => cy.get(elements.actionsButton).should('exist').click())
     cy.wait(500)
-    cy.get(commonElementSelectors.elements.a)
-      .contains(credentialsPageSelectors.elementText.deleteCredentials)
-      .should('exist')
-      .click()
-    commonPageMethods.modal.shouldBeOpen()
+    cy.get(elements.a).contains(credentialsPageSelectors.elementText.deleteCredentials).should('exist').click()
+    modal.shouldBeOpen()
   },
 }
 
@@ -257,28 +253,25 @@ export const credentialsPages = {
  */
 export const credentialsCreatePages = {
   // Fill the basic infomation in create credential page
-  fillBasicInformation: (name, namespace, baseDomain, cloudName) => {
+  fillBasicInformation: (name, namespace, baseDomain, cloudName?) => {
     cy.get(credentialCreatePageSelector.credentialsName).should('exist').click().type(name)
-    genericFunctions.selectOrTypeInInputDropDown(credentialCreatePageSelector.namespace, namespace)
+    selectOrTypeInInputDropDown(credentialCreatePageSelector.namespace, namespace)
     if (baseDomain) cy.get(credentialCreatePageSelector.baseDomain).should('exist').click().type(baseDomain)
     if (cloudName)
-      genericFunctions.selectOrTypeInInputDropDown(
-        credentialCreatePageSelector.credentialsTypesInputSelectors.azr.cloudName,
-        cloudName
-      )
-    genericFunctions.clickNext()
+      selectOrTypeInInputDropDown(credentialCreatePageSelector.credentialsTypesInputSelectors.azr.cloudName, cloudName)
+    clickNext()
   },
 
   // Fill the proxy info in create credential page
   fillProxyInfo: () => {
     // TODO: Add the http proxy configuration later.
-    genericFunctions.clickNext()
+    clickNext()
   },
 
   // Fill the disconnected info in create credential page
   fillDisconnectedInstallInfo: () => {
     // TODO: Add the disconnected info later.
-    genericFunctions.clickNext()
+    clickNext()
   },
 
   // Fill the ssh key and pull secret in create credential page
@@ -289,7 +282,7 @@ export const credentialsCreatePages = {
    * @param {*} sshPublickey The ssh public key
    */
   fillCommonCredentials: (pullSecret, sshPrivatekey, sshPublickey) => {
-    cy.contains(commonElementSelectors.elements.button, commonElementSelectors.elementsText.next).click({ force: true })
+    cy.contains(elements.button, elementsText.next).click({ force: true })
     cy.get(credentialCreatePageSelector.commonCredentials.pullSecret).should('exist').paste(pullSecret)
     cy.get(credentialCreatePageSelector.commonCredentials.sshPrivatekey)
       .scrollIntoView()
@@ -299,7 +292,7 @@ export const credentialsCreatePages = {
       .scrollIntoView()
       .should('exist')
       .paste(sshPublickey)
-    genericFunctions.clickNext()
+    clickNext()
   },
 
   // Fill the AWS Creds in create credential page
@@ -314,7 +307,7 @@ export const credentialsCreatePages = {
       .should('exist')
       .click()
       .type(awsSecretAccessKeyID)
-    genericFunctions.clickNext()
+    clickNext()
   },
 
   // Fill the GCP Creds in create credential page
@@ -328,7 +321,7 @@ export const credentialsCreatePages = {
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.gcp.gcServiceAccountKey)
       .should('exist')
       .paste(gcpServiceAccountJsonKey)
-    genericFunctions.clickNext()
+    clickNext()
   },
 
   // Fill the Azure Creds in create credential page
@@ -349,7 +342,7 @@ export const credentialsCreatePages = {
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.azr.clientSecret).click().type(clientSecret)
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.azr.subscriptionId).click().type(subscriptionId)
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.azr.tenantId).click().type(tenantId)
-    genericFunctions.clickNext()
+    clickNext()
   },
 
   // Fill The Azure Creds in create credential page
@@ -363,7 +356,7 @@ export const credentialsCreatePages = {
       .should('exist')
       .paste(cloudsFile)
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.ost.openstackCloudName).click().type(cloudName)
-    genericFunctions.clickNext()
+    clickNext()
   },
 
   // Fill The Azure Creds in create credential page
@@ -381,7 +374,7 @@ export const credentialsCreatePages = {
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.rhv.oVirtUsername).click().type(username)
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.rhv.oVirtPassword).click().type(password)
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.rhv.oVirtCert).paste(cacertificate)
-    genericFunctions.clickNext()
+    clickNext()
   },
 
   // Fill the Azure Creds in create credential page
@@ -447,7 +440,7 @@ export const credentialsCreatePages = {
       cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.vmw.vSphereCredentials.vSphereResourcePool)
         .click()
         .type(vSphereResourcePool)
-    genericFunctions.clickNext()
+    clickNext()
   },
 
   // Fill the Ansible Creds in create credential page
@@ -459,7 +452,7 @@ export const credentialsCreatePages = {
   fillAnsibleCredsInfo: (ansibleHost, ansibleToken) => {
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.ans.ansibleHost).click().type(ansibleHost)
     cy.get(credentialCreatePageSelector.credentialsTypesInputSelectors.ans.ansibleToken).click().type(ansibleToken)
-    genericFunctions.clickNext()
+    clickNext()
   },
 }
 
@@ -487,7 +480,7 @@ export const credentialsCreateMethods = {
         credentialsCreatePages.fillAWSCredsInfo(awsAccessKeyID, awsSecretAccessKeyID)
         credentialsCreatePages.fillProxyInfo()
         credentialsCreatePages.fillCommonCredentials(pullSecret, sshPrivatekey, sshPublickey)
-        genericFunctions.clickAdd()
+        clickAdd()
         credsActions.credShouldExist(name, namespace)
       }
     })
@@ -511,7 +504,7 @@ export const credentialsCreateMethods = {
         credentialsCreatePages.fillGCPCredsInfo(gcpProjectID, gcpServiceAccountJsonKey)
         credentialsCreatePages.fillProxyInfo()
         credentialsCreatePages.fillCommonCredentials(pullSecret, sshPrivatekey, sshPublickey)
-        genericFunctions.clickAdd()
+        clickAdd()
         credsActions.credShouldExist(name, namespace)
       }
     })
@@ -547,7 +540,7 @@ export const credentialsCreateMethods = {
         )
         credentialsCreatePages.fillProxyInfo()
         credentialsCreatePages.fillCommonCredentials(pullSecret, sshPrivatekey, sshPublickey)
-        genericFunctions.clickAdd()
+        clickAdd()
         credsActions.credShouldExist(name, namespace)
       }
     })
@@ -572,7 +565,7 @@ export const credentialsCreateMethods = {
         credentialsCreatePages.fillDisconnectedInstallInfo()
         credentialsCreatePages.fillProxyInfo()
         credentialsCreatePages.fillCommonCredentials(pullSecret, sshPrivatekey, sshPublickey)
-        genericFunctions.clickAdd()
+        clickAdd()
         credsActions.credShouldExist(name, namespace)
       }
     })
@@ -616,7 +609,7 @@ export const credentialsCreateMethods = {
         credentialsCreatePages.fillDisconnectedInstallInfo()
         credentialsCreatePages.fillProxyInfo()
         credentialsCreatePages.fillCommonCredentials(pullSecret, sshPrivatekey, sshPublickey)
-        genericFunctions.clickAdd()
+        clickAdd()
         credsActions.credShouldExist(name, namespace)
       }
     })
@@ -643,7 +636,7 @@ export const credentialsCreateMethods = {
         credentialsCreatePages.fillRHVCredsInfo(oVirtUrl, oVirtFQDN, oVirtUsername, oVirtPassword, oVirtCACertifcate)
         credentialsCreatePages.fillProxyInfo()
         credentialsCreatePages.fillCommonCredentials(pullSecret, sshPrivatekey, sshPublickey)
-        genericFunctions.clickAdd()
+        clickAdd()
         credsActions.credShouldExist(name, namespace)
       }
     })
@@ -656,7 +649,7 @@ export const credentialsCreateMethods = {
         cy.get(credentialsPageSelectors.credentialsTypeLocator.ans).click()
         credentialsCreatePages.fillBasicInformation(name, namespace, '')
         credentialsCreatePages.fillAnsibleCredsInfo(ansibleHost, ansibleToken)
-        genericFunctions.clickAdd()
+        clickAdd()
         credsActions.credShouldExist(name, namespace)
       }
     })
@@ -672,10 +665,7 @@ export const credentialsPageMethods = {
       if (resp.status === 200) {
         credentialsPages.goToDeleteCredentialByOption(name, namespace)
         cy.get('div').should('be.visible').contains(credentialsPageSelectors.elementText.deleteCredentialsConfirmation)
-        cy.get('div')
-          .should('be.visible')
-          .contains(commonElementSelectors.elements.button, commonElementSelectors.elementsText.delete)
-          .click()
+        cy.get('div').should('be.visible').contains(elements.button, elementsText.delete).click()
       }
     })
     credsActions.credShouldNotExist(name, namespace)
@@ -686,10 +676,7 @@ export const credentialsPageMethods = {
       if (resp.status === 200) {
         credentialsPages.goToDeleteCredentialByAction(name, namespace)
         cy.get('div').should('be.visible').contains(credentialsPageSelectors.elementText.deleteCredentialsConfirmation)
-        cy.get('div')
-          .should('be.visible')
-          .contains(commonElementSelectors.elements.button, commonElementSelectors.elementsText.delete)
-          .click()
+        cy.get('div').should('be.visible').contains(elements.button, elementsText.delete).click()
       }
     })
     credsActions.credShouldNotExist(name, namespace)
@@ -707,7 +694,7 @@ export const credentialsPageMethods = {
     acm23xheaderMethods.goToCredentials()
     credentialsPages.shouldLoad()
     // need to check if it's empty page here before
-    cy.get(commonElementSelectors.elements.mainSection, { timeout: 5000 }).then(($body) => {
+    cy.get(elements.mainSection, { timeout: 5000 }).then(($body) => {
       if (!$body.text().includes(credentialsPageSelectors.emptyMsg)) {
         credRowNotExist(name, namespace)
       }
@@ -718,7 +705,7 @@ export const credentialsPageMethods = {
     credsActions.credShouldExist(name, namespace)
     acm23xheaderMethods.goToCredentials()
     credentialsPages.shouldLoad()
-    cy.get(commonElementSelectors.elements.mainSection, { timeout: 5000 }).then(($body) => {
+    cy.get(elements.mainSection, { timeout: 5000 }).then(($body) => {
       if (!$body.text().includes(credentialsPageSelectors.emptyMsg)) {
         credRowNotExist(name, namespace)
       }
@@ -729,34 +716,28 @@ export const credentialsPageMethods = {
     acm23xheaderMethods.goToCredentials()
     credentialsPages.shouldLoad()
     credRowExist(name, namespace)
-    commonPageMethods.resourceTable.openRowMenu(name)
-    commonPageMethods.resourceTable.buttonShouldClickable(
-      credentialsPageSelectors.tableRowOptionsText.editCredential,
-      commonElementSelectors.elements.a
-    )
+    resourceTable.openRowMenu(name)
+    resourceTable.buttonShouldClickable(credentialsPageSelectors.tableRowOptionsText.editCredential, elements.a)
   },
 
   shouldDeleteCred: (name, namespace) => {
     acm23xheaderMethods.goToCredentials()
     credentialsPages.shouldLoad()
     credRowExist(name, namespace)
-    commonPageMethods.resourceTable.openRowMenu(name)
-    commonPageMethods.resourceTable.buttonShouldClickable(
-      credentialsPageSelectors.tableRowOptionsText.deleteCredential,
-      commonElementSelectors.elements.a
-    )
+    resourceTable.openRowMenu(name)
+    resourceTable.buttonShouldClickable(credentialsPageSelectors.tableRowOptionsText.deleteCredential, elements.a)
   },
 }
 
 export const credRowExist = (name, namespace) => {
-  commonPageMethods.resourceTable.searchTable(namespace)
+  resourceTable.searchTable(namespace)
   cy.get(`tr > td a`, { timeout: 30000 }).contains(name, { timeout: 30000 }).should('exist')
 }
 
 export const credRowNotExist = (name, namespace) => {
-  commonPageMethods.resourceTable.searchTable(namespace)
-  cy.get(commonElementSelectors.elements.mainSection, { timeout: 5000 }).then(($body) => {
-    if (!$body.text().includes(commonElementSelectors.elementsText.noResult)) {
+  resourceTable.searchTable(namespace)
+  cy.get(elements.mainSection, { timeout: 5000 }).then(($body) => {
+    if (!$body.text().includes(elementsText.noResult)) {
       cy.get(`tr > td a`, { timeout: 30000 }).contains(name, { timeout: 30000 }).should('not.exist')
     }
   })

@@ -3,12 +3,13 @@
  * Copyright (c) 2021 Red Hat, Inc.
  ****************************************************************************** */
 
-import * as constants from '../support/constants'
-import { credentialType } from '../views/credentials/credentials'
+import * as constants from '../constants'
+import { credentialType } from '../action-utils/credentials/credentials-actions'
 
 const headers = {
   'Content-Type': 'application/json',
   Accept: 'application/json',
+  Authorization: '',
 }
 
 export const getCredential = (name, namespace) => {

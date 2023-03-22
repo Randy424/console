@@ -27,6 +27,12 @@ declare global {
       login(user?: string, password?: string): Chainable<void>
       createNamespace(namespace: string): Chainable<void>
       deleteNamespace(namespace: string): Chainable<void>
+      add<T extends keyof Chainable, S extends PrevSubject>(
+        name: T,
+        options: CommandOptions & { prevSubject: S | ['optional'] },
+        fn: CommandFnWithSubject<T, PrevSubjectMap[S]>
+      ): void
+      paste(text: string): Chainable<void>
     }
     interface SuiteConfigOverrides {
       /**
