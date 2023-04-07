@@ -14,6 +14,7 @@ describe(
   function () {
     before(function () {
       cy.login()
+      cy.visit('/multicloud/infrastructure/')
     })
 
     it(

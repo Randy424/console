@@ -1,0 +1,32 @@
+---
+interfaces:
+    - name: bond0
+      type: bond
+      state: up
+      link-aggregation:
+        mode: active-backup
+        options:
+            miimon: '140'
+            all_slaves_active: delivered
+        slaves:
+        - eth0
+        - eth1
+      ipv4:
+          enabled: true
+          address:
+            - ip: 
+              prefix-length: 24
+          dhcp: false
+
+      ipv6:
+          enabled: false
+
+dns-resolver:
+    config:
+        server:
+routes:
+    config:
+    - destination: '0.0.0.0/0'
+      next-hop-address: 
+      next-hop-interface: "bond0"
+      table-id: 254

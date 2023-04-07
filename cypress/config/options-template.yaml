@@ -1,0 +1,275 @@
+#Resource prefix, priority:
+# 1. From command-line
+# 2. From options.yaml
+# 3. Using the $USER environment variable.
+# 4. Default: ginkgo
+options: 
+  owner: owner
+  acmVersion: 
+  #hub information
+  hub:
+    name: 
+    user: kubeadmin
+    password: 
+    baseDomain: 
+  clusters:
+    clusterNamePrefix: 'acmqe-clc-auto'  
+    aws:
+      clusterName: 'clc-test-aws-auto'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.8.5-x86_64'
+      additionalLabels: 'owner=acmqe-clc-auto'
+      region: 'us-east-1'
+      clusterNetworkCIDR: '10.128.0.0/14'
+      serviceNetworkCIDR: '172.30.0.0/16'
+      masterInstanceType: 'm5.xlarge'
+      workerInstanceType: 'm5.xlarge'
+      timeout: 80 # minutes
+    gcp:
+      clusterName: 'clc-test-gcp-auto'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.9.5-x86_64'
+      additionalLabels: 'owner=acmqe-clc-auto'
+      region: 'us-central1'
+      clusterNetworkCIDR: '10.132.0.0/14'
+      serviceNetworkCIDR: '172.32.0.0/16'
+      masterInstanceType: 'n1-standard-8'
+      workerInstanceType: 'n1-standard-8'
+      timeout: 80 # minutes
+    azure:
+      clusterName: 'clc-test-azure-auto'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.10.3-x86_64'
+      additionalLabels: 'owner=acmqe-clc-auto'
+      region: 'eastus'
+      clusterNetworkCIDR: '10.132.0.0/14'
+      serviceNetworkCIDR: '172.32.0.0/16'
+      masterInstanceType: 'Standard_D4s_v3'
+      workerInstanceType: 'Standard_D4s_v3'
+      timeout: 90 # minutes
+    azgov:
+      clusterName: 'clc-test-azure-gov-auto'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.8.5-x86_64'
+      additionalLabels: 'owner=acmqe-clc-auto'
+      region: 'usgovvirginia'
+      clusterNetworkCIDR: '10.132.0.0/14'
+      serviceNetworkCIDR: '172.32.0.0/16'
+      timeout: 90 # minutes    
+    vmware:
+      clusterName: 'clc-test-vmware-auto'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.8.5-x86_64'
+      additionalLabels: 'owner=acmqe-clc-auto'
+      timeout: 80 # minutes
+      network: 'vSphere network'
+      apiVIP: '1.1.1.1'
+      ingressVIP: '2.2.2.2'
+    openstack: 
+      clusterName: 'clc-auto-psi'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.8.5-x86_64'
+      additionalLabels: 'owner=acmqe-clc-auto'
+      timeout: 80 # minutes
+      extNetwork: 
+      apiFIP: 
+      ingressFIP: 
+      clusterCIDR: 
+      netHostPrefix: 
+      serviceCIDR: 
+      machineCIDR: 
+    openstacksno: 
+      clusterName: 'clc-auto-psi2'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.8.5-x86_64'
+      additionalLabels: 'owner=acmqe-clc-auto'
+      timeout: 80 # minutes
+      extNetwork: 
+      apiFIP: 
+      ingressFIP: 
+      clusterCIDR: 
+      netHostPrefix: 
+      serviceCIDR: 
+      machineCIDR: 
+    rhv:
+      clusterName: ''
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.10.3-x86_64'
+      additionalLabels: 'owner=acmqe-clc-auto'
+      timeout: 80 # minutes
+      targetClusterID: ''
+      storageDomainID: ''
+      networkName: ''
+      vnicProfileID: ''
+      apiIP: ''
+      ingressIP: ''
+      clusterCIDR: 
+      netHostPrefix: 
+      serviceCIDR: 
+      machineCIDR: 
+  clusterPools:
+    clusterPoolNamePrefix: 'acmqe-clc-auto-pool'
+    aws:
+      clusterPoolName: 'acmqe-clc-auto-pool-aws'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.10.3-x86_64'
+      region: 'us-east-1'
+      masterInstanceType: 'm5.xlarge'
+      workerInstanceType: 'm5.xlarge'
+      timeout: 80 # minutes
+    gcp:
+      clusterPoolName: 'acmqe-clc-auto-pool-gcp'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.8.48-x86_64'
+      region: 'us-east4'
+      masterInstanceType: 'n1-standard-8'
+      workerInstanceType: 'n1-standard-8'
+      timeout: 80 # minutes
+    azure:
+      clusterPoolName: 'acmqe-clc-auto-pool-azure'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.9.4-x86_64'
+      region: 'centralus'
+      masterInstanceType: 'Standard_D4s_v3'
+      workerInstanceType: 'Standard_D4s_v3'
+      timeout: 90 # minutes
+    azgov:
+      clusterPoolName: 'acmqe-clc-auto-pool-azgov'
+      clusterSet: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.9.4-x86_64'
+      region: 'usgovvirginia'
+      timeout: 90 # minutes
+  connections:
+    apiKeys:
+      aws:
+        name: 'aws-conn-auto'
+        namespace: 'credentials'
+        provider: 'Amazon Web Services'
+        infra: 'aws'
+        baseDnsDomain: 
+        awsAccessKeyID: 
+        awsSecretAccessKeyID: 
+      azure:
+        name: 'azure-conn-auto'
+        namespace: 'credentials'
+        provider: 'Microsoft Azure'
+        infra: 'azr'
+        baseDnsDomain: 
+        baseDomainResourceGroupName: 
+        clientID: 
+        clientSecret: 
+        subscriptionID: 
+        tenantID:
+      azgov:
+        name: 'azure-gov-conn-auto'
+        namespace: 'credentials'
+        provider: 'Microsoft Azure'
+        infra: 'azr'
+        baseDnsDomain: 
+        baseDomainResourceGroupName: 
+        clientID: 
+        clientSecret: 
+        subscriptionID: 
+        tenantID:  
+      gcp:
+        name: 'gcp-conn-auto'
+        namespace: 'credentials'
+        provider: 'Google Cloud'
+        infra: 'gcp'
+        gcpProjectID: 
+        baseDnsDomain: 
+        gcpServiceAccountJsonKey: |-
+         
+      vmware:
+        name: 'vmware-conn-auto'
+        namespace: 'credentials'
+        provider: 'VMware vSphere'
+        infra: 'vmw'
+        vcenterServer: 
+        username: 
+        password: 
+        cacertificate: |-
+
+        vmClusterName: 
+        datacenter: 
+        datastore:
+        vSphereDiskType: ''      #optional
+        vSphereFolder: ''        #optional
+        vSphereResourcePool: ''  #optional
+        baseDnsDomain: 
+      openstack:
+        name: 'openstack-conn-auto'
+        namespace: 'credentials'
+        provider: 'Red Hat OpenStack Platform'
+        baseDnsDomain: 
+        cloudsFile: |-
+
+        cloudName: 
+      rhv: 
+        name: 'rhv-conn-auto'
+        namespace: 'default'
+        provider: 'Red Hat Virtualization'
+        infra: 'rhv'
+        oVirtUrl: 
+        oVirtFQDN: 
+        oVirtUsername: 
+        oVirtPassword:
+        oVirtCACertifcate:
+      ansible: 
+        name: ansible-tower-auto
+        namespace: 'default'
+        provider: 'Ansible'
+        infra: 'ans'
+        ansibleHost: 
+        ansibleToken: 
+      baremetal:
+        clusterName: CLUSTER_NAME
+        baseDnsDomain: BASE_DNS_DOMAIN
+        infra: 'bmc'
+        libvirtURI:
+        provisioningNetworkCIDR: 
+        provisioningNetworkInterface: 
+        provisioningBridge: 
+        externalBridge: 
+        apiVIP: 
+        ingressVIP: 
+        sshKnownHostsList:
+          - ssh-host
+        imageRegistryMirror:
+        bootstrapOSImage:
+        clusterOSImage:
+        trustBundle: |-
+          -----BEGIN CERTIFICATE-----
+            fake bundle
+          -----END CERTIFICATE------
+
+        hosts:
+        - name: 
+          namespace: credentials
+          role: master
+          bmc:
+            address: 
+            disableCertificateVerification: true
+            username: admin
+            password: password
+          bootMACAddress: 
+          hardwareProfile: default
+        - name: 
+          namespace: credentials
+          role: master
+          bmc:
+            address: 
+            disableCertificateVerification: true
+            username: admin
+            password: password
+          bootMACAddress: 
+          hardwareProfile: default
+    secrets:
+      pullSecret: |-
+        
+      sshPrivatekey: |-
+
+      sshPublickey: |-
+        
+      
+    ocpRelease: 

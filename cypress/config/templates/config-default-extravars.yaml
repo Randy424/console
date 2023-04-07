@@ -1,0 +1,29 @@
+waitFor:
+  pageToLoad: 300
+  elementToShow: 1000
+  spokeToBeSaved: 3000
+  cimCreateButtonToBeEnabled: 500
+  hostsAutoSelectToSwitch: 3000
+  hostToBeApproved: 10000
+  cmdCommandTimeout: 1000
+  validationToFinish: 122000
+  hostToBeChecked: 1000
+  workerToBeRemoved: 10000
+  hostReadyStatus: 1000000
+  hostBoundStatus: 360000
+  clusterNetworkPage: 50000
+  agentsInsalledStatus: 5400000
+  hostDiscoveryTimeout: 360000
+  hostSubnetAppears: 50000
+  prepearClusterInstallTitle: 5000
+  clusterIsReadyForInstall: 360000
+  clusterInstallToComplete: 3600000
+  downloadToFinish: 5000
+  bmhHostToBeDeletedFromInfra: 10000
+  clusterToBeDestroyed: 120000
+advancedNetworkConfig:
+  spoke_cluster_network_cidr_ipv6: "fd01::/48"
+  spoke_cluster_network_hostprefix_ipv6: 64
+  spoke_service_network_ipv6: "fd02::/112"
+nmstateConfigPath: "cypress/config/config-nmstate.yaml"
+BMCConfigPath: "cypress/config/config-bmc.yaml"

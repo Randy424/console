@@ -14,9 +14,10 @@ const headers = {
 
 export const getCredential = (name, namespace) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
+  const apiUrl = Cypress.env('CLUSTER_API_URL')
   let options = {
     method: 'GET',
-    url: constants.apiUrl + '/api/v1/namespaces/' + namespace + '/secrets/' + name,
+    url: apiUrl + '/api/v1/namespaces/' + namespace + '/secrets/' + name,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -27,9 +28,10 @@ export const getCredential = (name, namespace) => {
 
 export const getCredentials = (name, type) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
+  const apiUrl = Cypress.env('CLUSTER_API_URL')
   let options = {
     method: 'GET',
-    url: constants.apiUrl + '/api/v1/secrets' + '?labelSelector=cluster.open-cluster-management.io/credentials',
+    url: apiUrl + '/api/v1/secrets' + '?labelSelector=cluster.open-cluster-management.io/credentials',
     headers: headers,
     failOnStatusCode: false,
   }
@@ -49,9 +51,10 @@ export const getCredentials = (name, type) => {
 
 export const getAllCredentials = () => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
+  const apiUrl = Cypress.env('CLUSTER_API_URL')
   let options = {
     method: 'GET',
-    url: constants.apiUrl + '/api/v1/secrets' + '?labelSelector=cluster.open-cluster-management.io/credentials',
+    url: apiUrl + '/api/v1/secrets' + '?labelSelector=cluster.open-cluster-management.io/credentials',
     headers: headers,
     failOnStatusCode: false,
   }
@@ -84,9 +87,10 @@ export const deleteCredentials = (name, type) => {
  */
 export const createCredential = (credential, type) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
+  const apiUrl = Cypress.env('CLUSTER_API_URL')
   let options = {
     method: 'POST',
-    url: constants.apiUrl + '/api/v1/namespaces/' + credential.namespace + '/secrets',
+    url: apiUrl + '/api/v1/namespaces/' + credential.namespace + '/secrets',
     headers: headers,
     // TODO look into templating or setting this body into some fixture to update
     body: `{

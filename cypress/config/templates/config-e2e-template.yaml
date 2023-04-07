@@ -1,0 +1,117 @@
+clusters:
+  aws:
+    name: ''
+    releaseImage: ''
+    region: ''
+    timeout: 80 # minutes
+  gcp:
+    name: ''
+    releaseImage: ''
+    region: ''
+    timeout: 80 # minutes
+  azure:
+    name: ''
+    releaseImage: ''
+    region: ''
+    timeout: 90 # minutes
+  vmware:
+    name: ''
+    releaseImage: ''
+    timeout: 80 # minutes
+    network: 'vSphere network'
+    apiVIP: '1.1.1.1'
+    ingressVIP: '2.2.2.2'
+importCluster:
+  name: ''
+  #ocpReleaseVersion: quay.io/openshift-release-dev/ocp-release:4.5.15-x86_64
+connections:
+  aws:
+    name: 'aws-conn-auto'
+    namespace: 'default'
+    provider: 'Amazon Web Services'
+    baseDnsDomain: 
+    awsAccessKeyID: 
+    awsSecretAccessKeyID: 
+    region: 
+  azure:
+    name: 'azure-conn-auto'
+    namespace: 'default'
+    provider: 'Microsoft Azure'
+    baseDnsDomain: 
+    baseDomainResourceGroupName: 
+    clientID: 
+    clientSecret: 
+    subscriptionID: 
+    tenantID: 
+    region: 
+  gcp:
+    name: 'gcp-conn-auto'
+    namespace: 'default'
+    provider: 'Google Cloud'
+    gcpProjectID: 
+    baseDnsDomain: 
+    gcpServiceAccountJsonKey: |-
+        
+    region:
+  vmware:
+    name: 
+    namespace: 
+    provider: 
+    vcenterServer: 
+    username: 
+    password: 
+    cacertificate: |-
+
+    vmClusterName:            
+    datacenter:   
+    datastore: 
+    #Do not pass folder, let if default
+    #folder: ''
+    baseDnsDomain: '
+  baremetal:
+    clusterName: CLUSTER_NAME
+    baseDnsDomain: BASE_DNS_DOMAIN
+    libvirtURI:
+    provisioningNetworkCIDR: 
+    provisioningNetworkInterface: 
+    provisioningBridge: 
+    externalBridge: 
+    apiVIP: 
+    ingressVIP: 
+    sshKnownHostsList:
+      - ssh-host
+    imageRegistryMirror:
+    bootstrapOSImage:
+    clusterOSImage:
+    trustBundle: |-
+      -----BEGIN CERTIFICATE-----
+        fake bundle
+      -----END CERTIFICATE-----
+      hosts:
+      - name: 
+        namespace: default
+        role: master
+        bmc:
+          address: 
+          disableCertificateVerification: true
+          username: 
+          password: 
+        bootMACAddress: 
+        hardwareProfile: default
+      - name: 
+        namespace: default
+        role: master
+        bmc:
+          address: 
+          disableCertificateVerification: 
+          username: 
+          password: 
+        bootMACAddress: 
+        hardwareProfile: default
+credentials:
+  pullSecret: |-
+    
+  sshPublickey: |-
+  
+  sshPrivatekey: |-
+   

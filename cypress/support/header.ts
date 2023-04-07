@@ -186,14 +186,14 @@ export const acm23xheaderMethods = {
   },
 
   goToCredentials: () => {
-    acm23xheaderMethods.openMenu()
+    process.env.NODE_ENV === 'production' && acm23xheaderMethods.openMenu()
     cy.get(acmHeaderSelectors.leftNavigation.leftSideBar, { timeout: 20000 }).should('exist')
     cy.get('body').then((body) => {
-      if (body.text().includes('Managing clusters just got easier')) {
+      if (body.text().includes('Managing clusters')) {
         cy.get('button[aria-label="Close"]').click()
       }
     })
-    checkIfElementExists('Add Credential').then((onCredentials) => {
+    checkIfElementExists('Add credential').then((onCredentials) => {
       if (!onCredentials) {
         cy.contains(elements.a, acmHeaderSelectors.leftNavigation.listItemsText.credentials).should('exist').click()
         credentialsPages.shouldLoad()

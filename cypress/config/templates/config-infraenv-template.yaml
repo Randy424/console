@@ -1,0 +1,5 @@
+metadata:
+  infraenvName: infraenv-test
+  infraenvLocation: test
+  infraenvSshPublicKey: ''
+  infraenvPullSecret: ''

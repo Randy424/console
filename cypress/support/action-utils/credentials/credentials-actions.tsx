@@ -4,7 +4,7 @@
  ****************************************************************************** */
 
 import { elements, elementsText } from '../../selectors'
-import { resourceTable, modal } from '../component-methods/resourceTable'
+import { resourceTable, modal } from '../component-methods/ResourceTable'
 import { selectOrTypeInInputDropDown, clickNext, clickAdd } from '../../genericFunctions'
 import { acm23xheaderMethods, acmHeaderSelectors } from '../../header'
 
@@ -194,12 +194,15 @@ export const credentialsPages = {
           .contains(elements.a, credentialsPageSelectors.elementText.addCredential, {
             timeout: 200000,
           })
+          .should('have.attr', 'aria-disabled', 'false')
           .click()
       } else {
+        cy.log('There are credentials present. Click button element for adding new credential')
         cy.get(elements.mainSection)
           .contains(elements.button, credentialsPageSelectors.elementText.addCredential, {
             timeout: 200000,
           })
+          .should('have.attr', 'aria-disabled', 'false')
           .click()
       }
     })
