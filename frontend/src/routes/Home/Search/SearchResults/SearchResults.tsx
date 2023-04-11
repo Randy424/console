@@ -19,6 +19,7 @@ import { ExclamationCircleIcon, InfoCircleIcon, OutlinedQuestionCircleIcon } fro
 import _ from 'lodash'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from '../../../../lib/acm-i18next'
+import { useSharedAtoms } from '../../../../shared-recoil'
 import { AcmAlert, AcmLoadingPage, AcmTable } from '../../../../ui-components'
 import {
   ClosedDeleteModalProps,
@@ -50,8 +51,8 @@ function RenderAccordionItem(props: {
     (kind: string, items: ISearchResult[]) => {
       return (
         <AcmTable
-          plural=""
           items={items}
+          emptyState={undefined} // table only shown for kinds with results
           columns={_.get(
             searchDefinitions,
             `[${kind.toLowerCase()}].columns`,
@@ -146,6 +147,8 @@ export default function SearchResults(props: {
 }) {
   const { currentQuery, error, loading, data, preSelectedRelatedResources } = props
   const { t } = useTranslation()
+  const { useSearchResultLimit } = useSharedAtoms()
+  const searchResultLimit = useSearchResultLimit()
   const [selectedRelatedKinds, setSelectedRelatedKinds] = useState<string[]>(preSelectedRelatedResources)
   const [deleteResource, setDeleteResource] = useState<IDeleteModalProps>(ClosedDeleteModalProps)
   const [showRelatedResources, setShowRelatedResources] = useState<boolean>(
@@ -214,7 +217,7 @@ export default function SearchResults(props: {
       />
       <PageSection style={{ paddingTop: '0' }}>
         <Stack hasGutter>
-          {searchResultItems.length >= 1000 ? (
+          {searchResultItems.length >= searchResultLimit ? (
             <AcmAlert
               noClose={true}
               variant={'warning'}

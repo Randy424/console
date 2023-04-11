@@ -23,6 +23,9 @@ import {
   NamespaceApiVersion,
   NamespaceKind,
   OCPAppResource,
+  PlacementDecision,
+  PlacementDecisionApiVersion,
+  PlacementDecisionKind,
   PlacementRule,
   PlacementRuleApiVersion,
   PlacementRuleKind,
@@ -94,6 +97,7 @@ const mockChannel0: Channel = {
     type: 'Git',
   },
 }
+
 const mockPlacementrule0: PlacementRule = {
   apiVersion: PlacementRuleApiVersion,
   kind: PlacementRuleKind,
@@ -121,6 +125,25 @@ const mockPlacementrule0: PlacementRule = {
     ],
   },
 }
+
+const mockPlacementDecision0: PlacementDecision = {
+  apiVersion: PlacementDecisionApiVersion,
+  kind: PlacementDecisionKind,
+  metadata: {
+    labels: { 'cluster.open-cluster-management.io/placementrule': mockPlacementrule0.metadata.name! },
+    name: 'placementrule-0-decision-1',
+    namespace: mockPlacementrule0.metadata.namespace,
+  },
+  status: {
+    decisions: [
+      {
+        clusterName: 'local-cluster',
+        reason: '',
+      },
+    ],
+  },
+}
+
 const mockManagedCluster0: ManagedCluster = {
   apiVersion: ManagedClusterApiVersion,
   kind: ManagedClusterKind,
@@ -299,6 +322,7 @@ export const acmExtension: AcmExtension = {
 export const mockApplications: Application[] = [mockApplication0]
 export const mockSubscriptions: Subscription[] = [mockSubscription0]
 export const mockChannels: Channel[] = [mockChannel0]
+export const mockPlacementsDecisions: PlacementDecision[] = [mockPlacementDecision0]
 export const mockPlacementrules: PlacementRule[] = [mockPlacementrule0]
 export const mockManagedClusters: ManagedCluster[] = [mockManagedCluster0]
 export const mockManagedClusterInfos = [mockManagedClusterInfo0]
@@ -309,7 +333,7 @@ export const mockNamespaces: Namespace[] = ['namespace1', 'namespace2', 'namespa
 }))
 export const mockApplicationSets: ApplicationSet[] = [mockApplicationSet0]
 export const mockArgoApplications: ArgoApplication[] = [mockArgoApplication0, mockArgoApplication1]
-const mockOCPApplications: OCPAppResource[] = [mockOCPApplication0, mockFluxApplication0]
+export const mockOCPApplications: OCPAppResource[] = [mockOCPApplication0, mockFluxApplication0]
 const mockSearchDisabledCluster = {
   HubAcceptedManagedCluster: 'True',
   ManagedClusterConditionAvailable: 'True',
@@ -333,7 +357,7 @@ const mockSearchDisabledCluster = {
   _hubClusterResource: 'true',
 }
 
-export const mockSearchQuery = {
+export const mockSearchQueryArgoApps = {
   operationName: 'searchResult',
   variables: {
     input: [
@@ -348,7 +372,7 @@ export const mockSearchQuery = {
   },
   query: 'query searchResult($input: [SearchInput]) {\n  searchResult: search(input: $input) {\n    items\n  }\n}',
 }
-export const mockSearchResponse = {
+export const mockSearchResponseArgoApps = {
   data: {
     searchResult: [
       {
@@ -357,6 +381,35 @@ export const mockSearchResponse = {
             apigroup: 'argoproj.io',
             apiversion: 'v1alpha1',
             cluster: 'feng-managed',
+            created: '2021-12-03T18:55:47Z',
+            destinationName: 'in-cluster',
+            destinationNamespace: 'feng-remote-namespace',
+            kind: 'application',
+            name: 'feng-remote-argo8',
+            namespace: 'openshift-gitops',
+            path: 'helloworld-perf',
+            repoURL: 'https://github.com/fxiang1/app-samples',
+            status: 'Healthy',
+            targetRevision: 'HEAD',
+            _clusterNamespace: 'feng-managed',
+            _rbac: 'feng-managed_argoproj.io_applications',
+            _uid: 'feng-managed/9896aad3-6789-4350-876c-bd3749c85b5d',
+          },
+        ],
+      },
+    ],
+  },
+}
+
+export const mockSearchResponseArgoApps1 = {
+  data: {
+    searchResult: [
+      {
+        items: [
+          {
+            apigroup: 'argoproj.io',
+            apiversion: 'v1alpha1',
+            cluster: 'test-cluster',
             created: '2021-12-03T18:55:47Z',
             destinationName: 'in-cluster',
             destinationNamespace: 'feng-remote-namespace',

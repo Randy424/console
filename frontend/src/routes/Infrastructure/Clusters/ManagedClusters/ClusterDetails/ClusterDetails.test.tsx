@@ -317,6 +317,7 @@ const mockAgentClusterInstall: CIM.AgentClusterInstallK8sResource = {
     provisionRequirements: {
       controlPlaneAgents: 3,
     },
+    platformType: 'None',
   },
   status: {
     conditions: [],
@@ -911,7 +912,7 @@ const mockKlusterletAddonConfig: KlusterletAddonConfig = {
       vendor: 'Openshift',
     },
     applicationManager: {
-      enabled: false,
+      enabled: true,
       argocdCluster: false,
     },
     policyController: {

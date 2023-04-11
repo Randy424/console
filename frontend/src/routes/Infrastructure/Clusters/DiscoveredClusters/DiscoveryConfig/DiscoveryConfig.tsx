@@ -29,6 +29,7 @@ import {
   DiscoveryConfigKind,
   replaceDiscoveryConfig,
   ResourceError,
+  ResourceErrorCode,
   Secret,
 } from '../../../../../resources'
 import { useSharedAtoms, useRecoilState } from '../../../../../shared-recoil'
@@ -191,7 +192,7 @@ export function DiscoveryConfigPageContent(props: {
 
   const updateDiscoveryConfig = useCallback(
     (update: (discoveryConfig: DiscoveryConfig) => void) => {
-      const copy = { ...discoveryConfig } as DiscoveryConfig
+      const copy = { ...discoveryConfig }
       update(copy)
       setDiscoveryConfig(copy)
     },
@@ -200,117 +201,108 @@ export function DiscoveryConfigPageContent(props: {
 
   const deleteDiscoveryConfig = async () => {
     alertContext.clearAlerts()
-    return new Promise(async (resolve, reject) => {
-      try {
-        setModalProps({
-          open: true,
-          title: t('disable.title'),
-          confirm: async () => {
-            try {
-              if (discoveryConfig) {
-                const deletecmd = await deleteResource(discoveryConfig as DiscoveryConfig).promise
-                setModalProps({
-                  open: false,
-                  confirm: () => {},
-                  cancel: () => {},
-                  title: '',
-                  message: '',
-                })
-                resolve(deletecmd)
-                toastContext.addAlert({
-                  title: t('alert.deleted.header', {
-                    credentialName: getDiscoveryConfigCredential(discoveryConfig),
-                  }),
-                  message: t('alert.msg'),
-                  type: 'success',
-                  autoClose: true,
-                })
-                history.push(NavigationPath.discoveredClusters)
-              } else {
-                throw Error('Error retrieving discoveryconfigs')
-              }
-            } catch (err) {
-              toastContext.clearAlerts()
-              alertContext.addAlert(getErrorInfo(err, t)) //TODO: not currently displaying within modal
+    try {
+      setModalProps({
+        open: true,
+        title: t('disable.title'),
+        confirm: async () => {
+          try {
+            if (discoveryConfig) {
+              await deleteResource(discoveryConfig).promise
+              setModalProps({
+                open: false,
+                confirm: () => {},
+                cancel: () => {},
+                title: '',
+                message: '',
+              })
+              toastContext.addAlert({
+                title: t('alert.deleted.header', {
+                  credentialName: getDiscoveryConfigCredential(discoveryConfig),
+                }),
+                message: t('alert.msg'),
+                type: 'success',
+                autoClose: true,
+              })
+              history.push(NavigationPath.discoveredClusters)
+            } else {
+              throw Error('Error retrieving discoveryconfigs')
             }
-          },
-          confirmText: t('discoveryConfig.delete.btn'),
-          message: (
-            <Trans
-              i18nKey="discoveryConfig.delete.message"
-              components={{ bold: <strong /> }}
-              values={{ discoveryConfigNamespace: discoveryConfig!.metadata!.namespace }}
-            />
-          ),
-          isDanger: true,
-          cancel: () => {
-            setModalProps({
-              open: false,
-              confirm: () => {},
-              cancel: () => {},
-              title: '',
-              message: '',
-            })
-          },
-        })
-      } catch (err) {
-        toastContext.clearAlerts()
-        if (err instanceof Error) {
-          alertContext.addAlert({
-            type: 'danger',
-            title: t('request.failed'),
-            message: err.message,
+          } catch (err) {
+            toastContext.clearAlerts()
+            alertContext.addAlert(getErrorInfo(err, t)) //TODO: not currently displaying within modal
+          }
+        },
+        confirmText: t('discoveryConfig.delete.btn'),
+        message: (
+          <Trans
+            i18nKey="discoveryConfig.delete.message"
+            components={{ bold: <strong /> }}
+            values={{ discoveryConfigNamespace: discoveryConfig!.metadata!.namespace }}
+          />
+        ),
+        isDanger: true,
+        cancel: () => {
+          setModalProps({
+            open: false,
+            confirm: () => {},
+            cancel: () => {},
+            title: '',
+            message: '',
           })
-          reject()
-        }
+        },
+      })
+    } catch (err) {
+      toastContext.clearAlerts()
+      if (err instanceof Error) {
+        alertContext.addAlert({
+          type: 'danger',
+          title: t('request.failed'),
+          message: err.message,
+        })
       }
-    })
+    }
   }
 
   const { projects } = GetProjects()
 
   const onSubmit = async () => {
     alertContext.clearAlerts()
-    return new Promise(async (resolve, reject) => {
-      try {
-        if (!editing) {
-          discoveryConfig.metadata!.name = 'discovery'
-          const importcmd = await createDiscoveryConfig(discoveryConfig as DiscoveryConfig).promise
-          resolve(importcmd)
-          toastContext.addAlert({
-            title: t('alert.created.header', {
-              credentialName: getDiscoveryConfigCredential(discoveryConfig),
-            }),
-            message: t('alert.msg'),
-            type: 'success',
-            autoClose: true,
-          })
-          history.push(NavigationPath.discoveredClusters)
-        } else {
-          const importcmd = await replaceDiscoveryConfig(discoveryConfig as DiscoveryConfig).promise
-          resolve(importcmd)
-          toastContext.addAlert({
-            title: t('alert.updated.header', {
-              credentialName: getDiscoveryConfigCredential(discoveryConfig),
-            }),
-            message: t('alert.msg'),
-            type: 'success',
-            autoClose: true,
-          })
-          history.push(NavigationPath.discoveredClusters)
-        }
-      } catch (err) {
-        toastContext.clearAlerts()
-        if (err instanceof Error) {
-          alertContext.addAlert({
-            type: 'danger',
-            title: t('request.failed'),
-            message: err.message,
-          })
-          reject()
-        }
+    try {
+      if (!editing) {
+        discoveryConfig.metadata!.name = 'discovery'
+        await createDiscoveryConfig(discoveryConfig).promise
+        toastContext.addAlert({
+          title: t('alert.created.header', {
+            credentialName: getDiscoveryConfigCredential(discoveryConfig),
+          }),
+          message: t('alert.msg'),
+          type: 'success',
+          autoClose: true,
+        })
+        history.push(NavigationPath.discoveredClusters)
+      } else {
+        await replaceDiscoveryConfig(discoveryConfig).promise
+        toastContext.addAlert({
+          title: t('alert.updated.header', {
+            credentialName: getDiscoveryConfigCredential(discoveryConfig),
+          }),
+          message: t('alert.msg'),
+          type: 'success',
+          autoClose: true,
+        })
+        history.push(NavigationPath.discoveredClusters)
       }
-    })
+    } catch (err) {
+      toastContext.clearAlerts()
+      if (err instanceof Error) {
+        alertContext.addAlert({
+          type: 'danger',
+          title: t('request.failed'),
+          message: err.message,
+        })
+      }
+    }
   }
 
   useEffect(() => {
@@ -328,7 +320,9 @@ export function DiscoveryConfigPageContent(props: {
 
       canUpdateDiscoveryConfig.promise
         .then((result) =>
-          !result.status?.allowed ? alertContext.addAlert(getErrorInfo(new ResourceError('', 403), t)) : null
+          !result.status?.allowed
+            ? alertContext.addAlert(getErrorInfo(new ResourceError(ResourceErrorCode.Forbidden), t))
+            : null
         )
         .catch((err) => alertContext.addAlert(getErrorInfo(err, t)))
       return () => {
@@ -343,7 +337,9 @@ export function DiscoveryConfigPageContent(props: {
       )
       canCreateDiscoveryConfig.promise
         .then((result) =>
-          !result.status?.allowed ? alertContext.addAlert(getErrorInfo(new ResourceError('', 403), t)) : null
+          !result.status?.allowed
+            ? alertContext.addAlert(getErrorInfo(new ResourceError(ResourceErrorCode.Forbidden), t))
+            : null
         )
         .catch((err) => alertContext.addAlert(getErrorInfo(err, t)))
       return () => {

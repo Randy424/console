@@ -38,6 +38,7 @@ export interface ClusterCurator {
       prehook?: ClusterCuratorAnsibleJob[]
       posthook?: ClusterCuratorAnsibleJob[]
     }
+    inventory?: string
     scale?: {
       towerAuthSecret?: string
       prehook?: ClusterCuratorAnsibleJob[]
@@ -58,6 +59,8 @@ export interface ClusterCuratorAnsibleJob {
   name: string
   type?: AnsibleJobTemplateType
   extra_vars?: Record<string, string>
+  skip_tags?: string
+  job_tags?: string
 }
 
 export function createClusterCurator(clusterCurator: ClusterCurator) {

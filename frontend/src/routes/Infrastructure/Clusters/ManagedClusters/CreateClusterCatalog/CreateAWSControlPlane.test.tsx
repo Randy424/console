@@ -6,7 +6,7 @@ import { clickByTestId } from '../../../../../lib/test-util'
 import { NavigationPath } from '../../../../../NavigationPath'
 import { CreateAWSControlPlane } from './CreateAWSControlPlane'
 
-describe('CreateControlPlane', () => {
+describe('CreateAWSControlPlane', () => {
   const Component = () => {
     return (
       <RecoilRoot>

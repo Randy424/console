@@ -21,7 +21,12 @@ import {
   PolicySet,
 } from '../../../../resources'
 import { Metadata } from '../../../../resources/metadata'
-import { getPlacementDecisionsForPlacements, getPlacementsForResource, getPolicyRemediation } from '../../common/util'
+import {
+  getPlacementDecisionsForPlacements,
+  getPlacementsForResource,
+  getPolicyDescription,
+  getPolicyRemediation,
+} from '../../common/util'
 import { AutomationDetailsSidebar } from '../../components/AutomationDetailsSidebar'
 import { ClusterPolicyViolationIcons } from '../../components/ClusterPolicyViolations'
 import { useGovernanceData } from '../../useGovernanceData'
@@ -79,6 +84,10 @@ export default function PolicyDetailsOverview(props: { policy: Policy }) {
       {
         key: t('Name'),
         value: policy.metadata.name ?? '-',
+      },
+      {
+        key: t('Description'),
+        value: getPolicyDescription(policy),
       },
       {
         key: t('Namespace'),
@@ -329,7 +338,7 @@ export default function PolicyDetailsOverview(props: { policy: Policy }) {
                 </span>
                 <span key={`${status}-status-list`}>
                   <LabelGroup
-                    collapsedText={t('show.more').replace('{{number}}', (clusterList[status].size - 2).toString())}
+                    collapsedText={t('show.more', { count: clusterList[status].size - 2 })}
                     expandedText={t('show.less')}
                     numLabels={2}
                   >
@@ -394,8 +403,8 @@ export default function PolicyDetailsOverview(props: { policy: Policy }) {
           {placementMatches.length > 0 || placementRuleMatches.length > 0 ? (
             <AcmTable<TableData>
               key="cluster-placement-list"
-              plural={'placements'}
               items={[...placementMatches, ...placementRuleMatches]}
+              emptyState={undefined} // only shown when there are placement matches
               columns={placementCols}
               keyFn={(item) => item.metadata.uid!.toString()}
               autoHidePagination={true}

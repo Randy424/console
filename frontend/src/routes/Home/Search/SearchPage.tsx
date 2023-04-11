@@ -20,25 +20,24 @@ import { useHistory } from 'react-router-dom'
 import { useTranslation } from '../../../lib/acm-i18next'
 import { NavigationPath } from '../../../NavigationPath'
 import { getUserPreference, SavedSearch, UserPreference } from '../../../resources/userpreference'
-import { useRecoilState, useSharedAtoms } from '../../../shared-recoil'
+import { useSharedAtoms } from '../../../shared-recoil'
 import { AcmActionGroup, AcmButton, AcmDropdown, AcmPage, AcmScrollable } from '../../../ui-components'
 import HeaderWithNotification from './components/HeaderWithNotification'
 import { SaveAndEditSearchModal } from './components/Modals/SaveAndEditSearchModal'
 import { SearchInfoModal } from './components/Modals/SearchInfoModal'
 import SavedSearchQueries from './components/SavedSearchQueries'
 import { Searchbar } from './components/Searchbar'
-import { convertStringToQuery, formatSearchbarSuggestions, getSearchCompleteString } from './search-helper'
+import { convertStringToQuery, formatSearchbarSuggestions, getSearchCompleteString, operators } from './search-helper'
 import { searchClient } from './search-sdk/search-client'
 import {
   useGetMessagesQuery,
   useSearchCompleteQuery,
-  useSearchResultItemsLazyQuery,
+  useSearchResultItemsQuery,
   useSearchSchemaQuery,
 } from './search-sdk/search-sdk'
 import SearchResults from './SearchResults/SearchResults'
 import { transformBrowserUrlToSearchString, updateBrowserUrl } from './urlQuery'
 
-const operators = ['=', '<', '>', '<=', '>=', '!=', '!']
 const useStyles = makeStyles({
   actionGroup: {
     backgroundColor: 'var(--pf-global--BackgroundColor--100)',
@@ -99,6 +98,7 @@ function RenderSearchBar(props: {
   setQueryErrors: React.Dispatch<React.SetStateAction<boolean>>
   savedSearchQueries: SavedSearch[]
   userPreference?: UserPreference
+  setUserPreference: React.Dispatch<React.SetStateAction<UserPreference | undefined>>
   refetchSearch: any
   searchQueryLoading: boolean
 }) {
@@ -109,6 +109,7 @@ function RenderSearchBar(props: {
     setQueryErrors,
     setSelectedSearch,
     userPreference,
+    setUserPreference,
     refetchSearch,
   } = props
   const { t } = useTranslation()
@@ -116,44 +117,74 @@ function RenderSearchBar(props: {
   const [currentSearch, setCurrentSearch] = useState<string>(presetSearchQuery)
   const [saveSearch, setSaveSearch] = useState<SavedSearch>()
   const [open, toggleOpen] = useState<boolean>(false)
-  const { useSavedSearchLimit } = useSharedAtoms()
+  const { useSavedSearchLimit, useSearchAutocompleteLimit } = useSharedAtoms()
   const savedSearchLimit = useSavedSearchLimit()
+  const searchAutocompleteLimit = useSearchAutocompleteLimit()
   const toggle = () => toggleOpen(!open)
 
   useEffect(() => {
     setCurrentSearch(presetSearchQuery)
   }, [presetSearchQuery])
 
-  const searchSchemaResults = useSearchSchemaQuery({
+  const { data: searchSchemaData, error: searchSchemaError } = useSearchSchemaQuery({
     skip: currentSearch.endsWith(':') || operators.some((operator: string) => currentSearch.endsWith(operator)),
     client: process.env.NODE_ENV === 'test' ? undefined : searchClient,
   })
 
   const { searchCompleteValue, searchCompleteQuery } = useMemo(() => {
     const value = getSearchCompleteString(currentSearch)
-    const query = convertStringToQuery(currentSearch)
+    const query = convertStringToQuery(currentSearch, searchAutocompleteLimit)
     query.filters = query.filters.filter((filter) => {
       return filter.property !== value
     })
     return { searchCompleteValue: value, searchCompleteQuery: query }
-  }, [currentSearch])
+  }, [currentSearch, searchAutocompleteLimit])
 
-  const searchCompleteResults = useSearchCompleteQuery({
+  const { data: searchCompleteData, error: searchCompleteError } = useSearchCompleteQuery({
     skip: !currentSearch.endsWith(':') && !operators.some((operator: string) => currentSearch.endsWith(operator)),
     client: process.env.NODE_ENV === 'test' ? undefined : searchClient,
     variables: {
       property: searchCompleteValue,
       query: searchCompleteQuery,
+      limit: searchAutocompleteLimit,
     },
   })
 
   useEffect(() => {
-    if (searchSchemaResults?.error || searchCompleteResults?.error) {
+    if (searchSchemaError || searchCompleteError) {
       setQueryErrors(true)
     } else {
       setQueryErrors(false)
     }
-  }, [searchSchemaResults, searchCompleteResults, queryErrors, setQueryErrors])
+  }, [searchSchemaError, searchCompleteError, queryErrors, setQueryErrors])
+
+  const suggestions = useMemo(() => {
+    return currentSearch === '' ||
+      (!currentSearch.endsWith(':') && !operators.some((operator: string) => currentSearch.endsWith(operator)))
+      ? formatSearchbarSuggestions(
+          _.get(searchSchemaData, 'searchSchema.allProperties', [
+            'name',
+            'namespace',
+            'label',
+            'kind',
+            'cluster',
+            'apigroup',
+            'created',
+            t('Loading more...'),
+          ]),
+          'filter',
+          '', // Dont need to de-dupe filters
+          searchAutocompleteLimit,
+          t
+        )
+      : formatSearchbarSuggestions(
+          _.get(searchCompleteData || [], 'searchComplete', ['Loading...']),
+          'value',
+          currentSearch, // pass current search query in order to de-dupe already selected values
+          searchAutocompleteLimit,
+          t
+        )
+  }, [currentSearch, searchSchemaData, searchCompleteData, searchAutocompleteLimit, t])
 
   const saveSearchTooltip = useMemo(() => {
     if (savedSearchQueries.length >= savedSearchLimit) {
@@ -177,29 +208,14 @@ function RenderSearchBar(props: {
           onClose={() => setSaveSearch(undefined)}
           savedSearchQueries={savedSearchQueries}
           userPreference={userPreference}
+          setUserPreference={setUserPreference}
         />
         <SearchInfoModal isOpen={open} onClose={() => toggleOpen(false)} />
         <Searchbar
-          loadingSuggestions={searchSchemaResults.loading || searchCompleteResults.loading}
           queryString={currentSearch}
           saveSearchTooltip={saveSearchTooltip}
           setSaveSearch={setSaveSearch}
-          suggestions={
-            currentSearch === '' ||
-            (!currentSearch.endsWith(':') && !operators.some((operator: string) => currentSearch.endsWith(operator)))
-              ? formatSearchbarSuggestions(
-                  _.get(searchSchemaResults, 'data.searchSchema.allProperties', []),
-                  'filter',
-                  '', // Dont need to de-dupe filters
-                  t
-                )
-              : formatSearchbarSuggestions(
-                  _.get(searchCompleteResults, 'data.searchComplete', []),
-                  'value',
-                  currentSearch, // pass current search query in order to de-dupe already selected values
-                  t
-                )
-          }
+          suggestions={suggestions}
           currentQueryCallback={(newQuery) => {
             setCurrentSearch(newQuery)
             if (newQuery === '') {
@@ -214,7 +230,7 @@ function RenderSearchBar(props: {
           savedSearchQueries={savedSearchQueries}
           refetchSearch={refetchSearch}
         />
-        {HandleErrors(searchSchemaResults.error, searchCompleteResults.error)}
+        {HandleErrors(searchSchemaError, searchCompleteError)}
       </PageSection>
     </Fragment>
   )
@@ -300,45 +316,22 @@ export default function SearchPage() {
   } = transformBrowserUrlToSearchString(window.location.search || '')
   const { t } = useTranslation()
   const savedSearches = t('Saved searches')
-  const { userPreferencesState } = useSharedAtoms()
-  const [userPreferences] = useRecoilState(userPreferencesState)
+  const { useSearchResultLimit } = useSharedAtoms()
+  const searchResultLimit = useSearchResultLimit()
   const [selectedSearch, setSelectedSearch] = useState(savedSearches)
-  const [searchQueryLoading, setSearchQueryLoading] = useState(false)
-  const [searchQueryError, setSearchQueryError] = useState<ApolloError | undefined>()
   const [queryErrors, setQueryErrors] = useState(false)
   const [queryMessages, setQueryMessages] = useState<any[]>([])
   const [userPreference, setUserPreference] = useState<UserPreference | undefined>(undefined)
 
-  const [fireSearchQuery, { called, data, loading, error, refetch }] = useSearchResultItemsLazyQuery({
+  const { data, loading, error, refetch } = useSearchResultItemsQuery({
+    skip: presetSearchQuery === '',
     client: process.env.NODE_ENV === 'test' ? undefined : searchClient,
+    variables: { input: [convertStringToQuery(presetSearchQuery, searchResultLimit)] },
   })
 
   useEffect(() => {
-    if (presetSearchQuery !== '') {
-      if (!called) {
-        fireSearchQuery({
-          variables: { input: [convertStringToQuery(presetSearchQuery)] },
-        })
-      } else {
-        refetch &&
-          refetch({
-            input: [convertStringToQuery(presetSearchQuery)],
-          })
-      }
-    }
-  }, [fireSearchQuery, presetSearchQuery, called, refetch])
-
-  useEffect(() => {
-    setSearchQueryLoading(loading)
-  }, [loading])
-
-  useEffect(() => {
-    setSearchQueryError(error)
-  }, [error])
-
-  useEffect(() => {
-    getUserPreference(userPreferences).then((resp) => setUserPreference(resp))
-  }, [userPreferences])
+    getUserPreference().then((resp) => setUserPreference(resp))
+  }, [])
 
   const userSavedSearches = useMemo(() => {
     return userPreference?.spec?.savedSearches ?? []
@@ -350,7 +343,7 @@ export default function SearchPage() {
     }
   }, [presetSearchQuery, t])
 
-  const query = convertStringToQuery(presetSearchQuery)
+  const query = convertStringToQuery(presetSearchQuery, searchResultLimit)
   const msgQuery = useGetMessagesQuery({
     client: process.env.NODE_ENV === 'test' ? undefined : searchClient,
   })
@@ -381,15 +374,16 @@ export default function SearchPage() {
           setQueryErrors={setQueryErrors}
           savedSearchQueries={userSavedSearches}
           userPreference={userPreference}
+          setUserPreference={setUserPreference}
           refetchSearch={refetch}
-          searchQueryLoading={searchQueryLoading}
+          searchQueryLoading={loading}
         />
         {!queryErrors &&
           (presetSearchQuery !== '' && (query.keywords.length > 0 || query.filters.length > 0) ? (
             <SearchResults
               currentQuery={presetSearchQuery}
-              error={searchQueryError}
-              loading={searchQueryLoading}
+              error={error}
+              loading={loading}
               data={data}
               preSelectedRelatedResources={preSelectedRelatedResources}
             />
@@ -398,6 +392,7 @@ export default function SearchPage() {
               savedSearches={userSavedSearches}
               setSelectedSearch={setSelectedSearch}
               userPreference={userPreference}
+              setUserPreference={setUserPreference}
             />
           ))}
       </AcmScrollable>

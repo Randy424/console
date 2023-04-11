@@ -7,6 +7,7 @@ import {
   Namespace,
   NamespaceApiVersion,
   NamespaceKind,
+  ResourceErrorCode,
   Secret,
   SecretApiVersion,
   SecretKind,
@@ -19,12 +20,20 @@ import { render } from '@testing-library/react'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { RecoilRoot } from 'recoil'
 import { clusterCuratorsState, namespacesState, secretsState, subscriptionOperatorsState } from '../../../atoms'
-import { nockAnsibleTower, nockCreate, nockIgnoreApiPaths, nockIgnoreRBAC } from '../../../lib/nock-util'
+import {
+  nockAnsibleTower,
+  nockAnsibleTowerError,
+  nockAnsibleTowerInventory,
+  nockCreate,
+  nockIgnoreApiPaths,
+  nockIgnoreRBAC,
+} from '../../../lib/nock-util'
 import {
   clickByPlaceholderText,
   clickByText,
   typeByPlaceholderText,
   waitForNock,
+  waitForNocks,
   waitForNotText,
   waitForTestId,
   waitForText,
@@ -32,6 +41,7 @@ import {
 import { NavigationPath } from '../../../NavigationPath'
 import { AnsibleTowerJobTemplateList } from '../../../resources'
 import AnsibleAutomationsFormPage from './AnsibleAutomationsForm'
+import { AnsibleTowerInventoryList } from '../../../resources/ansible-inventory'
 
 const mockNamespaces: Namespace[] = [
   {
@@ -97,6 +107,7 @@ const mockClusterCurator: ClusterCurator = {
       prehook: [{ name: 'test-job-pre-upgrade', extra_vars: {}, type: 'Job' }],
       posthook: [{ name: 'test-job-post-upgrade', extra_vars: {}, type: 'Job' }],
     },
+    inventory: 'test-inventory',
   },
 }
 
@@ -106,6 +117,11 @@ const mockAnsibleCredential = {
 }
 const mockAnsibleCredentialWorkflow = {
   towerHost: 'https://ansible-tower-web-svc-tower.com/api/v2/workflow_job_templates/',
+  token: 'abcd',
+}
+
+const mockAnsibleCredentialInventory = {
+  towerHost: 'https://ansible-tower-web-svc-tower.com/api/v2/inventories/',
   token: 'abcd',
 }
 
@@ -135,6 +151,15 @@ const mockTemplateWorkflowList: AnsibleTowerJobTemplateList = {
     {
       name: 'test-job-pre-install-ii',
       type: 'workflow_job_template',
+    },
+  ],
+}
+
+const mockInventoryList: AnsibleTowerInventoryList = {
+  results: [
+    {
+      name: 'test-inventory',
+      type: 'inventory',
     },
   ],
 }
@@ -172,6 +197,7 @@ describe('add automation template page', () => {
     // template information
     const ansibleJobNock = nockAnsibleTower(mockAnsibleCredential, mockTemplateList)
     const ansibleWorkflowNock = nockAnsibleTower(mockAnsibleCredentialWorkflow, mockTemplateWorkflowList)
+    const ansibleInventoryNock = nockAnsibleTowerInventory(mockAnsibleCredentialInventory, mockInventoryList)
     await typeByPlaceholderText('Enter the name for the template', mockClusterCurator.metadata.name!)
     await clickByPlaceholderText('Select an existing Ansible credential')
     // Should show the modal wizard
@@ -182,9 +208,12 @@ describe('add automation template page', () => {
 
     await clickByPlaceholderText('Select an existing Ansible credential')
     await clickByText(mockSecret.metadata.name!)
+    await clickByPlaceholderText('Select an inventory')
+    await clickByText(mockInventoryList.results[0].name!)
     await clickByText('Next')
     await waitForNock(ansibleJobNock)
     await waitForNock(ansibleWorkflowNock)
+    await waitForNock(ansibleInventoryNock)
 
     // install job templates
     await clickByText('Add an Ansible template', 0)
@@ -231,5 +260,24 @@ describe('add automation template page', () => {
   it('should not render warning when Ansible operator is installed', async () => {
     render(<AddAnsibleTemplateTest subscriptions={[mockSubscriptionOperator]} />)
     waitForNotText('The Ansible Automation Platform Operator is required to use automation templates.')
+  })
+
+  it('should display Ansible connection errors', async () => {
+    render(<AddAnsibleTemplateTest />)
+
+    // template information
+    const ansibleError = {
+      message: 'Internal Server Error',
+      code: ResourceErrorCode.InternalServerError,
+      reason: 'self-signed certificate',
+    }
+    const ansibleJobNock = nockAnsibleTowerError(mockAnsibleCredential, ansibleError)
+    const ansibleInventoryNock = nockAnsibleTowerError(mockAnsibleCredentialInventory, ansibleError)
+    await typeByPlaceholderText('Enter the name for the template', mockClusterCurator.metadata.name!)
+    await clickByPlaceholderText('Select an existing Ansible credential')
+    await clickByText(mockSecret.metadata.name!)
+    await waitForText('The credential returned an error response from Ansible Tower. Please review the host and token.')
+
+    await waitForNocks([ansibleJobNock, ansibleInventoryNock])
   })
 })

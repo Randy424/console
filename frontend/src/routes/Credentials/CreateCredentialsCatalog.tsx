@@ -1,12 +1,13 @@
 /* Copyright Contributors to the Open Cluster Management project */
 import { LocationDescriptor } from 'history'
-import { ICatalogCard, ItemView, PageHeader } from '@stolostron/react-data-view'
+import { DataViewStringContext, ICatalogCard, ItemView } from '@stolostron/react-data-view'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from '../../lib/acm-i18next'
 import { DOC_LINKS } from '../../lib/doc-util'
 import { BackCancelState, NavigationPath, useBackCancelNavigation } from '../../NavigationPath'
-import { AcmIcon, AcmPage, Provider, ProviderIconMap, ProviderLongTextMap } from '../../ui-components'
+import { AcmIcon, AcmPage, AcmPageHeader, Provider, ProviderIconMap, ProviderLongTextMap } from '../../ui-components'
 import { CredentialsType, CREDENTIALS_TYPE_PARAM } from './CredentialsType'
+import { useDataViewStrings } from '../../lib/dataViewStrings'
 
 export const getTypedCreateCredentialsPath = (type: CredentialsType): LocationDescriptor<BackCancelState> => ({
   pathname: NavigationPath.addCredentials,
@@ -51,18 +52,20 @@ export function CreateCredentialsCatalog() {
   const keyFn = useCallback((card: ICatalogCard) => card.id, [])
 
   const breadcrumbs = useMemo(
-    () => [{ label: t('Credentials'), to: NavigationPath.credentials }, { label: t('Credential type') }],
+    () => [{ text: t('Credentials'), to: NavigationPath.credentials }, { text: t('Credential type') }],
     [t]
   )
+
+  const dataViewStrings = useDataViewStrings()
 
   return (
     <AcmPage
       header={
-        <PageHeader
+        <AcmPageHeader
           title={t('Credential type')}
           description={t('Choose your credential type.')}
-          breadcrumbs={breadcrumbs}
-          titleHelp={
+          breadcrumb={breadcrumbs}
+          titleTooltip={
             <a href={DOC_LINKS.CREATE_CONNECTION} target="_blank" rel="noreferrer">
               {t('What are the different credentials types?')}
             </a>
@@ -70,13 +73,15 @@ export function CreateCredentialsCatalog() {
         />
       }
     >
-      <ItemView
-        items={cards}
-        itemKeyFn={keyFn}
-        itemToCardFn={(card) => card}
-        onBack={back(NavigationPath.credentials)}
-        onCancel={cancel(NavigationPath.credentials)}
-      />
+      <DataViewStringContext.Provider value={dataViewStrings}>
+        <ItemView
+          items={cards}
+          itemKeyFn={keyFn}
+          itemToCardFn={(card) => card}
+          onBack={back(NavigationPath.credentials)}
+          onCancel={cancel(NavigationPath.credentials)}
+        />
+      </DataViewStringContext.Provider>
     </AcmPage>
   )
 }

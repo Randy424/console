@@ -14,7 +14,7 @@ import LogsPage from './LogsPage'
 import RelatedResourceDetailsTab from './RelatedResourceDetailsTab'
 import YAMLPage from './YAMLPage'
 
-function getResourceParams() {
+export function getResourceParams() {
   let cluster = '',
     kind = '',
     apiversion = '',
@@ -133,6 +133,10 @@ export default function DetailsPage() {
               text: t('Search'),
               to: breadcrumbLink,
             },
+            {
+              text: t('{{kind}} details', { kind }),
+              to: '',
+            },
           ]}
           navigation={
             <AcmSecondaryNav>
@@ -162,6 +166,7 @@ export default function DetailsPage() {
             loading={!resource && resourceError === ''}
             error={resourceError}
             resource={resource}
+            name={name}
           />
         </Route>
         <Route exact path={NavigationPath.resourceYAML}>

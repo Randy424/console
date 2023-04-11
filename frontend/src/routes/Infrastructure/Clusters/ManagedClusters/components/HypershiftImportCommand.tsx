@@ -5,6 +5,7 @@ import * as React from 'react'
 import { useContext } from 'react'
 import { getErrorInfo } from '../../../../../components/ErrorPage'
 import { Trans, useTranslation } from '../../../../../lib/acm-i18next'
+import { PluginContext } from '../../../../../lib/PluginContext'
 import {
   createResource,
   getSecret,
@@ -33,6 +34,7 @@ export const HypershiftImportCommand = (props: { selectedHostedClusterResource: 
   const [hypershiftKubeAPI, error] = useHypershiftKubeconfig()
   const { cluster, managedCluster } = React.useContext(ClusterContext)
   const toastContext = useContext(AcmToastContext)
+  const { isACMAvailable } = useContext(PluginContext)
 
   const [credentials, setCredentials] = React.useState<LoginCredential>()
   const name = cluster?.kubeadmin
@@ -67,13 +69,7 @@ export const HypershiftImportCommand = (props: { selectedHostedClusterResource: 
     if (!match) {
       //Invalid hostname
       //throw error, don't import cluster
-      const errorInfo = getErrorInfo(t('invalidclustername.message'), t)
-      toastContext.addAlert({
-        type: 'danger',
-        title: errorInfo.title,
-        message: errorInfo.message,
-        autoClose: true,
-      })
+      toastContext.addAlert({ ...getErrorInfo(t('invalidclustername.message'), t), autoClose: true })
       return
     }
 
@@ -115,7 +111,7 @@ export const HypershiftImportCommand = (props: { selectedHostedClusterResource: 
           vendor: 'Openshift',
         },
         applicationManager: {
-          enabled: false,
+          enabled: true,
           argocdCluster: false,
         },
         policyController: {
@@ -155,12 +151,7 @@ export const HypershiftImportCommand = (props: { selectedHostedClusterResource: 
         })
       })
       .catch((err) => {
-        const errorInfo = getErrorInfo(err, t)
-        toastContext.addAlert({
-          type: 'danger',
-          title: errorInfo.title,
-          message: errorInfo.message,
-        })
+        toastContext.addAlert(getErrorInfo(err, t))
       })
 
     patchResource(selectedHostedClusterResource as IResource, [
@@ -168,13 +159,15 @@ export const HypershiftImportCommand = (props: { selectedHostedClusterResource: 
     ])
 
     //Create namespace for addons if it doesn't already exist
-    try {
-      createResource(clusterNameSpace as IResource)
-    } catch (err) {}
+    if (isACMAvailable) {
+      try {
+        createResource(clusterNameSpace as IResource)
+      } catch (err) {}
 
-    try {
-      createResource(klusterletAddonConfig as IResource)
-    } catch (err) {}
+      try {
+        createResource(klusterletAddonConfig as IResource)
+      } catch (err) {}
+    }
   }
 
   if (!v1ImportCommand && cluster?.isHypershift && !managedCluster) {

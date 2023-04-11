@@ -23,7 +23,7 @@ import {
 import { NavigationPath } from '../../../../../../../NavigationPath'
 import { ModalProps } from './types'
 import { deleteResources } from '../../../../../../../lib/delete-resources'
-import { IBulkActionModalProps } from '../../../../../../../components/BulkActionModal'
+import { BulkActionModalProps } from '../../../../../../../components/BulkActionModal'
 import { AgentK8sResource, BareMetalHostK8sResource } from 'openshift-assisted-ui-lib/cim'
 import { useSharedAtoms, useSharedRecoil, useRecoilValue } from '../../../../../../../shared-recoil'
 import { K8sResourceCommon } from '@openshift-console/dynamic-plugin-sdk'
@@ -173,7 +173,12 @@ export const onDiscoveryHostsNext = async ({ clusterDeployment, agents, agentClu
   }
 }
 
-const appendPatch = (patches: any, path: string, newVal: object | string | boolean, existingVal?: object | string) => {
+const appendPatch = (
+  patches: any,
+  path: string,
+  newVal: object | string | boolean,
+  existingVal?: object | string | boolean
+) => {
   if (!isEqual(newVal, existingVal)) {
     patches.push({
       op: existingVal ? 'replace' : 'add',
@@ -235,8 +240,37 @@ export const getNetworkingPatches = (agentClusterInstall: CIM.AgentClusterInstal
       agentClusterInstall.spec?.networking?.machineNetwork?.[0]?.cidr
     )
   } else {
-    appendPatch(agentClusterInstallPatches, '/spec/apiVIP', values.apiVip, agentClusterInstall.spec?.apiVIP)
-    appendPatch(agentClusterInstallPatches, '/spec/ingressVIP', values.ingressVip, agentClusterInstall.spec?.ingressVIP)
+    const isUserNetworking = values.managedNetworkingType === 'userManaged'
+    appendPatch(
+      agentClusterInstallPatches,
+      '/spec/networking/userManagedNetworking',
+      isUserNetworking,
+      agentClusterInstall.spec?.networking?.userManagedNetworking
+    )
+    if (isUserNetworking) {
+      if (agentClusterInstall.spec?.ingressVIP) {
+        agentClusterInstallPatches.push({
+          op: 'remove',
+          path: '/spec/ingressVIP',
+        })
+      }
+
+      if (agentClusterInstall.spec?.apiVIP) {
+        agentClusterInstallPatches.push({
+          op: 'remove',
+          path: '/spec/apiVIP',
+        })
+      }
+      appendPatch(agentClusterInstallPatches, '/spec/platformType', 'None', agentClusterInstall.spec?.platformType)
+    } else {
+      appendPatch(agentClusterInstallPatches, '/spec/apiVIP', values.apiVip, agentClusterInstall.spec?.apiVIP)
+      appendPatch(
+        agentClusterInstallPatches,
+        '/spec/ingressVIP',
+        values.ingressVip,
+        agentClusterInstall.spec?.ingressVIP
+      )
+    }
   }
 
   if (values.enableProxy) {
@@ -449,7 +483,7 @@ export const agentNameSortFunc = (
 
 export const useOnDeleteHost = (
   toggleDialog: (
-    props: IBulkActionModalProps<CIM.AgentK8sResource | CIM.BareMetalHostK8sResource> | { open: false }
+    props: BulkActionModalProps<CIM.AgentK8sResource | CIM.BareMetalHostK8sResource> | { open: false }
   ) => void,
   bareMetalHosts: CIM.BareMetalHostK8sResource[],
   agentClusterInstall?: CIM.AgentClusterInstallK8sResource,
@@ -464,7 +498,8 @@ export const useOnDeleteHost = (
         title: t('host.action.title.delete'),
         action: t('delete'),
         processing: t('deleting'),
-        resources: [agent, bmh].filter(Boolean) as (CIM.AgentK8sResource | CIM.BareMetalHostK8sResource)[],
+        items: [agent, bmh].filter(Boolean) as (CIM.AgentK8sResource | CIM.BareMetalHostK8sResource)[],
+        emptyState: undefined, // nothing displayed if neither agent nor bmh supplied
         description: t('host.action.message.delete'),
         columns: [
           {
@@ -747,9 +782,10 @@ export const importYaml = (yamlContent: unknown) => {
 
 // Simple string search is _so far_ enough.
 // Full key-path support would be ineffective when not actually needed.
-export const getTemplateValue = (yaml: string, simpleKey: string, defaultValue: string) => {
+export const getTemplateValue = (yaml: string, simpleKey: string, defaultValue: string, index?: number) => {
   const lines = yaml.split('\n')
   const regex = new RegExp(`^ *${simpleKey}: *`)
+  let value
 
   const rows = lines.filter((l) => l.match(regex))
 
@@ -757,12 +793,17 @@ export const getTemplateValue = (yaml: string, simpleKey: string, defaultValue: 
     return defaultValue
   }
 
-  if (rows.length > 1) {
+  if (rows.length > 1 && index === undefined) {
     // Provide better key (i.e. leverage indentation). If this is not enough, let's full-parse the yaml instead.
     throw new Error(`Multiple matches for yaml key "${simpleKey}"`)
   }
 
-  const value = rows[0].replace(regex, '').trim()
+  if (rows.length > 1 && index) {
+    value = rows[index].replace(regex, '').trim()
+    return value
+  }
+
+  value = rows[0].replace(regex, '').trim()
   return value
 }
 

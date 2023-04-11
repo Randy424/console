@@ -196,10 +196,9 @@ export function ResourceConditions(props: { conditions: ResourceCondition[] }) {
           {t('Conditions')}
         </Text>
         {conditions.length ? (
-          <AcmTable
-            key={'resource-conditions'}
-            plural={t('resource conditions')}
+          <AcmTable<ResourceCondition>
             items={conditions}
+            emptyState={undefined} // only shown when there are conditions
             columns={cols}
             keyFn={() => Math.random().toString(36).substring(7)}
             autoHidePagination={true}
@@ -217,8 +216,9 @@ export default function DetailsOverviewPage(props: {
   resource: IResource
   loading: boolean
   error: string
+  name: string
 }) {
-  const { cluster, resource, loading, error } = props
+  const { cluster, resource, loading, error, name } = props
   const { t } = useTranslation()
   const history = useHistory()
   const [canEditResource, setCanEditResource] = useState<boolean>(false)

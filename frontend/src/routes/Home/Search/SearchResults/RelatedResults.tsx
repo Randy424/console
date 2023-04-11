@@ -12,6 +12,7 @@ import {
 import _ from 'lodash'
 import { useMemo } from 'react'
 import { useTranslation } from '../../../../lib/acm-i18next'
+import { useSharedAtoms } from '../../../../shared-recoil'
 import { AcmLoadingPage, AcmTable } from '../../../../ui-components'
 import { IDeleteModalProps } from '../components/Modals/DeleteResourceModal'
 import { convertStringToQuery } from '../search-helper'
@@ -27,10 +28,12 @@ export function RenderItemContent(props: {
 }) {
   const { currentQuery, relatedKind, setDeleteResource } = props
   const { t } = useTranslation()
+  const { useSearchResultLimit } = useSharedAtoms()
+  const searchResultLimit = useSearchResultLimit()
   const { data, loading, error } = useSearchResultRelatedItemsQuery({
     client: process.env.NODE_ENV === 'test' ? undefined : searchClient,
     variables: {
-      input: [{ ...convertStringToQuery(currentQuery), relatedKinds: [relatedKind] }],
+      input: [{ ...convertStringToQuery(currentQuery, searchResultLimit), relatedKinds: [relatedKind] }],
     },
   })
 
@@ -58,8 +61,8 @@ export function RenderItemContent(props: {
 
   return (
     <AcmTable
-      plural=""
       items={relatedResultItems}
+      emptyState={undefined} // table only shown for kinds with related resources
       columns={colDefs}
       keyFn={(item: any) => item?._uid.toString() ?? `${item.name}-${item.namespace}-${item.cluster}`}
       rowActions={GetRowActions(relatedKind, currentQuery, true, setDeleteResource, t)}
@@ -75,7 +78,9 @@ export default function RelatedResults(props: {
 }) {
   const { currentQuery, selectedRelatedKinds, setSelectedRelatedKinds, setDeleteResource } = props
   const { t } = useTranslation()
-  const queryFilters = convertStringToQuery(currentQuery)
+  const { useSearchResultLimit } = useSharedAtoms()
+  const searchResultLimit = useSearchResultLimit()
+  const queryFilters = convertStringToQuery(currentQuery, searchResultLimit)
   const { data, error, loading } = useSearchResultRelatedCountQuery({
     client: process.env.NODE_ENV === 'test' ? undefined : searchClient,
     variables: {

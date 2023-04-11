@@ -32,10 +32,10 @@ import moment from 'moment'
 import { ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { Link, useHistory } from 'react-router-dom'
 import { useRecoilState, useSharedAtoms } from '../../../shared-recoil'
-import { BulkActionModal, IBulkActionModalProps } from '../../../components/BulkActionModal'
+import { BulkActionModal, BulkActionModalProps } from '../../../components/BulkActionModal'
 import { useTranslation } from '../../../lib/acm-i18next'
 import { deletePolicy } from '../../../lib/delete-policy'
-import { getPlacementBindingsForResource, getPlacementsForResource } from '../common/util'
+import { formatDescriptionForDropdown, getPlacementBindingsForResource, getPlacementsForResource } from '../common/util'
 import { checkPermission, rbacCreate, rbacUpdate, rbacPatch } from '../../../lib/rbac-util'
 import { transformBrowserUrlToFilterPresets } from '../../../lib/urlQuery'
 import { NavigationPath } from '../../../NavigationPath'
@@ -105,7 +105,7 @@ export default function PoliciesPage() {
   const policyClusterViolationSummaryMap = usePolicyClusterViolationSummaryMap(policies)
   const history = useHistory()
   const [policySets] = useRecoilState(policySetsState)
-  const [modalProps, setModalProps] = useState<IBulkActionModalProps<PolicyTableItem> | { open: false }>({
+  const [modalProps, setModalProps] = useState<BulkActionModalProps<PolicyTableItem> | { open: false }>({
     open: false,
   })
 
@@ -395,7 +395,8 @@ export default function PoliciesPage() {
                 title: t('policy.modal.title.enable'),
                 action: t('policy.table.actions.enable'),
                 processing: t('policy.table.actions.enabling'),
-                resources: [...item],
+                items: [...item],
+                emptyState: undefined, // there is always 1 item supplied
                 description: t('policy.modal.message.enable'),
                 columns: bulkModalStatusColumns,
                 keyFn: (item: PolicyTableItem) => item.policy.metadata.uid as string,
@@ -434,7 +435,8 @@ export default function PoliciesPage() {
                 title: t('policy.modal.title.disable'),
                 action: t('policy.table.actions.disable'),
                 processing: t('policy.table.actions.disabling'),
-                resources: [...item],
+                items: [...item],
+                emptyState: undefined, // there is always 1 item supplied
                 description: t('policy.modal.message.disable'),
                 columns: bulkModalStatusColumns,
                 keyFn: (item: PolicyTableItem) => item.policy.metadata.uid as string,
@@ -484,7 +486,8 @@ export default function PoliciesPage() {
                 title: t('policy.modal.title.inform'),
                 action: t('policy.table.actions.inform'),
                 processing: t('policy.table.actions.informing'),
-                resources: [...item],
+                items: [...item],
+                emptyState: undefined, // there is always 1 item supplied
                 description: t('policy.modal.message.inform'),
                 columns: bulkModalRemediationColumns,
                 keyFn: (item: PolicyTableItem) => item.policy.metadata.uid as string,
@@ -523,7 +526,8 @@ export default function PoliciesPage() {
                 title: t('policy.modal.title.enforce'),
                 action: t('policy.table.actions.enforce'),
                 processing: t('policy.table.actions.enforcing'),
-                resources: [...item],
+                items: [...item],
+                emptyState: undefined, // there is always 1 item supplied
                 description: t('policy.modal.message.enforce'),
                 columns: bulkModalRemediationColumns,
                 keyFn: (item: PolicyTableItem) => item.policy.metadata.uid as string,
@@ -721,10 +725,10 @@ export default function PoliciesPage() {
       <BulkActionModal<PolicyTableItem> {...modalProps} />
       <AcmTable<PolicyTableItem>
         id="policyTable"
-        plural={t('Policies')}
         columns={policyColumns}
         keyFn={policyKeyFn}
         items={tableItems}
+        emptyState={undefined} // only shown when tableItems.length > 0
         tableActions={tableActions}
         initialFilters={
           presets.initialFilters.violations ? { violations: presets.initialFilters.violations } : undefined
@@ -744,29 +748,56 @@ export default function PoliciesPage() {
           const standards = item.policy.metadata.annotations?.['policy.open-cluster-management.io/standards']
           const controls = item.policy.metadata.annotations?.['policy.open-cluster-management.io/controls']
           const categories = item.policy.metadata.annotations?.['policy.open-cluster-management.io/categories']
-          if (!standards && !controls && !categories) return undefined
+          const desc = item.policy.metadata.annotations?.['policy.open-cluster-management.io/description']
+          const formattedDescription = formatDescriptionForDropdown(desc as string)
           return [
             {
-              fullWidth: true,
               cells: [
                 {
                   title: (
-                    <div style={{ marginLeft: 106, marginTop: '20px', marginBottom: '20px' }}>
-                      <DescriptionList isAutoFit isAutoColumnWidths>
-                        <DescriptionListGroup>
-                          <DescriptionListTerm>{t('Standards')}</DescriptionListTerm>
-                          <DescriptionListDescription>{standards ?? '-'}</DescriptionListDescription>
-                        </DescriptionListGroup>
-                        <DescriptionListGroup>
-                          <DescriptionListTerm>{t('Controls')}</DescriptionListTerm>
-                          <DescriptionListDescription>{controls ?? '-'}</DescriptionListDescription>
-                        </DescriptionListGroup>
-                        <DescriptionListGroup>
-                          <DescriptionListTerm>{t('Categories')}</DescriptionListTerm>
-                          <DescriptionListDescription>{categories ?? '-'}</DescriptionListDescription>
-                        </DescriptionListGroup>
-                      </DescriptionList>
-                    </div>
+                    <Stack hasGutter>
+                      <StackItem>
+                        <DescriptionList isAutoFit isAutoColumnWidths>
+                          <DescriptionListGroup>
+                            <DescriptionListTerm>{t('Description')}</DescriptionListTerm>
+                            <DescriptionListDescription>
+                              {formattedDescription.length > 0 ? (
+                                formattedDescription
+                              ) : (
+                                <Button
+                                  variant="link"
+                                  isInline
+                                  onClick={() => {
+                                    const path = NavigationPath.editPolicy
+                                      .replace(':namespace', item.policy.metadata.namespace!)
+                                      .replace(':name', item.policy.metadata.name!)
+                                    history.push(path + '?context=policies')
+                                  }}
+                                >
+                                  Add
+                                </Button>
+                              )}
+                            </DescriptionListDescription>
+                          </DescriptionListGroup>
+                        </DescriptionList>
+                      </StackItem>
+                      <StackItem>
+                        <DescriptionList isAutoFit isAutoColumnWidths>
+                          <DescriptionListGroup>
+                            <DescriptionListTerm>{t('Standards')}</DescriptionListTerm>
+                            <DescriptionListDescription>{standards ?? '-'}</DescriptionListDescription>
+                          </DescriptionListGroup>
+                          <DescriptionListGroup>
+                            <DescriptionListTerm>{t('Controls')}</DescriptionListTerm>
+                            <DescriptionListDescription>{controls ?? '-'}</DescriptionListDescription>
+                          </DescriptionListGroup>
+                          <DescriptionListGroup>
+                            <DescriptionListTerm>{t('Categories')}</DescriptionListTerm>
+                            <DescriptionListDescription>{categories ?? '-'}</DescriptionListDescription>
+                          </DescriptionListGroup>
+                        </DescriptionList>
+                      </StackItem>
+                    </Stack>
                   ),
                 },
               ],
@@ -967,7 +998,7 @@ export function AddToPolicySetModal(props: { policyTableItems: PolicyTableItem[]
           <AcmTable<PolicyTableItem>
             columns={addPolicyToSetColumns}
             items={props.policyTableItems}
-            plural="Policies"
+            emptyState={undefined} // only shown when policyTableItems is not empty
             keyFn={(item: PolicyTableItem) => item.policy.metadata.uid as string}
           />
         </StackItem>

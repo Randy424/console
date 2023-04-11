@@ -2,15 +2,15 @@
 import {
   AgentClusterInstallK8sResource,
   AgentK8sResource,
-  AgentServiceConfigK8sResource,
   AgentMachineK8sResource,
+  AgentServiceConfigK8sResource,
   BareMetalHostK8sResource,
+  ClusterVersionK8sResource,
   HostedClusterK8sResource,
   InfraEnvK8sResource,
   InfrastructureK8sResource,
   NMStateK8sResource,
   NodePoolK8sResource,
-  ClusterVersionK8sResource,
   StorageClassK8sResource,
 } from 'openshift-assisted-ui-lib/cim'
 import { useMemo } from 'react'
@@ -135,6 +135,9 @@ export const settingsState = atom<Settings>({ key: 'settings', default: {} })
 export interface Settings {
   LOG_LEVEL?: string
   SAVED_SEARCH_LIMIT?: string
+  SEARCH_RESULT_LIMIT?: string
+  SEARCH_AUTOCOMPLETE_LIMIT?: string
+
   ansibleIntegration?: 'enabled' | 'disabled'
   singleNodeOpenshift?: 'enabled' | 'disabled'
   awsPrivateWizardStep?: 'enabled' | 'disabled'
@@ -171,4 +174,14 @@ export function usePolicies() {
 export function useSavedSearchLimit() {
   const settings = useRecoilValue(settingsState)
   return useMemo(() => parseInt(settings.SAVED_SEARCH_LIMIT ?? '10'), [settings])
+}
+
+export function useSearchResultLimit() {
+  const settings = useRecoilValue(settingsState)
+  return useMemo(() => parseInt(settings.SEARCH_RESULT_LIMIT ?? '1000'), [settings])
+}
+
+export function useSearchAutocompleteLimit() {
+  const settings = useRecoilValue(settingsState)
+  return useMemo(() => parseInt(settings.SEARCH_AUTOCOMPLETE_LIMIT ?? '10000'), [settings])
 }

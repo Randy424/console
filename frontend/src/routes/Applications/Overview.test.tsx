@@ -12,6 +12,7 @@ import {
   managedClusterInfosState,
   managedClustersState,
   namespacesState,
+  placementDecisionsState,
   placementRulesState,
   subscriptionsState,
 } from '../../atoms'
@@ -22,8 +23,8 @@ import { PluginContext } from '../../lib/PluginContext'
 import { NavigationPath } from '../../NavigationPath'
 import ApplicationsPage from './ApplicationsPage'
 import {
-  mockSearchQuery,
-  mockSearchResponse,
+  mockSearchQueryArgoApps,
+  mockSearchResponseArgoApps,
   mockSearchQueryOCPApplications,
   mockSearchResponseOCPApplications,
   mockApplications,
@@ -41,6 +42,7 @@ import {
   mockArgoApplication1,
   mockOCPApplication0,
   mockFluxApplication0,
+  mockPlacementsDecisions,
 } from './Application.sharedmocks'
 import { PluginDataContext } from '../../lib/PluginDataContext'
 
@@ -48,7 +50,7 @@ describe('Applications Page', () => {
   beforeEach(async () => {
     nockIgnoreRBAC()
     nockIgnoreApiPaths()
-    nockSearch(mockSearchQuery, mockSearchResponse)
+    nockSearch(mockSearchQueryArgoApps, mockSearchResponseArgoApps)
     nockSearch(mockSearchQueryOCPApplications, mockSearchResponseOCPApplications)
     render(
       <RecoilRoot
@@ -56,6 +58,7 @@ describe('Applications Page', () => {
           snapshot.set(applicationsState, mockApplications)
           snapshot.set(subscriptionsState, mockSubscriptions)
           snapshot.set(channelsState, mockChannels)
+          snapshot.set(placementDecisionsState, mockPlacementsDecisions)
           snapshot.set(placementRulesState, mockPlacementrules)
           snapshot.set(managedClustersState, mockManagedClusters)
           snapshot.set(applicationSetsState, mockApplicationSets)
@@ -72,7 +75,7 @@ describe('Applications Page', () => {
       </RecoilRoot>
     )
     // wait for page to load
-    await waitForText(mockApplication0.metadata.name!)
+    await waitForText('feng-remote-argo8')
   })
 
   test('should display info', async () => {

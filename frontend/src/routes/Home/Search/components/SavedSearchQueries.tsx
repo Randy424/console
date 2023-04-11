@@ -15,6 +15,7 @@ import { Fragment, useCallback, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { useTranslation } from '../../../../lib/acm-i18next'
 import { SavedSearch, UserPreference } from '../../../../resources/userpreference'
+import { useSharedAtoms } from '../../../../shared-recoil'
 import { AcmCountCard, AcmExpandableWrapper } from '../../../../ui-components'
 import { convertStringToQuery } from '../search-helper'
 import { searchClient } from '../search-sdk/search-client'
@@ -29,10 +30,13 @@ export default function SavedSearchQueries(props: {
   savedSearches: SavedSearch[]
   setSelectedSearch: React.Dispatch<React.SetStateAction<string>>
   userPreference?: UserPreference
+  setUserPreference: React.Dispatch<React.SetStateAction<UserPreference | undefined>>
 }) {
-  const { savedSearches, setSelectedSearch, userPreference } = props
+  const { savedSearches, setSelectedSearch, userPreference, setUserPreference } = props
   const { t } = useTranslation()
   const history = useHistory()
+  const { useSearchResultLimit } = useSharedAtoms()
+  const searchResultLimit = useSearchResultLimit()
   const [editSavedSearch, setEditSavedSearch] = useState<SavedSearch | undefined>(undefined)
   const [shareSearch, setShareSearch] = useState<SavedSearch | undefined>(undefined)
   const [deleteSearch, setDeleteSearch] = useState<SavedSearch | undefined>(undefined)
@@ -40,8 +44,10 @@ export default function SavedSearchQueries(props: {
   const suggestedQueryTemplates = useSuggestedQueryTemplates().templates ?? ([] as SavedSearch[])
   // combine the suggested queries and saved queries
   const input = [
-    ...savedSearches.map((query) => convertStringToQuery(query.searchText)),
-    ...suggestedQueryTemplates.map((query: { searchText: string }) => convertStringToQuery(query.searchText)),
+    ...savedSearches.map((query) => convertStringToQuery(query.searchText, searchResultLimit)),
+    ...suggestedQueryTemplates.map((query: { searchText: string }) =>
+      convertStringToQuery(query.searchText, searchResultLimit)
+    ),
   ]
   const { data, error, loading } = useSearchResultCountQuery({
     variables: { input: input },
@@ -97,6 +103,7 @@ export default function SavedSearchQueries(props: {
             onClose={() => setEditSavedSearch(undefined)}
             savedSearchQueries={savedSearches}
             userPreference={userPreference}
+            setUserPreference={setUserPreference}
           />
         )}
         {shareSearch && <ShareSearchModal shareSearch={shareSearch} onClose={() => setShareSearch(undefined)} />}
@@ -105,15 +112,11 @@ export default function SavedSearchQueries(props: {
             onClose={() => setDeleteSearch(undefined)}
             searchToDelete={deleteSearch}
             userPreference={userPreference}
+            setUserPreference={setUserPreference}
           />
         )}
         {savedSearches.length > 0 && (
-          <AcmExpandableWrapper
-            maxHeight={'16.5rem'}
-            headerLabel={t('Saved searches')}
-            withCount={false}
-            expandable={true}
-          >
+          <AcmExpandableWrapper headerLabel={t('Saved searches')} withCount={false} expandable={true} minWidth={300}>
             {savedSearches.map((savedSearch, index) => {
               return (
                 <AcmCountCard
@@ -149,7 +152,12 @@ export default function SavedSearchQueries(props: {
             })}
           </AcmExpandableWrapper>
         )}
-        <AcmExpandableWrapper headerLabel={t('Suggested search templates')} withCount={false} expandable={false}>
+        <AcmExpandableWrapper
+          headerLabel={t('Suggested search templates')}
+          withCount={false}
+          expandable={false}
+          minWidth={300}
+        >
           {suggestedQueryTemplates.map((query, index) => {
             return (
               <AcmCountCard

@@ -34,13 +34,23 @@ import {
   createResource,
   getClusterCurator,
   IResource,
+  listAnsibleTowerInventories,
   listAnsibleTowerJobs,
   ProviderConnection,
   replaceResource,
+  ResourceErrorCode,
   Secret,
 } from '../../../resources'
 import { useRecoilState, useRecoilValue, useSharedAtoms, useSharedSelectors } from '../../../shared-recoil'
-import { AcmForm, AcmLabelsInput, AcmModal, AcmSelect, AcmSubmit, Provider } from '../../../ui-components'
+import {
+  AcmAnsibleTagsInput,
+  AcmForm,
+  AcmKubernetesLabelsInput,
+  AcmModal,
+  AcmSelect,
+  AcmSubmit,
+  Provider,
+} from '../../../ui-components'
 import { CredentialsForm } from '../../Credentials/CredentialsForm'
 import schema from './schema.json'
 
@@ -120,6 +130,9 @@ export function AnsibleAutomationsForm(props: {
   }>()
   const [templateName, setTemplateName] = useState(clusterCurator?.metadata.name ?? '')
   const [ansibleSelection, setAnsibleSelection] = useState(clusterCurator?.spec?.install?.towerAuthSecret ?? '')
+  const [ansibleInventory, setAnsibleInventory] = useState(clusterCurator?.spec?.inventory ?? '')
+  const [ansibleTowerInventoryList, setAnsibleTowerInventoryList] = useState<string[]>([])
+
   const [AnsibleTowerJobTemplateList, setAnsibleTowerJobTemplateList] = useState<string[]>()
   const [AnsibleTowerWorkflowTemplateList, setAnsibleTowerWorkflowTemplateList] = useState<string[]>()
   const [AnsibleTowerAuthError, setAnsibleTowerAuthError] = useState('')
@@ -164,26 +177,52 @@ export function AnsibleAutomationsForm(props: {
   useEffect(() => {
     if (ansibleSelection) {
       const selectedCred = ansibleCredentials.find((credential) => credential.metadata.name === ansibleSelection)
+      const inventoryList: string[] = []
       const jobList: string[] = []
       const workflowList: string[] = []
-      listAnsibleTowerJobs(selectedCred?.stringData?.host!, selectedCred?.stringData?.token!)
-        .promise.then((response) => {
-          if (response) {
-            response.results.forEach((template) => {
-              if (template.type === 'job_template' && template.name) {
-                jobList.push(template.name)
-              } else if (template.type === 'workflow_job_template' && template.name) {
-                workflowList.push(template.name)
-              }
-            })
-            setAnsibleTowerJobTemplateList(jobList)
-            setAnsibleTowerWorkflowTemplateList(workflowList)
-            setAnsibleTowerAuthError('')
+      Promise.all([
+        listAnsibleTowerJobs(selectedCred?.stringData?.host!, selectedCred?.stringData?.token!).promise.then(
+          (response) => {
+            if (response) {
+              response.results.forEach((template) => {
+                if (template.type === 'job_template' && template.name) {
+                  jobList.push(template.name)
+                } else if (template.type === 'workflow_job_template' && template.name) {
+                  workflowList.push(template.name)
+                }
+              })
+              setAnsibleTowerJobTemplateList(jobList)
+              setAnsibleTowerWorkflowTemplateList(workflowList)
+            }
           }
+        ),
+        listAnsibleTowerInventories(selectedCred?.stringData?.host!, selectedCred?.stringData?.token!).promise.then(
+          (response) => {
+            if (response) {
+              response.results.forEach((inventory) => {
+                if (inventory.name) {
+                  inventoryList.push(inventory.name)
+                }
+              })
+              setAnsibleTowerInventoryList(inventoryList)
+            }
+          }
+        ),
+      ])
+        .then(() => {
+          setAnsibleTowerAuthError('')
         })
-        .catch(() => {
-          setAnsibleTowerAuthError(t('validate.ansible.host'))
+        .catch((err) => {
+          console.log('CAUGHT THE ERROR')
+          console.log(err)
+          setAnsibleTowerAuthError(
+            err.code === ResourceErrorCode.InternalServerError && err.reason
+              ? t('validate.ansible.reason', { reason: err.reason })
+              : t('validate.ansible.host')
+          )
           setAnsibleTowerJobTemplateList([])
+          setAnsibleTowerWorkflowTemplateList([])
+          setAnsibleTowerInventoryList([])
         })
     }
   }, [ansibleSelection, ansibleCredentials, t])
@@ -223,6 +262,7 @@ export function AnsibleAutomationsForm(props: {
           prehook: upgradePreJobs,
           posthook: upgradePostJobs,
         },
+        ...(ansibleInventory ? { inventory: ansibleInventory } : {}),
         ...(settings.ansibleIntegration === 'enabled'
           ? {
               scale: {
@@ -316,6 +356,21 @@ export function AnsibleAutomationsForm(props: {
             validation: () => {
               if (AnsibleTowerAuthError) return AnsibleTowerAuthError
             },
+            validate: !!AnsibleTowerAuthError,
+          },
+          {
+            id: 'Inventory',
+            type: 'Select',
+            label: t('Ansible inventory'),
+            placeholder: t('Select an inventory'),
+            value: ansibleInventory,
+            onChange: setAnsibleInventory,
+            isRequired: false,
+            options: ansibleTowerInventoryList.map((name) => ({
+              id: name as string,
+              value: name as string,
+            })),
+            isHidden: !ansibleSelection,
           },
         ],
       },
@@ -625,6 +680,7 @@ function EditAnsibleJobModal(props: {
       title={props.ansibleJob?.name !== '' ? t('template.modal.title.edit') : t('template.modal.title.add')}
       isOpen={props.ansibleJob !== undefined}
       onClose={() => props.setAnsibleJob()}
+      position="top"
     >
       <AcmForm>
         <FormGroup fieldId="template-type" isInline>
@@ -677,7 +733,7 @@ function EditAnsibleJobModal(props: {
               ))}
         </AcmSelect>
 
-        <AcmLabelsInput
+        <AcmKubernetesLabelsInput
           id="job-settings"
           label={t('template.modal.settings.label')}
           value={ansibleJob?.extra_vars}
@@ -688,9 +744,38 @@ function EditAnsibleJobModal(props: {
               setAnsibleJob(copy)
             }
           }}
-          buttonLabel=""
           placeholder={t('template.modal.settings.placeholder')}
         />
+        {filterForJobTemplates && (
+          <>
+            <AcmAnsibleTagsInput
+              id="job-jobtags"
+              label={t('Job tags')}
+              value={ansibleJob?.job_tags}
+              onChange={(labels) => {
+                if (ansibleJob) {
+                  const copy = { ...ansibleJob }
+                  copy.job_tags = labels
+                  setAnsibleJob(copy)
+                }
+              }}
+              placeholder={t('Enter job tag with "," or "enter"')}
+            />
+            <AcmAnsibleTagsInput
+              id="job-skiptags"
+              label={t('Skip tags')}
+              value={ansibleJob?.skip_tags}
+              onChange={(labels) => {
+                if (ansibleJob) {
+                  const copy = { ...ansibleJob }
+                  copy.skip_tags = labels
+                  setAnsibleJob(copy)
+                }
+              }}
+              placeholder={t('Enter skip tag with "," or "enter"')}
+            />
+          </>
+        )}
         {!filterForJobTemplates && (
           <AutomationProviderHint component="alert" operatorNotRequired workflowSupportRequired />
         )}

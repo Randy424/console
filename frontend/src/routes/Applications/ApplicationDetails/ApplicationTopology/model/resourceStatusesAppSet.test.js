@@ -13063,6 +13063,17 @@ describe('getAppSetResourceStatuses', () => {
               status: 'Synced',
               version: 'v1',
             },
+            {
+              name: 'helloworld-app-deploy',
+              namespace: 'cluster-configs-rhacm',
+              group: 'apps',
+              health: {
+                status: 'Healthy',
+              },
+              kind: 'Deployment',
+              status: 'Synced',
+              version: 'v1',
+            },
           ],
           sourceType: 'Directory',
           summary: {},

@@ -2,20 +2,20 @@
 import { CheckIcon, ExternalLinkAltIcon } from '@patternfly/react-icons'
 import {
   CatalogCardItemType,
+  CatalogColor,
   getPatternflyColor,
-  ICatalogBreadcrumb,
   ICatalogCard,
-  ItemView,
   PageHeader,
   PatternFlyColor,
 } from '@stolostron/react-data-view'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from '../../../../../lib/acm-i18next'
 import { DOC_LINKS } from '../../../../../lib/doc-util'
 import { NavigationPath, useBackCancelNavigation } from '../../../../../NavigationPath'
 import { listMultiClusterEngines } from '../../../../../resources'
-import { AcmPage } from '../../../../../ui-components'
 import { getTypedCreateClusterPath, HostInventoryInfrastructureType } from '../ClusterInfrastructureType'
+import { breadcrumbs } from './common/common'
+import { GetControlPlane } from './common/GetControlPlane'
 
 export function CreateControlPlane() {
   const [t] = useTranslation()
@@ -73,6 +73,8 @@ export function CreateControlPlane() {
             {t('View documentation')} <ExternalLinkAltIcon />
           </a>
         ),
+        badge: t('Technology preview'),
+        badgeColor: CatalogColor.orange,
       },
       {
         id: 'standalone',
@@ -105,34 +107,18 @@ export function CreateControlPlane() {
     return newCards
   }, [nextStep, t, isHypershiftEnabled])
 
-  const keyFn = useCallback((card: ICatalogCard) => card.id, [])
-
-  const breadcrumbs = useMemo(() => {
-    const newBreadcrumbs: ICatalogBreadcrumb[] = [
-      { label: t('Clusters'), to: NavigationPath.clusters },
-      { label: t('Infrastructure'), to: NavigationPath.createCluster },
-      { label: t('Control plane type - {{hcType}}', { hcType: 'Host Inventory' }) },
-    ]
-    return newBreadcrumbs
-  }, [t])
-
   return (
-    <AcmPage
-      header={
+    <GetControlPlane
+      pageHeader={
         <PageHeader
           title={t('Control plane type - {{hcType}}', { hcType: 'Host Inventory' })}
           description={t('Choose a control plane type for your self-managed OpenShift cluster.')}
-          breadcrumbs={breadcrumbs}
+          breadcrumbs={breadcrumbs('Host Inventory', t)}
         />
       }
-    >
-      <ItemView
-        items={cards}
-        itemKeyFn={keyFn}
-        itemToCardFn={(card) => card}
-        onBack={back(NavigationPath.createCluster)}
-        onCancel={cancel(NavigationPath.clusters)}
-      />
-    </AcmPage>
+      cards={cards}
+      onBack={back(NavigationPath.createCluster)}
+      onCancel={cancel(NavigationPath.clusters)}
+    />
   )
 }

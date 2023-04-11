@@ -1,8 +1,12 @@
 /* Copyright Contributors to the Open Cluster Management project */
 
 /* istanbul ignore file */
-import { isEqual } from 'lodash'
+import isEqual from 'lodash/isEqual'
+import set from 'lodash/set'
+import { diff } from 'deep-diff'
 import nock from 'nock'
+import StackTrace from 'stacktrace-js'
+import { Url } from 'url'
 import {
   AnsibleTowerJobTemplateList,
   ClusterRoleBinding,
@@ -16,10 +20,9 @@ import {
   StatusApiVersion,
   StatusKind,
 } from '../resources'
+import { AnsibleTowerInventoryList } from '../resources/ansible-inventory'
 import { APIResourceNames } from './api-resource-list'
 import { apiSearchUrl, ISearchResult, SearchQuery } from './search'
-import StackTrace from 'stacktrace-js'
-import { Url } from 'url'
 
 export type ISearchRelatedResult = {
   data: {
@@ -229,6 +232,7 @@ export function nockCreate(
 ) {
   const scope = nocked(process.env.JEST_DEFAULT_HOST as string, { encodedQueryParams: true })
     .post(`${getResourceApiPathTestHelper(resource)}${getNockParams(params)}`, (body) => {
+      set(scope, 'diff', diff(body, resource))
       return isEqual(body, resource)
     })
     .reply(statusCode, response ?? resource, {
@@ -236,6 +240,15 @@ export function nockCreate(
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Credentials': 'true',
     })
+  return scope
+}
+
+export function nockCreateError(resource: IResource | ClusterRoleBinding, error: string | object) {
+  const scope = nocked(process.env.JEST_DEFAULT_HOST as string, { encodedQueryParams: true })
+    .post(getResourceApiPathTestHelper(resource), (body) => {
+      return isEqual(body, resource)
+    })
+    .replyWithError(error)
   return scope
 }
 
@@ -336,6 +349,30 @@ export function nockAnsibleTower(
     })
 }
 
+export function nockAnsibleTowerInventory(
+  data: AnsibleCredentialPostBody | unknown,
+  response: AnsibleTowerInventoryList,
+  statusCode = 200
+) {
+  return nocked(process.env.JEST_DEFAULT_HOST as string, {
+    encodedQueryParams: true,
+  })
+    .post('/ansibletower', (body) => isEqual(body, data))
+    .reply(statusCode, response, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Credentials': 'true',
+    })
+}
+
+export function nockAnsibleTowerError(data: AnsibleCredentialPostBody | unknown, error: string | object) {
+  return nocked(process.env.JEST_DEFAULT_HOST as string, {
+    encodedQueryParams: true,
+  })
+    .post('/ansibletower', (body) => isEqual(body, data))
+    .replyWithError(error)
+}
+
 export function nockIgnoreApiPaths() {
   const scope = nocked(process.env.JEST_DEFAULT_HOST as string)
     .persist()
@@ -389,6 +426,13 @@ export function nockReplace(resource: IResource, response?: IResource, statusCod
     })
 }
 
+export function nockReplaceError(resource: IResource, error: string | object) {
+  const resourceNameApiPath = getResourceNameApiPathTestHelper(resource)
+  return nocked(process.env.JEST_DEFAULT_HOST as string, { encodedQueryParams: true })
+    .put(resourceNameApiPath, (body) => isEqual(body, resource))
+    .replyWithError(error)
+}
+
 export function nockDelete(resource: IResource, response?: IResource, statusCode?: number) {
   const resourceNameApiPath = getResourceNameApiPathTestHelper(resource)
   return nocked(process.env.JEST_DEFAULT_HOST as string, { encodedQueryParams: true })
@@ -405,6 +449,13 @@ export function nockDelete(resource: IResource, response?: IResource, statusCode
       'Access-Control-Allow-Methods': 'DELETE, OPTIONS',
       'Access-Control-Allow-Credentials': 'true',
     })
+}
+
+export function nockDeleteError(resource: IResource, error: string | object) {
+  const resourceNameApiPath = getResourceNameApiPathTestHelper(resource)
+  return nocked(process.env.JEST_DEFAULT_HOST as string, { encodedQueryParams: true })
+    .delete(resourceNameApiPath)
+    .replyWithError(error)
 }
 
 export function nockSearch(
@@ -447,6 +498,18 @@ export function nockSearch(
 export function nockRequest(pathname: string, response: object, statusCode = 200) {
   return nocked(process.env.JEST_DEFAULT_HOST as string)
     .get(pathname)
+    .reply(statusCode, response)
+}
+
+export function nockPatchRequest(pathname: string, response: object, statusCode = 200) {
+  return nocked(process.env.JEST_DEFAULT_HOST as string)
+    .patch(pathname)
+    .reply(statusCode, response)
+}
+
+export function nockPostRequest(pathname: string, response: object, statusCode = 200) {
+  return nocked(process.env.JEST_DEFAULT_HOST as string)
+    .post(pathname, JSON.stringify(response))
     .reply(statusCode, response)
 }
 
