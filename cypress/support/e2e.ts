@@ -19,7 +19,7 @@
 
 // Import commands.js using ES2015 syntax:
 import './commands'
-import { cleanReports } from '../scripts/helpers'
+import { cleanReports } from './helpers'
 require('cypress-terminal-report/src/installLogsCollector')()
 // import { safeLoad } from 'js-yaml'
 // "import" with `@ts-ignore`

@@ -8,7 +8,7 @@ import { join } from 'path'
 import { load } from 'js-yaml'
 
 export function getTestEnv() {
-  let envConfig = readFileSync(join(__dirname, 'options.yaml'))
+  let envConfig: any = readFileSync(join(__dirname, 'options.yaml'))
   try {
     envConfig = load(envConfig)
   } catch (e) {
