@@ -6,7 +6,7 @@
 
 import { elements } from './selectors'
 import { resourceTable } from './action-utils/component-methods/ResourceTable'
-import { credentialsPages } from './action-utils/credentials/credentials-actions'
+import { credentialsPages } from './action-utils/credentials-actions'
 import { checkIfElementExists } from './genericFunctions'
 
 export const acmHeaderSelectors = {

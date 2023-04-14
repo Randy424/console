@@ -82,5 +82,8 @@
     "tabWidth": 2,
     "semi": false,
     "singleQuote": true
+  },
+  "dependencies": {
+    "yamljs": "^0.3.0"
   }
 }

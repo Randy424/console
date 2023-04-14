@@ -4,7 +4,7 @@
  ****************************************************************************** */
 
 import * as constants from '../constants'
-import { credentialType } from '../action-utils/credentials/credentials-actions'
+import { credentialType } from '../action-utils/credentials-actions'
 
 const headers = {
   'Content-Type': 'application/json',

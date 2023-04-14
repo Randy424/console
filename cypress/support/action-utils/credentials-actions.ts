@@ -3,13 +3,13 @@
  * Copyright (c) 2023 Red Hat, Inc.
  ****************************************************************************** */
 
-import { elements, elementsText } from '../../selectors'
-import { resourceTable, modal } from '../component-methods/ResourceTable'
-import { selectOrTypeInInputDropDown, clickNext, clickAdd } from '../../genericFunctions'
-import { acm23xheaderMethods, acmHeaderSelectors } from '../../header'
+import { elements, elementsText } from '../selectors'
+import { resourceTable, modal } from './component-methods/ResourceTable'
+import { selectOrTypeInInputDropDown, clickNext, clickAdd } from '../genericFunctions'
+import { acm23xheaderMethods, acmHeaderSelectors } from '../header'
 
 // import { credsActions } from '../../action-utils/credentials/credentials-actions'
-import * as credentialAPI from '../../api-utils/credentials-api'
+import * as credentialAPI from '../api-utils/credentials-api'
 
 export const credentialType = {
   AWS: 'aws',

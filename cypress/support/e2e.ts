@@ -18,6 +18,7 @@
 // ***********************************************************
 
 // Import commands.js using ES2015 syntax:
+import { Http2ServerResponse } from 'http2'
 import './commands'
 import { cleanReports } from './helpers'
 require('cypress-terminal-report/src/installLogsCollector')()
@@ -38,7 +39,24 @@ declare global {
         options: CommandOptions & { prevSubject: S | ['optional'] },
         fn: CommandFnWithSubject<T, PrevSubjectMap[S]>
       ): void
+      failOnErrorResponseStatus(resp: Http2ServerResponse, errorMsg: string): Chainable<void>
       paste(text: string): Chainable<void>
+      acquireToken(): Chainable<void>
+      setAPIToken(): Chainable<void>
+      clearOCMCookies(): Chainable<void>
+      runCmd(cmd, setAlias, failOnNonZeroExit, timeout): Chainable<void>
+      uploadDiscoveryISO(vmName, discoveryIsoName, isoPath, setAlias, failOnNonZeroExit, timeout): Chainable<void>
+      wipeVmDisk(pathToDiskFile, setAlias, failOnNonZeroExit, timeout): Chainable<void>
+      startVM(vmName, setAlias, failOnNonZeroExit, timeout): Chainable<void>
+      destroyVM(vmName, setAlias, failOnNonZeroExit, timeout): Chainable<void>
+      copyKubeconfigToPath(kubeconfigCurrentPath, newPath, setAlias, failOnNonZeroExit, timeout): Chainable<void>
+      hostDetailSelector(row, label, timeout): Chainable<JQuery<HTMLElement>>
+      getYamlEditorText(divElement): Chainable<void>
+      toggleYamlEditor(divElement): Chainable<void>
+      getYamlEditorTextCreate(): Chainable<void>
+      getYamlEditorTextImport(): Chainable<void>
+
+      type(text: string, options: any): Chainable<CommandFnWithOriginalFn<'type'>>
     }
     interface SuiteConfigOverrides {
       /**

@@ -3,7 +3,7 @@
  * Copyright (c) 2023 Red Hat, Inc.
  ****************************************************************************** */
 
-import { credentialsCreateMethods } from '../../support/action-utils/credentials/credentials-actions'
+import { credentialsCreateMethods } from '../../support/action-utils/credentials-actions'
 const { options } = JSON.parse(Cypress.env('ENV_CONFIG'))
 
 describe(
