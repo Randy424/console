@@ -55,8 +55,9 @@ declare global {
       toggleYamlEditor(divElement): Chainable<void>
       getYamlEditorTextCreate(): Chainable<void>
       getYamlEditorTextImport(): Chainable<void>
-
+      get(element: JQuery<HTMLElement>): Chainable<void>
       type(text: string, options: any): Chainable<CommandFnWithOriginalFn<'type'>>
+      includes(text: string): Chainable<CommandFnWithOriginalFn<'type'>>
     }
     interface SuiteConfigOverrides {
       /**

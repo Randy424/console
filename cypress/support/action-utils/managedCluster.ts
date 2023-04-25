@@ -8,7 +8,7 @@
 import { acm23xheaderMethods, acmHeaderSelectors } from '../header'
 import { commonElementSelectors, commonPageMethods } from '../commonSelectors'
 import { clusterActions, clusterDeploymentActions } from '../action-utils/clusterAction'
-import { genericFunctions } from '../genericFunctions'
+import * as genericFunctions from '../genericFunctions'
 import { clusterSetPages } from '../api-utils/clusterset'
 import * as automation from '../api-utils/automation'
 import * as constants from '../constants'
@@ -185,10 +185,10 @@ export const clustersPages = {
    * verified that the DOM contains text "Cluster management"
    */
   shouldExist: () => {
-    cy.contains(pageElements.h1, acmHeaderSelectors.leftNavigation.listItemsText.infrastructureText.clusters).should(
-      'contain',
-      'Cluster management'
-    )
+    cy.contains(
+      commonElementSelectors.elements.h1,
+      acmHeaderSelectors.leftNavigation.listItemsText.infrastructureText.clusters
+    ).should('contain', 'Cluster management')
   },
 
   goToClusterSet: () => {
@@ -343,7 +343,7 @@ export const managedClusterDetailMethods = {
     managedClusterDetailMethods.goToManagedClusterOverview(clusterName)
     hive.getMachinePools(clusterName).then((resp) => {
       let machinePoolName = resp.body.items[0].metadata.name
-      managedClusterDetailMethods.goToMachinePools(machinePoolName)
+      managedClusterDetailMethods.goToMachinePools()
       cy.get('.pf-c-page__main-section').then(($body) => {
         if (!$body.text().includes("You don't have any machine pools")) {
           commonPageMethods.resourceTable.openRowMenu(machinePoolName)
@@ -532,7 +532,7 @@ export const managedClustersMethods = {
     })
   },
 
-  fillNodePools: (region, arch, masterInstanceType, workerInstanceType, sno) => {
+  fillNodePools: (region, arch?, masterInstanceType?, workerInstanceType?, sno?) => {
     if (region) genericFunctions.selectOrTypeInInputDropDown('#region-label', region, true)
     if (arch) genericFunctions.selectOrTypeInInputDropDown('#architecture-label', arch, true)
     if (masterInstanceType) managedClustersMethods.fillMasterNodeDetails(masterInstanceType)
@@ -582,7 +582,7 @@ export const managedClustersMethods = {
     genericFunctions.clickNext()
   },
 
-  fillNetworkingDetails: (networkType, clusterNetworkCIDR, serviceNetworkCIDR) => {
+  fillNetworkingDetails: (networkType?, clusterNetworkCIDR?, serviceNetworkCIDR?) => {
     if (networkType) genericFunctions.selectOrTypeInInputDropDown('#networkType-label', networkType)
     if (clusterNetworkCIDR) cy.get('#clusterNetwork').clear().type(clusterNetworkCIDR)
     if (serviceNetworkCIDR) cy.get('#serviceNetwork').clear().type(serviceNetworkCIDR)
@@ -641,7 +641,7 @@ export const managedClustersMethods = {
     genericFunctions.clickNext()
   },
 
-  fillAutomationDetails: (templateName) => {
+  fillAutomationDetails: (templateName?) => {
     if (templateName && templateName != '') {
       cy.get(managedClustersSelectors.automationTemplate).type(templateName).type('{enter}')
       cy.toggleYamlEditor('#edit-yaml')
@@ -673,7 +673,7 @@ export const managedClustersMethods = {
     cy.get(commonElementSelectors.elements.resetSearch, { timeout: 25000 }).click()
   },
 
-  editClusterLabelsByOptions: (clusterName, label, user) => {
+  editClusterLabelsByOptions: (clusterName, label, user?) => {
     if (typeof user != 'undefined' && user != '') {
       acm23xheaderMethods.goToClustersWithUser()
     } else {
@@ -716,11 +716,11 @@ export const managedClustersMethods = {
     )
     cy.get(managedClustersSelectors.clusterTableRowOptionsMenu.searchCluster)
       .click()
-      .then(
-        () => cy.url().should('include', `/search?filters={%22textsearch%22:%22cluster%3A${clusterName}%22}`),
+      .then(() => {
+        cy.url().includes(`/search?filters={%22textsearch%22:%22cluster%3A${clusterName}%22}`)
         // default timeout was not enough to wait for search page open, so we increase the timeout here.
-        cy.contains('h1', 'Search', { timeout: 60000 }).should('exist')
-      )
+        cy.contains(commonElementSelectors.elements.h1, 'Search', { timeout: 60000 }).should('exist')
+      })
   },
 
   hibernateClusterByOptions: (clusterName) => {
@@ -856,10 +856,10 @@ export const managedClustersMethods = {
       masterInstanceType,
       workerInstanceType,
     },
-    arch,
-    networkType,
-    fips,
-    jobTemplate
+    arch?,
+    networkType?,
+    fip?,
+    jobTemplate?
   ) => {
     acm23xheaderMethods.goToClusters()
     managedCluster.getManagedCluster(clusterName).then((resp) => {
@@ -873,7 +873,7 @@ export const managedClustersMethods = {
           releaseImage,
           additionalLabels,
           false,
-          fips
+          fip
         )
         managedClustersMethods.fillNodePools(region, arch, masterInstanceType, workerInstanceType)
         managedClustersMethods.fillNetworkingDetails(networkType, clusterNetworkCIDR, serviceNetworkCIDR)
@@ -1186,7 +1186,7 @@ export const managedClustersMethods = {
           commonPageMethods.modal.shouldBeOpen()
           commonPageMethods.modal.confirmAction(cluster.metadata.name)
           commonPageMethods.modal.clickDanger('Detach')
-          clusterActions.waitManagedClusterRemoved(clusterName)
+          clusterActions.waitManagedClusterRemoved(cluster.metadata.name)
           hive.getClusterDeployment(cluster.metadata.name).then((resp) => {
             if (resp == 404) {
               // The managedcluster namespace should be deleted if the cluster was not created by hive here
@@ -1320,7 +1320,7 @@ export const managedClustersMethods = {
           commonPageMethods.resourceTable.searchTable(clusterName.split('-').pop())
           commonPageMethods.resourceTable.openRowMenu(clusterName)
           commonPageMethods.resourceTable.buttonShouldClickable(
-            nagedClustersSelectors.clusterTableRowOptionsMenu.destroyCluster
+            managedClustersSelectors.clusterTableRowOptionsMenu.destroyCluster
           )
           cy.get(managedClustersSelectors.clusterTableRowOptionsMenu.destroyCluster).click()
           commonPageMethods.modal.shouldBeOpen()
