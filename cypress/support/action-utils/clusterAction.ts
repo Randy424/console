@@ -138,7 +138,7 @@ export const clusterActions = {
   checkClusterStatus: (clusterName) => {
     cy.log('checking cluster status')
     cy.setAPIToken()
-    cy.waitUntil(
+    return cy.waitUntil(
       () => {
         return cluster.getManagedCluster(clusterName).then((resp) => {
           for (let i = 0; i < resp.body['status']['conditions'].length; i++) {
