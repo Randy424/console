@@ -533,7 +533,7 @@ export const clusterMetricsActions = {
     })
   },
   // The checkClusterMetrics used to handle the test cases of RHACM4K-1735
-  checkClusterMetrics: (clusterName, type) => {
+  checkClusterMetrics: (clusterName?, type?) => {
     switch (type) {
       case 'Destroy': {
         cy.log('Check the cluster metrics when the cluster is destroy')

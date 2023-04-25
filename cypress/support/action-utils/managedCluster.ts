@@ -1150,7 +1150,7 @@ export const managedClustersMethods = {
     cy.get('#token').type(token, { delay: 0 })
   },
 
-  detachCluster: (clusterName, user) => {
+  detachCluster: (clusterName?, user?) => {
     if (typeof user != 'undefined' && user != '') {
       acm23xheaderMethods.goToClustersWithUser()
     } else {
@@ -1405,7 +1405,7 @@ export const managedClustersUIValidations = {
     })
   },
 
-  validateAddon: (clusterName, addon, status) => {
+  validateAddon: (clusterName?, addon?, status?) => {
     managedClusterDetailMethods.goToManagedClusterOverview(clusterName)
     managedClusterDetailMethods.goToClusterAddons()
     commonPageMethods.resourceTable.checkIfRowExistsByName(addon)

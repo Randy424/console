@@ -10,7 +10,7 @@ import {
   clusterActions,
   clusterMetricsActions,
   clusterDeploymentActions,
-} from '../../../support/action-utils/managedCluster'
+} from '../../../support/action-utils/clusterAction'
 import { credentialsCreateMethods } from '../../../support/action-utils/credentials-actions'
 
 const { options } = JSON.parse(Cypress.env('ENV_CONFIG'))

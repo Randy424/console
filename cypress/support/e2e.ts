@@ -20,7 +20,6 @@
 // Import commands.js using ES2015 syntax:
 import { Http2ServerResponse } from 'http2'
 import './commands'
-import { cleanReports } from './helpers'
 require('cypress-terminal-report/src/installLogsCollector')()
 // import { safeLoad } from 'js-yaml'
 // "import" with `@ts-ignore`
@@ -56,8 +55,9 @@ declare global {
       getYamlEditorTextCreate(): Chainable<void>
       getYamlEditorTextImport(): Chainable<void>
       get(element: JQuery<HTMLElement>): Chainable<void>
-      type(text: string, options: any): Chainable<CommandFnWithOriginalFn<'type'>>
-      includes(text: string): Chainable<CommandFnWithOriginalFn<'type'>>
+      type(text: string, options: any): Chainable<void>
+      includes(text: string): Chainable<void>
+      login(user: string, password: string, ocIDP: string): Chainable<void>
     }
     interface SuiteConfigOverrides {
       /**

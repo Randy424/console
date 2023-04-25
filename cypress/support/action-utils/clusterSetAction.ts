@@ -21,7 +21,7 @@ export const clusterSetActions = {
    * @param {string} clusterSet
    * @param {string} version
    */
-  createClusterSet: (clusterSet, version) => {
+  createClusterSet: (clusterSet?, version?) => {
     if (version && version == 'v1beta1') {
       getClusterSetv1beta1(clusterSet).then((resp) => {
         if (resp.status == 404) {
