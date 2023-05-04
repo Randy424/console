@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { act } from 'react-dom/test-utils'
 import { nockCreate, nockIgnoreApiPaths, nockPatch } from '../../../../../lib/nock-util'
 import { BatchUpgradeModal } from './BatchUpgradeModal'
+import { RecoilRoot } from 'recoil'
 const mockClusterNoAvailable: Cluster = {
   name: 'cluster-0-no-available',
   displayName: 'cluster-0-no-available',
@@ -32,6 +33,7 @@ const mockClusterNoAvailable: Cluster = {
   nodes: undefined,
   kubeApiServer: '',
   consoleURL: '',
+  hasAutomationTemplate: false,
   hive: {
     isHibernatable: true,
     clusterPool: undefined,
@@ -75,6 +77,7 @@ const mockClusterReady1: Cluster = {
   nodes: undefined,
   kubeApiServer: '',
   consoleURL: '',
+  hasAutomationTemplate: false,
   hive: {
     isHibernatable: true,
     clusterPool: undefined,
@@ -118,6 +121,7 @@ const mockClusterReady2: Cluster = {
   nodes: undefined,
   kubeApiServer: '',
   consoleURL: '',
+  hasAutomationTemplate: false,
   hive: {
     isHibernatable: true,
     clusterPool: undefined,
@@ -161,6 +165,7 @@ const mockClusterOffline: Cluster = {
   nodes: undefined,
   kubeApiServer: '',
   consoleURL: '',
+  hasAutomationTemplate: false,
   hive: {
     isHibernatable: true,
     clusterPool: undefined,
@@ -204,6 +209,7 @@ const mockClusterFailedUpgrade: Cluster = {
   nodes: undefined,
   kubeApiServer: '',
   consoleURL: '',
+  hasAutomationTemplate: false,
   hive: {
     isHibernatable: true,
     clusterPool: undefined,
@@ -261,7 +267,11 @@ const getPatchUpdate = (version: string) => {
 describe('BatchUpgradeModal', () => {
   beforeEach(() => nockIgnoreApiPaths())
   it('should only show upgradeable ones, and select latest version as default', () => {
-    const { queryByText } = render(<BatchUpgradeModal clusters={allClusters} open={true} close={() => {}} />)
+    const { queryByText } = render(
+      <RecoilRoot>
+        <BatchUpgradeModal clusters={allClusters} open={true} close={() => {}} />
+      </RecoilRoot>
+    )
     expect(queryByText('cluster-0-no-available')).toBeFalsy()
     expect(queryByText('cluster-1-ready1')).toBeTruthy()
     expect(queryByText('cluster-2-ready2')).toBeTruthy()
@@ -276,13 +286,15 @@ describe('BatchUpgradeModal', () => {
   it('should close modal when succeed', async () => {
     let isClosed = false
     const { getByText, queryByText } = render(
-      <BatchUpgradeModal
-        clusters={allClusters}
-        open={true}
-        close={() => {
-          isClosed = true
-        }}
-      />
+      <RecoilRoot>
+        <BatchUpgradeModal
+          clusters={allClusters}
+          open={true}
+          close={() => {
+            isClosed = true
+          }}
+        />
+      </RecoilRoot>
     )
     const mockNockUpgrade1 = nockPatch(clusterCuratorReady1, getPatchUpdate('1.2.9'))
     const mockNockUpgrade2 = nockPatch(clusterCuratorReady2, getPatchUpdate('2.2.6'), undefined, 404)
@@ -302,13 +314,15 @@ describe('BatchUpgradeModal', () => {
   it('should show loading when click upgrade, and upgrade button should be disabled when loading', async () => {
     let isClosed = false
     const { getByText, queryByText } = render(
-      <BatchUpgradeModal
-        clusters={allClusters}
-        open={true}
-        close={() => {
-          isClosed = true
-        }}
-      />
+      <RecoilRoot>
+        <BatchUpgradeModal
+          clusters={allClusters}
+          open={true}
+          close={() => {
+            isClosed = true
+          }}
+        />
+      </RecoilRoot>
     )
     const mockNockUpgrade1 = nockPatch(clusterCuratorReady1, getPatchUpdate('1.2.9'))
     const mockNockUpgrade2 = nockPatch(clusterCuratorReady2, getPatchUpdate('2.2.6'))
@@ -328,20 +342,26 @@ describe('BatchUpgradeModal', () => {
   it('should close modal if click cancel', () => {
     let isClosed = false
     const { getByText } = render(
-      <BatchUpgradeModal
-        clusters={allClusters}
-        open={true}
-        close={() => {
-          isClosed = true
-        }}
-      />
+      <RecoilRoot>
+        <BatchUpgradeModal
+          clusters={allClusters}
+          open={true}
+          close={() => {
+            isClosed = true
+          }}
+        />
+      </RecoilRoot>
     )
     userEvent.click(getByText('Cancel'))
     expect(isClosed).toBe(true)
   })
   it('should show alert when failed; keep failed rows in table with error messages', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => {})
-    const { getByText, queryByText } = render(<BatchUpgradeModal clusters={allClusters} open={true} close={() => {}} />)
+    const { getByText, queryByText } = render(
+      <RecoilRoot>
+        <BatchUpgradeModal clusters={allClusters} open={true} close={() => {}} />
+      </RecoilRoot>
+    )
     const mockNockUpgrade1 = nockPatch(clusterCuratorReady1, getPatchUpdate('1.2.9'))
     const mockNockUpgrade2 = nockPatch(clusterCuratorReady2, getPatchUpdate('2.2.6'), undefined, 400)
     expect(queryByText('cluster-1-ready1')).toBeTruthy()

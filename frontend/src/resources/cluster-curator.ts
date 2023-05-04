@@ -14,6 +14,20 @@ export type ClusterCuratorKindType = 'ClusterCurator'
 
 export type Curation = 'install' | 'upgrade' | 'scale' | 'destroy'
 
+export type CuratorAction = {
+  towerAuthSecret?: string
+  prehook?: ClusterCuratorAnsibleJob[]
+  posthook?: ClusterCuratorAnsibleJob[]
+  jobMonitorTimeout?: number
+}
+
+type CuratorUpgradeAction = CuratorAction & {
+  desiredUpdate?: string
+  channel?: string
+  upstream?: string
+  monitorTimeout?: number
+}
+
 export const ClusterCuratorDefinition: IResourceDefinition = {
   apiVersion: ClusterCuratorApiVersion,
   kind: ClusterCuratorKind,
@@ -25,30 +39,11 @@ export interface ClusterCurator {
   metadata: Metadata
   spec?: {
     desiredCuration?: Curation
-    install?: {
-      towerAuthSecret?: string
-      prehook?: ClusterCuratorAnsibleJob[]
-      posthook?: ClusterCuratorAnsibleJob[]
-    }
-    upgrade?: {
-      desiredUpdate?: string
-      channel?: string
-      upstream?: string
-      towerAuthSecret?: string
-      prehook?: ClusterCuratorAnsibleJob[]
-      posthook?: ClusterCuratorAnsibleJob[]
-    }
+    install?: CuratorAction
+    upgrade?: CuratorUpgradeAction
     inventory?: string
-    scale?: {
-      towerAuthSecret?: string
-      prehook?: ClusterCuratorAnsibleJob[]
-      posthook?: ClusterCuratorAnsibleJob[]
-    }
-    destroy?: {
-      towerAuthSecret?: string
-      prehook?: ClusterCuratorAnsibleJob[]
-      posthook?: ClusterCuratorAnsibleJob[]
-    }
+    scale?: CuratorAction
+    destroy?: CuratorAction
   }
   status?: {
     conditions: V1CustomResourceDefinitionCondition[]
@@ -108,4 +103,12 @@ export function LinkAnsibleCredential(template: ClusterCurator, ansibleCredentia
   if (!copy.spec.destroy.towerAuthSecret) copy.spec.destroy.towerAuthSecret = ansibleCredentialName
 
   return replaceResource<ClusterCurator>(copy)
+}
+
+export function curatorActionHasJobs(curatorAction: CuratorAction | undefined) {
+  return !!(curatorAction?.prehook?.length || curatorAction?.posthook?.length)
+}
+
+export function isAutomationTemplate(clusterCurator: ClusterCurator) {
+  return getTemplateJobsNum(clusterCurator) > 0
 }

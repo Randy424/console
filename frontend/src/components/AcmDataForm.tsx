@@ -24,6 +24,7 @@ import {
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
+  Divider,
   Drawer,
   DrawerColorVariant,
   DrawerContent,
@@ -384,44 +385,48 @@ export function AcmDataFormDefault(props: {
       })}
 
       <Stack>
-        {submitError && <Alert isInline variant="danger" title={submitError} />}
-        <ActionGroup>
-          <ActionList>
-            <ActionListGroup>
-              <ActionListItem>
-                <Button
-                  onClick={() => {
-                    setShowFormErrors(true)
-                    if (!formHasErrors(t, formData)) {
-                      try {
-                        const result = formData.submit()
-                        if ((result as unknown) instanceof Promise) {
-                          setSubmitText(formData.submittingText)
-                          ;(result as unknown as Promise<void>).catch((err) => {
-                            if (err instanceof Error) setSubmitError(err.message)
-                            setSubmitText(formData.submitText)
-                          })
+        <StackItem>
+          {submitError && <Alert isInline variant="danger" title={submitError} />}
+
+          <ActionGroup>
+            <Divider />
+            <ActionList>
+              <ActionListGroup>
+                <ActionListItem>
+                  <Button
+                    onClick={() => {
+                      setShowFormErrors(true)
+                      if (!formHasErrors(t, formData)) {
+                        try {
+                          const result = formData.submit()
+                          if ((result as unknown) instanceof Promise) {
+                            setSubmitText(formData.submittingText)
+                            ;(result as unknown as Promise<void>).catch((err) => {
+                              if (err instanceof Error) setSubmitError(err.message)
+                              setSubmitText(formData.submitText)
+                            })
+                          }
+                        } catch (err) {
+                          if (err instanceof Error) setSubmitError(err.message)
                         }
-                      } catch (err) {
-                        if (err instanceof Error) setSubmitError(err.message)
                       }
-                    }
-                  }}
-                  variant="primary"
-                  isDisabled={(showFormErrors && formHasErrors(t, formData)) || isSubmitting}
-                  isLoading={isSubmitting}
-                >
-                  {submitText}
-                </Button>
-              </ActionListItem>
-              <ActionListItem>
-                <Button variant="secondary" onClick={formData.cancel} isDisabled={isSubmitting}>
-                  {formData.cancelLabel}
-                </Button>
-              </ActionListItem>
-            </ActionListGroup>
-          </ActionList>
-        </ActionGroup>
+                    }}
+                    variant="primary"
+                    isDisabled={(showFormErrors && formHasErrors(t, formData)) || isSubmitting}
+                    isLoading={isSubmitting}
+                  >
+                    {submitText}
+                  </Button>
+                </ActionListItem>
+                <ActionListItem>
+                  <Button variant="secondary" onClick={formData.cancel} isDisabled={isSubmitting}>
+                    {formData.cancelLabel}
+                  </Button>
+                </ActionListItem>
+              </ActionListGroup>
+            </ActionList>
+          </ActionGroup>
+        </StackItem>
       </Stack>
     </Form>
   )
@@ -637,10 +642,8 @@ export function AcmDataFormWizard(props: {
         <Wizard
           titleId="create-credential-title"
           descriptionId="create-credential-description"
-          title={t('Add credential')}
-          description={t(
-            'A credential stores the access credentials and configuration information for creating clusters.'
-          )}
+          title={formData.title}
+          description={formData.description}
           steps={steps}
           footer={Footer}
           onClose={formData.cancel}
@@ -780,7 +783,13 @@ function AcmInputDescription(props: { input: Input }): JSX.Element {
     case 'Select':
     case 'Tiles': {
       const selectedOption = input.options.find((option) => option.value === input.value)
-      if (!selectedOption) return <Fragment>not found</Fragment>
+      if (!selectedOption)
+        return (
+          <DescriptionListGroup key={input.label}>
+            <DescriptionListTerm>{input.label}</DescriptionListTerm>
+            <DescriptionListDescription>{input.value}</DescriptionListDescription>
+          </DescriptionListGroup>
+        )
       return (
         <DescriptionListGroup key={input.label}>
           <DescriptionListTerm>{input.label}</DescriptionListTerm>
@@ -893,7 +902,12 @@ export function AcmDataFormInputs(props: {
                     </SplitItem>
                     {input.prompt && (
                       <SplitItem>
-                        <AcmButton variant="link" style={{ paddingRight: '0px' }} onClick={input.prompt.callback}>
+                        <AcmButton
+                          variant="link"
+                          style={{ paddingRight: '0px' }}
+                          onClick={input.prompt.callback}
+                          isDisabled={input.prompt.isDisabled}
+                        >
                           {input.prompt.text}
                           {input.prompt.linkType === LinkType.external ||
                           input.prompt.linkType === LinkType.internalNewTab ? (
@@ -912,7 +926,12 @@ export function AcmDataFormInputs(props: {
                     </SplitItem>
                     {input.prompt && (
                       <SplitItem>
-                        <AcmButton variant="link" style={{ paddingRight: '0px' }} onClick={input.prompt.callback}>
+                        <AcmButton
+                          variant="link"
+                          style={{ paddingRight: '0px' }}
+                          onClick={input.prompt.callback}
+                          isDisabled={input.prompt.isDisabled}
+                        >
                           {input.prompt.text}
                           {input.prompt.linkType === LinkType.external ||
                           input.prompt.linkType === LinkType.internalNewTab ? (

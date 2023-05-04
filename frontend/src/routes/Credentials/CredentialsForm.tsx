@@ -25,6 +25,7 @@ import { getAuthorizedNamespaces, rbacCreate } from '../../lib/rbac-util'
 import {
   enforceCloudsYaml,
   validateAnsibleHost,
+  validateAwsRegion,
   validateBaseDomain,
   validateCertificate,
   validateCloudsYaml,
@@ -150,7 +151,7 @@ export function CredentialsForm(
     isViewing: boolean
     handleModalToggle?: () => void
     hideYaml?: boolean
-    newCredentialCallback?: any
+    newCredentialCallback?: (resource: Secret) => void
     isHosted?: boolean
   } & ProviderConnectionOrCredentialsType
 ) {
@@ -583,6 +584,7 @@ export function CredentialsForm(
 
   const formData: FormData = {
     title,
+    description: t('A credential stores the access credentials and configuration information for creating clusters.'),
     titleTooltip,
     breadcrumb: breadcrumbs,
     sections: [
@@ -795,6 +797,7 @@ export function CredentialsForm(
             onChange: setAwsS3Region,
             placeholder: t('Select region'),
             isRequired: true,
+            validation: (value) => validateAwsRegion(value, t),
           },
         ],
       },
@@ -1493,7 +1496,7 @@ export function CredentialsForm(
           history.push(NavigationPath.credentials)
         })
       } else {
-        return createResource(credentialData as IResource).promise.then(() => {
+        return createResource(credentialData as IResource).promise.then((resource) => {
           toastContext.addAlert({
             title: t('Credentials created'),
             message: t('credentialsForm.created.message', { name }),
@@ -1502,7 +1505,7 @@ export function CredentialsForm(
           })
 
           if (newCredentialCallback) {
-            newCredentialCallback(credentialData)
+            newCredentialCallback(resource as Secret)
           }
 
           if (handleModalToggle) {
@@ -1552,7 +1555,13 @@ export function CredentialsForm(
         '*.stringData.osServiceAccount.json',
         '*.stringData.clouds.yaml',
       ]}
-      immutables={isEditing ? ['*.metadata.name', '*.metadata.namespace'] : []}
+      immutables={
+        isHostedControlPlane
+          ? ['Secret.0.metadata.name', 'Secret.0.metadata.namespace']
+          : isEditing
+          ? ['*.metadata.name', '*.metadata.namespace']
+          : []
+      }
       edit={() => {
         if (providerConnection) {
           history.push(

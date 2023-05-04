@@ -14,7 +14,7 @@ import {
 } from 'openshift-assisted-ui-lib/cim'
 import { CertificateSigningRequest, CSR_CLUSTER_LABEL } from '../certificate-signing-requests'
 import { ClusterClaim } from '../cluster-claim'
-import { ClusterCurator } from '../cluster-curator'
+import { ClusterCurator, isAutomationTemplate } from '../cluster-curator'
 import { ClusterDeployment } from '../cluster-deployment'
 import { ManagedCluster } from '../managed-cluster'
 import { ManagedClusterInfo, NodeInfo, OpenShiftDistributionInfo } from '../managed-cluster-info'
@@ -241,6 +241,7 @@ export type Cluster = {
   kubeApiServer?: string
   consoleURL?: string
   acmConsoleURL?: string
+  hasAutomationTemplate: boolean
   hive: {
     clusterPool?: string
     clusterPoolNamespace?: string
@@ -415,7 +416,6 @@ export function getCluster(
     managedCluster,
     clusterCurator,
     agentClusterInstall,
-    clusterClaim,
     hostedCluster
   )
 
@@ -475,6 +475,7 @@ export function getCluster(
     isHypershift: !!hostedCluster || !!selectedHostedCluster,
     isManaged: !!managedCluster || !!managedClusterInfo,
     isCurator: !!clusterCurator,
+    hasAutomationTemplate: !!(clusterCurator && isAutomationTemplate(clusterCurator)),
     isHostedCluster: getIsHostedCluster(managedCluster),
     isSNOCluster: agentClusterInstall ? getIsSNOCluster(agentClusterInstall) : false,
     isRegionalHubCluster: getIsRegionalHubCluster(managedCluster),
@@ -1029,7 +1030,6 @@ export function getClusterStatus(
   managedCluster: ManagedCluster | undefined,
   clusterCurator: ClusterCurator | undefined,
   agentClusterInstall: AgentClusterInstallK8sResource | undefined,
-  clusterClaim: ClusterClaim | undefined,
   hostedCluster: HostedClusterK8sResource | undefined
 ) {
   let statusMessage: string | undefined
@@ -1149,7 +1149,9 @@ export function getClusterStatus(
         switch (powerState) {
           case 'Running':
             cdStatus =
-              clusterDeployment.spec?.clusterPoolRef && !clusterClaim ? ClusterStatus.running : ClusterStatus.detached
+              clusterDeployment.spec?.clusterPoolRef && !clusterDeployment.spec.clusterPoolRef.claimName
+                ? ClusterStatus.running
+                : ClusterStatus.detached
             break
           case 'Hibernating':
             cdStatus = ClusterStatus.hibernating

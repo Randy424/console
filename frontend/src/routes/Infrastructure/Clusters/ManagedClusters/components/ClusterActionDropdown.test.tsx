@@ -49,6 +49,7 @@ const mockCluster: Cluster = {
     displayVersion: '4.6',
     isManagedOpenShift: false,
   },
+  hasAutomationTemplate: true,
   labels: undefined,
   nodes: undefined,
   kubeApiServer: '',
@@ -102,6 +103,14 @@ function rbacPatchSecret() {
 
 function rbacCreateSecret() {
   return rbacCreate(SecretDefinition, mockCluster.namespace)
+}
+
+function rbacDeleteClusterCurator() {
+  return rbacDelete(ClusterCuratorDefinition, mockCluster.namespace)
+}
+
+function rbacDeleteSecret() {
+  return rbacDelete(SecretDefinition, mockCluster.namespace)
 }
 
 function nockPatchClusterDeployment(op: 'replace' | 'add' | 'remove', path: string, value?: string) {
@@ -231,6 +240,9 @@ describe('ClusterActionDropdown', () => {
       nockRBAC(await rbacCreateClusterCurator()),
       nockRBAC(await rbacPatchSecret()),
       nockRBAC(await rbacCreateSecret()),
+      //delete automation template
+      nockRBAC(await rbacDeleteClusterCurator()),
+      nockRBAC(await rbacDeleteSecret()),
     ]
     await clickByLabel('Actions')
     await waitForNocks(rbacNocks)

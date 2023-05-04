@@ -1,5 +1,5 @@
 /* Copyright Contributors to the Open Cluster Management project */
-import { Button } from '@patternfly/react-core'
+import { Alert, Button } from '@patternfly/react-core'
 import { ExternalLinkAltIcon } from '@patternfly/react-icons'
 import get from 'get-value'
 import { Fragment, useMemo } from 'react'
@@ -28,6 +28,7 @@ export function Placements(props: {
   bindingKind: string
   clusters: IResource[]
   createClusterSetCallback?: () => void
+  alertTitle?: string
 }) {
   const editMode = useEditMode()
   const resources = useItem() as IResource[]
@@ -69,6 +70,7 @@ export function Placements(props: {
         namespaceClusterSetNames={namespaceClusterSetNames}
         clusters={props.clusters}
         createClusterSetCallback={props.createClusterSetCallback}
+        alertTitle={props.alertTitle}
       />
     </WizArrayInput>
   )
@@ -79,6 +81,7 @@ export function Placement(props: {
   clusters: IResource[]
   hideName?: boolean
   createClusterSetCallback?: () => void
+  alertTitle?: string
 }) {
   const editMode = useEditMode()
   const placement = useItem() as IPlacement
@@ -120,6 +123,10 @@ export function Placement(props: {
         }
         options={props.namespaceClusterSetNames}
       />
+
+      {!props.namespaceClusterSetNames.length && props.alertTitle ? (
+        <Alert variant="warning" title={props.alertTitle} />
+      ) : null}
 
       <WizHidden
         hidden={(placement) => {

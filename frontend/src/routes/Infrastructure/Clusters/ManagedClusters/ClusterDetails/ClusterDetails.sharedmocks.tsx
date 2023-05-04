@@ -30,6 +30,7 @@ export const mockCluster: Cluster = {
   isHive: true,
   isManaged: true,
   isCurator: false,
+  hasAutomationTemplate: false,
   isHostedCluster: false,
   isSNOCluster: false,
   isRegionalHubCluster: false,
@@ -146,6 +147,7 @@ export const mockAWSHypershiftCluster: Cluster = {
     k8sVersion: 'v1.23.5+3afdacb',
     ocp: undefined,
   },
+  hasAutomationTemplate: false,
   hive: {
     clusterClaimName: undefined,
     clusterPool: undefined,
@@ -397,6 +399,7 @@ export const mockBMHypershiftCluster: Cluster = {
     k8sVersion: 'v1.23.5+3afdacb',
     ocp: undefined,
   },
+  hasAutomationTemplate: false,
   hive: {
     clusterClaimName: undefined,
     clusterPool: undefined,
@@ -528,6 +531,7 @@ export const mockBMHypershiftClusterNoNamespace: Cluster = {
     k8sVersion: 'v1.23.5+3afdacb',
     ocp: undefined,
   },
+  hasAutomationTemplate: false,
   hive: {
     clusterClaimName: undefined,
     clusterPool: undefined,
@@ -658,6 +662,7 @@ export const mockAWSHypershiftClusterNoHypershift: Cluster = {
     k8sVersion: 'v1.23.5+3afdacb',
     ocp: undefined,
   },
+  hasAutomationTemplate: false,
   hive: {
     clusterClaimName: undefined,
     clusterPool: undefined,
@@ -747,18 +752,21 @@ export const mockMachinePoolManual: MachinePool = {
         minReplicas: 1,
         name: `${clusterName}-rxzsv-9k5qn-worker-us-east-1a`,
         replicas: 1,
+        readyReplicas: 1,
       },
       {
         maxReplicas: 1,
         minReplicas: 1,
         name: `${clusterName}-rxzsv-9k5qn-worker-us-east-1b`,
         replicas: 1,
+        readyReplicas: 1,
       },
       {
         maxReplicas: 1,
         minReplicas: 1,
         name: `${clusterName}-rxzsv-9k5qn-worker-us-east-1c`,
         replicas: 1,
+        readyReplicas: 1,
       },
       {
         maxReplicas: 0,
@@ -879,6 +887,7 @@ export const mockMachinePoolOther: MachinePool = {
         minReplicas: 1,
         name: `${clusterName}-other-ovirt`,
         replicas: 1,
+        readyReplicas: 2,
       },
     ],
   },
@@ -900,6 +909,7 @@ export const mockRegionalHubCluster: Cluster = {
     version: '2.7.0',
     channel: 'release-2.7',
   },
+  hasAutomationTemplate: false,
   hive: {
     clusterClaimName: undefined,
     clusterPool: undefined,

@@ -20,7 +20,7 @@ import {
   filterSubscriptionObject,
   showMissingClusterDetails,
   getTargetNsForNode,
-  nodesWithNoNS,
+  isResourceNamespaceScoped,
 } from '../helpers/diagram-helpers-utils'
 import { isSearchAvailable } from '../helpers/search-helper'
 import { showAnsibleJobDetails, getPulseStatusForAnsibleNode } from '../helpers/ansible-task'
@@ -28,6 +28,7 @@ import { showAnsibleJobDetails, getPulseStatusForAnsibleNode } from '../helpers/
 const specPulse = 'specs.pulse'
 const specShapeType = 'specs.shapeType'
 const specIsDesign = 'specs.isDesign'
+const specIsBlocked = 'specs.isBlocked'
 const showResourceYaml = 'show_resource_yaml'
 export const checkmarkStatus = 'checkmark'
 export const warningStatus = 'warning'
@@ -55,6 +56,7 @@ const redPulse = 'red'
 const greenPulse = 'green'
 const yellowPulse = 'yellow'
 const orangePulse = 'orange'
+const blockedPulse = 'blocked'
 ///////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// COMPUTE EACH DIAGRAM NODE STATUS ////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
@@ -72,6 +74,7 @@ export const computeNodeStatus = (node, isSearchingStatusComplete, t) => {
 
   const isDeployable = isDeployableResource(node)
   const isDesign = _.get(node, specIsDesign, false)
+  const isBlocked = _.get(node, specIsBlocked, false)
   switch (node.type) {
     case 'fluxapplication':
     case 'ocpapplication':
@@ -111,7 +114,9 @@ export const computeNodeStatus = (node, isSearchingStatusComplete, t) => {
       }
       break
     case 'subscription':
-      if (isDeployable || !isDesign) {
+      if (isBlocked) {
+        pulse = blockedPulse
+      } else if (isDeployable || !isDesign) {
         pulse = getPulseStatusForGenericNode(node, t)
       } else {
         pulse = getPulseStatusForSubscription(node)
@@ -378,7 +383,7 @@ const getPulseStatusForGenericNode = (node, t) => {
   let pulse = greenPulse
   const namespace = _.get(node, 'namespace', '')
   const resourceMap = _.get(node, `specs.${node.type}Model`)
-  const resources = _.get(node, `specs.resources`)
+  const resourceCount = _.get(node, 'specs.resourceCount')
   const clusterNames = R.split(',', getClusterName(node.id, node, true))
   const onlineClusters = getOnlineClusters(node)
 
@@ -392,7 +397,7 @@ const getPulseStatusForGenericNode = (node, t) => {
   }
 
   // check resources against the resourceMap
-  if (resources && resources.length !== Object.keys(resourceMap).length) {
+  if (resourceCount && resourceCount !== Object.keys(resourceMap).length) {
     return yellowPulse
   }
 
@@ -402,7 +407,7 @@ const getPulseStatusForGenericNode = (node, t) => {
   clusterNames.forEach((clusterName) => {
     clusterName = R.trim(clusterName)
     //get target cluster namespaces
-    const resourceNSString = _.includes(nodesWithNoNS, nodeType) ? 'name' : 'namespace'
+    const resourceNSString = !isResourceNamespaceScoped(node) ? 'name' : 'namespace'
     const resourcesForCluster = _.filter(
       _.flatten(Object.values(resourceMap)),
       (obj) => _.get(obj, 'cluster', '') === clusterName
@@ -474,6 +479,7 @@ const getStateNames = (t) => {
     'propagated',
     'healthy',
     'active',
+    'available',
   ]
   return { notDeployedStr, notDeployedNSStr, deployedStr, deployedNSStr, resNotDeployedStates, resSuccessStates }
 }
@@ -737,6 +743,7 @@ export const setSubscriptionDeployStatus = (node, details, activeFilters, t) => 
   const timezone = _.get(node, 'specs.raw.spec.timewindow.location', 'NA')
   const timeWindowDays = _.get(node, 'specs.raw.spec.timewindow.daysofweek')
   const timeWindowHours = _.get(node, 'specs.raw.spec.timewindow.hours', [])
+  const isCurrentlyBlocked = _.get(node, 'specs.isBlocked')
 
   let windowStatusArray = []
 
@@ -768,6 +775,11 @@ export const setSubscriptionDeployStatus = (node, details, activeFilters, t) => 
     details.push({
       labelValue: t('Time zone'),
       value: timezone,
+    })
+
+    details.push({
+      labelValue: t('Currently blocked'),
+      value: isCurrentlyBlocked ? t('Yes') : t('No'),
     })
   }
 
@@ -884,7 +896,7 @@ export const setSubscriptionDeployStatus = (node, details, activeFilters, t) => 
             })
             const subscriptionStatusLink = createEditLink(
               node,
-              'subscriptionstatus',
+              'SubscriptionStatus',
               subsCluster,
               'apps.open-cluster-management.io/v1alpha1'
             )
@@ -1318,7 +1330,7 @@ export const setResourceDeployStatus = (node, details, activeFilters, t) => {
       _.flatten(Object.values(resourceMap)),
       (obj) => _.get(obj, 'cluster', '') === clusterName
     )
-    const resourceNSString = _.includes(nodesWithNoNS, nodeType) ? 'name' : 'namespace'
+    const resourceNSString = !_.get(node, 'namespace') ? 'name' : 'namespace'
     //get cluster target namespaces
     const targetNSList = getTargetNsForNode(node, resourcesForCluster, clusterName, '*')
     targetNSList.forEach((targetNS) => {
