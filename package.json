@@ -12,7 +12,6 @@
     "launch": "concurrently npm:start:backend npm:start:frontend:launch -c green,blue",
     "start:backend": "cd backend && npm start",
     "start:frontend": "cd frontend && npm start",
-    "start:cypress": "source ./cypress/scripts/local-setup.sh && npx cypress open",
     "start:frontend:hot": "cd frontend && npm run start:hot",
     "start:frontend:launch": "cd frontend && npm run launch",
     "plugins": "concurrently npm:start:backend npm:serve:plugins npm:ocp-console -n backend,frontend,console -c green,blue,magenta",
@@ -64,13 +63,9 @@
     "prepare": "husky install"
   },
   "devDependencies": {
-    "@cypress/grep": "^3.1.5",
-    "@types/js-yaml": "^4.0.5",
     "@types/node": "14.18.22",
     "@types/semver": "^7.3.13",
     "concurrently": "7.2.2",
-    "cypress-terminal-report": "^5.1.1",
-    "cypress-wait-until": "^1.7.2",
     "husky": "7.0.4",
     "lint-staged": "^13.0.3",
     "prettier": "2.7.1",
@@ -82,8 +77,5 @@
     "tabWidth": 2,
     "semi": false,
     "singleQuote": true
-  },
-  "dependencies": {
-    "yamljs": "^0.3.0"
   }
 }
