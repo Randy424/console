@@ -31,9 +31,8 @@ describe(
   },
   function () {
     before(function () {
-      cy.clearOCMCookies()
       cy.login()
-      cy.setAPIToken()
+      cy.visit('multicloud/infrastructure/clusters/managed')
     })
 
     it(

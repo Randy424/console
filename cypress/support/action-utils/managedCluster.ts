@@ -487,7 +487,7 @@ export const managedClustersMethods = {
 
   fillClusterDetails: (credentialName, clusterName, clusterSet, releaseImage, additionalLabels, enableSNO, fips) => {
     if (credentialName) {
-      cy.get('#connection-label').find('[aria-label="Options menu"]').click()
+      cy.get('#connection-label').find('input').click()
       cy.get('#connection-label').contains('li', credentialName).click()
     }
 

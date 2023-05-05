@@ -4,8 +4,8 @@
  ****************************************************************************** */
 
 /// <reference types="cypress" />
-import * as constants from "../support/constants";
-import { genericFunctions } from '../support/genericFunctions'
+import * as constants from "../constants";
+import { genericFunctions } from '../genericFunctions'
 
 var headers = {
     "Content-Type": "application/json",
