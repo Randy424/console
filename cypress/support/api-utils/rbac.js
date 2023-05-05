@@ -5,7 +5,7 @@
 
 /// <reference types="cypress" />
 
-import * as constants from "../support/constants"
+import * as constants from "../constants"
 
 var headers = {
     "Content-Type": "application/json",
