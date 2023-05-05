@@ -2,16 +2,16 @@
 
 /// <reference types="cypress" />
 
-import { commonElementSelectors, commonPageMethods } from '../common/commonSelectors'
-import { acmHeaderSelectors } from '../../views/header'
+import { commonElementSelectors, commonPageMethods } from '../../commonSelectors'
+import { acmHeaderSelectors } from '../../header'
 
-import { clustersPages } from '../clusters/managedCluster'
+import { clustersPages } from '../managedcluster/managedCluster'
 
-import { clusterSetMethods, clusterSetPages } from './clusterset'
+import { clusterSetMethods, clusterSetPages } from '../clusterset/clusterSets'
 import { userManagementPages } from './clusterset_usermanage'
 import { resourceAssignmentSelector } from './clusterset_resourceassign'
 
-import { getClusterSet } from '../../apis/clusterSet'
+import { getClusterSet } from '../../api-utils/clusterSet'
 
 /**
  * This object contais the group of selector that are part of cluster overview
