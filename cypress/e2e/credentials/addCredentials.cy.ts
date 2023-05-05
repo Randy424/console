@@ -12,7 +12,7 @@ describe(
     tags: ['@CLC', '@create'],
   },
   function () {
-    beforeEach(() => {
+    beforeEach(function () {
       cy.login()
       cy.visit('/multicloud/infrastructure/')
     })
@@ -32,6 +32,28 @@ describe(
       credentialsCreateMethods.addAzureCredential(
         { ...options.connections.apiKeys.azure, ...options.connections.secrets },
         'AzurePublicCloud'
+      )
+    })
+
+    it(`RHACM4K-569: CLC: Create Google Cloud provider connections`, { tags: ['gcp', 'credentials'] }, function () {
+      credentialsCreateMethods.addGCPCredential({ ...options.connections.apiKeys.gcp, ...options.connections.secrets })
+    })
+
+    it(`RHACM4K-1232: CLC: Create VMware provider connections`, { tags: ['vmware', 'credentials'] }, function () {
+      credentialsCreateMethods.addVMwareCredential({
+        ...options.connections.apiKeys.vmware,
+        ...options.connections.secrets,
+      })
+    })
+
+    it(`RHACM4K-6917: CLC: Create Ansible credentials`, { tags: ['ansible', 'credentials'] }, function () {
+      credentialsCreateMethods.addAnsibleTowerCredential({ ...options.connections.apiKeys.ansible })
+    })
+
+    it(`RHACM4K-8106: CLC: Create Azure Government credentials`, { tags: ['azgov', 'credentials'] }, function () {
+      credentialsCreateMethods.addAzureCredential(
+        { ...options.connections.apiKeys.azgov, ...options.connections.secrets },
+        'AzureUSGovernmentCloud'
       )
     })
 
