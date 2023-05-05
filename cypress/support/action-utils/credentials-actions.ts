@@ -112,8 +112,8 @@ export const credentialCreatePageSelector = {
       ansibleToken: '#ansibleToken',
     },
     ost: {
-      openstackCloudsYaml: 'textarea',
-      openstackCloudName: '#cloud',
+      openstackCloudsYaml: 'textarea[placeholder="Enter the contents of the OpenStack clouds.yaml"]',
+      openstackCloudName: '#os_ca_bundle',
     },
     rhv: {
       oVirtURL: '#ovirt_url',
