@@ -265,5 +265,5 @@ Cypress.Commands.overwrite('type', (originalFunction, element: JQuery<HTMLElemen
     })
   }
   // return originalFn(element, text, options)
-  return originalFunction(text, options)
+  return originalFunction(element, text, options)
 })

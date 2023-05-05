@@ -14,6 +14,7 @@
     "start:frontend": "cd frontend && npm start",
     "start:frontend:hot": "cd frontend && npm run start:hot",
     "start:frontend:launch": "cd frontend && npm run launch",
+    "start:cypress": "source ./cypress/scripts/local-setup.sh && npx cypress open",
     "plugins": "concurrently npm:start:backend npm:serve:plugins npm:ocp-console -n backend,frontend,console -c green,blue,magenta",
     "plugins-dev": "concurrently npm:start:backend npm:serve:plugins -n backend,frontend -c green,blue",
     "ocp-console": "./start-ocp-console.sh",

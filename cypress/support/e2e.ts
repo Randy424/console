@@ -55,7 +55,7 @@ declare global {
       getYamlEditorTextCreate(): Chainable<void>
       getYamlEditorTextImport(): Chainable<void>
       get(element: JQuery<HTMLElement>): Chainable<void>
-      type(text: string, options: any): Chainable<void>
+      type(element: JQuery<HTMLElement>, text: string, options?: any): Chainable<void>
       includes(text: string): Chainable<void>
       login(user: string, password: string, ocIDP: string): Chainable<void>
     }
