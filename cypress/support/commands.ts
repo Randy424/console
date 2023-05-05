@@ -20,23 +20,12 @@ Cypress.Commands.add('login', (user: string = 'kube:admin', password?: string) =
   cy.session(
     user,
     () => {
-      if (process.env.NODE_ENV === 'production' || password) {
-        const baseUrl = Cypress.env('BASE_URL')
-        const username = user || Cypress.env('OPTIONS_HUB_USER')
-        const pass = password || Cypress.env('OPTIONS_HUB_PASSWORD')
-        cy.exec(`oc login ${baseUrl} -u ${username} -p ${pass}`).then(() => {
-          cy.exec('oc whoami -t').then((result) => {
-            cy.setCookie('acm-access-token-cookie', result.stdout)
-            Cypress.env({ token: result.stdout })
-          })
-        })
-      } else {
         // simple auth for local development environments
         cy.exec('oc whoami -t').then((result) => {
           cy.setCookie('acm-access-token-cookie', result.stdout)
+          cy.setCookie('openshift-session-token', result.stdout) // fails on MCE without this
         })
-      }
-      cy.exec('curl --insecure https://localhost:3000', { timeout: 120000 })
+      // cy.exec('curl --insecure https://localhost:3000', { timeout: 120000 })
     },
     { cacheAcrossSpecs: true }
   )

@@ -14,7 +14,7 @@ describe(
   function () {
     beforeEach(function () {
       cy.login()
-      cy.visit('/multicloud/infrastructure/')
+      cy.visit('/multicloud/infrastructure/credentials')
     })
 
     it(
