@@ -35,8 +35,6 @@ describe(
       )
     })
 
-    s
-
     it(
       `RHACM4K-3177: CLC: Create Red Hat OpenStack Platform credentials`,
       { tags: ['openstack', 'credentials'] },
