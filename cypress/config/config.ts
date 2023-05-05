@@ -11,6 +11,17 @@ export function getTestEnv() {
   let envConfig: any = readFileSync(join(__dirname, 'options.yaml'))
   try {
     envConfig = load(envConfig)
+
+    // add a date to the cluster and cluster pool name to make it unique
+    let date = Date.now()
+    let providers = ['aws', 'azure', 'gcp', 'azgov']
+    console.log("Adding Date.now() suffix to all cluster names in options-*.yaml loaded: \n")
+    providers.forEach(provider => {
+      envConfig.options.clusters[provider].clusterName = envConfig.options.clusters[provider].clusterName + "-" + date
+      envConfig.options.clusterPools[provider].clusterPoolName = envConfig.options.clusterPools[provider].clusterPoolName + "-" + date
+      console.log(provider + " cluster name used in tests will be: " + envConfig.options.clusters[provider].clusterName + "\n" +
+      provider + " cluster pool name used in tests will be: " + envConfig.options.clusterPools[provider].clusterPoolName)
+    })
   } catch (e) {
     throw new Error(e)
   }
