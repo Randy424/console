@@ -1,3 +1,5 @@
+/* Copyright Contributors to the Open Cluster Management project */
+
 // ***********************************************************
 // Previously the supportFile option defaulted to cypress/support/index.js.
 // Now the e2e.supportFile option defaults to cypress/support/e2e.{js,jsx,ts,tsx}

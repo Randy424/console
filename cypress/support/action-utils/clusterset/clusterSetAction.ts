@@ -1,7 +1,4 @@
-/** *****************************************************************************
- * Licensed Materials - Property of Red Hat, Inc.
- * Copyright (c) 2021 Red Hat, Inc.
- ****************************************************************************** */
+/* Copyright Contributors to the Open Cluster Management project */
 
 /// <reference types="cypress" />
 
@@ -12,8 +9,8 @@ import {
   getNamespaceBinding,
   createClusterSetv1beta1,
   getClusterSetv1beta1,
-} from '../api-utils/clusterSet'
-import { getManagedCluster, updateManagedCluster } from '../api-utils/cluster-api'
+} from '../../api-utils/clusterSet'
+import { getManagedCluster, updateManagedCluster } from '../../api-utils/cluster-api'
 
 export const clusterSetActions = {
   /**

@@ -1,4 +1,5 @@
-//
+/* Copyright Contributors to the Open Cluster Management project */
+
 // Command library
 
 import 'cypress-wait-until'

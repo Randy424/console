@@ -1,7 +1,4 @@
-/** *****************************************************************************
- * Licensed Materials - Property of Red Hat, Inc.
- * Copyright (c) 2021 Red Hat, Inc.
- ****************************************************************************** */
+/* Copyright Contributors to the Open Cluster Management project */
 
 /// <reference types="cypress" />
 
@@ -9,7 +6,7 @@ import {
   managedClustersMethods,
   clusterStatus,
   clusterDeploymentPowerStatus,
-} from '../../../support/action-utils/managedCluster'
+} from '../../../support/action-utils/managedcluster/managedCluster'
 import { rbacActions } from '../../../support/action-utils/rbac'
 import { acm23xheaderMethods } from '../../../support/header'
 import {

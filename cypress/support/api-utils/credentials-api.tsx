@@ -1,7 +1,4 @@
-/** *****************************************************************************
- * Licensed Materials - Property of Red Hat, Inc.
- * Copyright (c) 2021 Red Hat, Inc.
- ****************************************************************************** */
+/* Copyright Contributors to the Open Cluster Management project */
 
 import * as constants from '../constants'
 import { credentialType } from '../action-utils/credentials-actions'

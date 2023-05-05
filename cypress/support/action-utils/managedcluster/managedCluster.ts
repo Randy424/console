@@ -1,20 +1,17 @@
-/** *****************************************************************************
- * Licensed Materials - Property of Red Hat, Inc.
- * Copyright (c) 2021 Red Hat, Inc.
- ****************************************************************************** */
+/* Copyright Contributors to the Open Cluster Management project */
 
 /// <reference types="cypress" />
 
-import { acm23xheaderMethods, acmHeaderSelectors } from '../header'
-import { commonElementSelectors, commonPageMethods } from '../commonSelectors'
-import { clusterActions, clusterDeploymentActions } from '../action-utils/clusterAction'
-import * as genericFunctions from '../genericFunctions'
-import { clusterSetPages } from '../api-utils/clusterset'
-import * as automation from '../api-utils/automation'
-import * as constants from '../constants'
-import * as managedCluster from '../api-utils/cluster-api'
-import * as hive from '../api-utils/hive'
-import * as kube from '../api-utils/kube'
+import { acm23xheaderMethods, acmHeaderSelectors } from '../../header'
+import { commonElementSelectors, commonPageMethods } from '../../commonSelectors'
+import { clusterActions, clusterDeploymentActions } from '../clusterAction'
+import * as genericFunctions from '../../genericFunctions'
+import { clusterSetPages } from '../clusterset/clusterSets'
+import * as automation from '../../api-utils/automation'
+import * as constants from '../../constants'
+import * as managedCluster from '../../api-utils/cluster-api'
+import * as hive from '../../api-utils/hive'
+import * as kube from '../../api-utils/kube'
 
 const { options } = JSON.parse(Cypress.env('ENV_CONFIG'))
 

@@ -1,3 +1,5 @@
+/* Copyright Contributors to the Open Cluster Management project */
+
 import { defineConfig } from 'cypress'
 import { getTestEnv } from './cypress/config/config'
 import { getTestInfraEnv } from './cypress/config/config'

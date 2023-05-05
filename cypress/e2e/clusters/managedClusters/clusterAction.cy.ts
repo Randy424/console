@@ -1,11 +1,11 @@
-/** *****************************************************************************
- * Licensed Materials - Property of Red Hat, Inc.
- * Copyright (c) 2021 Red Hat, Inc.
- ****************************************************************************** */
+/* Copyright Contributors to the Open Cluster Management project */
 
 /// <reference types="cypress" />
 
-import { managedClusterDetailMethods, managedClustersMethods } from '../../../support/action-utils/managedCluster'
+import {
+  managedClusterDetailMethods,
+  managedClustersMethods,
+} from '../../../support/action-utils/managedcluster/managedCluster'
 import { clusterActions } from '../../../support/action-utils/clusterAction'
 import { credentialsCreateMethods } from '../../../support/action-utils/credentials-actions'
 import { acm23xheaderMethods } from '../../../support/header'
@@ -37,7 +37,7 @@ describe(
           clusterActions.checkOCPCluster(spoke).then((resp) => {
             if (resp) {
               managedClusterDetailMethods.goToManagedClusterOverview(spoke)
-              cluster.getManagedClusterInfo(spoke).then((resp) => {
+              cluster.getManagedClusterInfo(spoke).then((resp: any) => {
                 var consoleURL = resp.status.consoleURL
                 cy.get(
                   ':nth-child(2) > .pf-c-description-list__description > .pf-c-description-list__text > .pf-c-button'

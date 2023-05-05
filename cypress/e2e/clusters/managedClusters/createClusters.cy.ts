@@ -1,11 +1,8 @@
-/** *****************************************************************************
- * Licensed Materials - Property of Red Hat, Inc.
- * Copyright (c) 2021 Red Hat, Inc.
- ****************************************************************************** */
+/* Copyright Contributors to the Open Cluster Management project */
 
 /// <reference types="cypress" />
 
-import { managedClustersMethods } from '../../../support/action-utils/managedCluster'
+import { managedClustersMethods } from '../../../support/action-utils/managedcluster/managedCluster'
 import {
   clusterActions,
   clusterMetricsActions,

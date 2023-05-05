@@ -1,13 +1,11 @@
-/** *****************************************************************************
- * Licensed Materials - Property of Red Hat, Inc.
- * Copyright (c) 2021 Red Hat, Inc.
- ****************************************************************************** */
+/* Copyright Contributors to the Open Cluster Management project */
 
 import * as constants from '../constants'
 
-const headers = {
+var headers = {
   'Content-Type': 'application/json',
   Accept: 'application/json',
+  Authorization: '',
 }
 
 export const getLatestImageSet = (labels) => {
