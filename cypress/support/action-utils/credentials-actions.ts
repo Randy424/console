@@ -474,6 +474,7 @@ export const credentialsCreateMethods = {
     credentialAPI.getCredential(name, namespace).then((resp) => {
       // When the secret was not exists, create it.
       if (resp.status == 404) {
+        //TODO: refactor -> test gotoCreatCluster independetly, and travel to the page using cy.visit for other uses
         // credentialsPages.goToCreateCredentialPage()
         cy.visit('multicloud/credentials/create')
         cy.get(credentialsPageSelectors.credentialsTypeLocator.aws).click()
