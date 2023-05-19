@@ -77,7 +77,8 @@ declare global {
   }
 }
 
-before(() => {
+beforeEach(() => {
   // cleanReports()
   cy.login()
+  cy.visit('/multicloud/infrastructure/')
 })

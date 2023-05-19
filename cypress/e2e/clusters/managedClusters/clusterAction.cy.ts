@@ -24,9 +24,10 @@ describe(
   },
   function () {
     before(function () {
-      cy.clearOCMCookies()
+      // cy.clearOCMCookies()
       cy.login()
-      cy.setAPIToken()
+      cy.visit('/multicloud/infrastructure/')
+      // cy.setAPIToken()
     })
 
     it(
@@ -112,6 +113,7 @@ describe(
       `RHACM4K-8321: CLC: Cluster lifecycle - actions - as admin, when I update the cluster build-in label, the build-in label should able to recovered`,
       { tags: ['managedclusters', 'clusteraction'] },
       function () {
+        cy.log('executing 1')
         for (const spoke of spokeCluster.split(',')) {
           cluster.getManagedCluster(spoke).then((mc) => {
             if (mc.isOkStatusCode) {
@@ -126,9 +128,13 @@ describe(
       `RHACM4K-8322: CLC: Create Cluster - When I switch the credentials during create the cluster, the cluster info should be updated based on the new credential context`,
       { tags: ['managedclusters', 'clusteraction'] },
       function () {
+        // Not sure why, but we are removed from previous session at start of this spec
+        // cy.visit('/multicloud/infrastructure/')
         // Create 2 creds with different context here
         // TODO(Hui), we current only use the AWS here to check the domain, but it's better to handle all of cloud provider here.
         // Create the first credentials
+
+        // TODO: (Randy) we can refactor addCredentials to leverage fixtures/cy.exec commands. This will save time.
         options.connections.apiKeys.aws.name = 'aws-conn-auto-8322-1'
         options.connections.apiKeys.aws.baseDnsDomain = 'clc1.test'
         credentialsCreateMethods.addAWSCredential({
@@ -144,14 +150,16 @@ describe(
         })
 
         // on create cluster page, check the credentials context
-        acm23xheaderMethods.goToClusters()
+        cy.visit('/multicloud/infrastructure/clusters/managed')
         managedClustersMethods.clickCreate()
         // Open the Edit by Yaml
         managedClustersMethods.fillInfrastructureProviderDetails(options.connections.apiKeys.aws.provider)
 
-        cy.get('#connection-label').click().contains('li', 'aws-conn-auto-8322-1').click()
+        cy.get('#connection-label input').click()
+        cy.get('li').contains('aws-conn-auto-8322-1').click()
         cy.get('#baseDomain').should('contain.value', 'clc1.test')
-        cy.get('#connection-label').click().contains('li', 'aws-conn-auto-8322-2').click()
+        cy.get('#connection-label input').click()
+        cy.get('li').contains('aws-conn-auto-8322-2').click()
         cy.get('#baseDomain').should('contain.value', 'clc2.test')
 
         // Clean up
@@ -164,8 +172,10 @@ describe(
       { tags: ['managedclusters', 'clusteraction'] },
       function () {
         // Enable the FIPS, the FIPS should be true in review page
-        acm23xheaderMethods.goToClusters()
-        managedClustersMethods.clickCreate()
+        // acm23xheaderMethods.goToClusters()
+        // managedClustersMethods.clickCreate()
+        cy.visit('/multicloud/infrastructure/clusters/create')
+
         managedClustersMethods.fillInfrastructureProviderDetails(options.connections.apiKeys.aws.provider)
         managedClustersMethods.fillClusterDetails(
           '',

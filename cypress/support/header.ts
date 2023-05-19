@@ -80,7 +80,7 @@ export const acm23xheaderMethods = {
   },
 
   goToClusters: () => {
-    acm23xheaderMethods.openMenu()
+    process.env.NODE_ENV === 'production' && acm23xheaderMethods.openMenu()
     cy.get(acmHeaderSelectors.leftNavigation.leftSideBar, { timeout: 20000 }).should('exist')
 
     acm23xheaderMethods.expandInfrastructure()

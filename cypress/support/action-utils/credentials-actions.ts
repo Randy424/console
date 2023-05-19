@@ -183,7 +183,8 @@ export const credentialsPages = {
   },
 
   goToCreateCredentialPage: () => {
-    acm23xheaderMethods.goToCredentials()
+    //  TODO: refactor goTo methods, visit components with redirect unless testing the manual flow
+    // acm23xheaderMethods.goToCredentials()
     credentialAPI.getAllCredentials().then((creds) => {
       if (Array.isArray(creds.body.items) && !creds.body.items.length) {
         cy.log('There are no credentials yet. Click a element for adding new credential')
@@ -473,7 +474,8 @@ export const credentialsCreateMethods = {
     credentialAPI.getCredential(name, namespace).then((resp) => {
       // When the secret was not exists, create it.
       if (resp.status == 404) {
-        credentialsPages.goToCreateCredentialPage()
+        // credentialsPages.goToCreateCredentialPage()
+        cy.visit('multicloud/credentials/create')
         cy.get(credentialsPageSelectors.credentialsTypeLocator.aws).click()
         cy.get(credentialsPageSelectors.credentialsTypeLocator.awsStandard).click()
         credentialsCreatePages.fillBasicInformation(name, namespace, baseDnsDomain)

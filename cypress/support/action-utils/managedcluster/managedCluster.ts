@@ -815,10 +815,10 @@ export const managedClustersMethods = {
     cy.get(commonElementSelectors.elements.pageMenu, { timeout: 50000 }).then(($body) => {
       if ($body.text().includes("You don't have any clusters")) {
         commonPageMethods.resourceTable.buttonShouldClickable('Create cluster', 'a')
-        cy.get('a').contains('Create cluster').click()
+        cy.get('a').contains('Create cluster').should('have.attr', 'aria-disabled', 'false').click()
       } else {
         //     commonPageMethods.resourceTable.buttonShouldClickable('#createCluster').click()
-        cy.contains('button', 'Create cluster').click()
+        cy.contains('button', 'Create cluster').should('have.attr', 'aria-disabled', 'false').click()
         //   cy.contains(commonElementSelectors.elements.button, managedClustersSelectors.elementText.createClusterButton).click()
       }
     })
