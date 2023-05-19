@@ -27,7 +27,6 @@ describe(
       // cy.clearOCMCookies()
       cy.login()
       cy.visit('/multicloud/infrastructure/')
-      // cy.setAPIToken()
     })
 
     it(
@@ -60,6 +59,7 @@ describe(
       `RHACM4K-1587: CLC: Cluster lifecycle - actions - search cluster`,
       { tags: ['managedclusters', 'clusteraction'] },
       function () {
+        //TODO: refactor -> failure conditions?
         if (typeof Cypress.env('ACM_NAMESPACE') != 'undefined') {
           for (const spoke of spokeCluster.split(',')) {
             cluster.getManagedCluster(spoke).then((mc) => {
@@ -75,6 +75,7 @@ describe(
       `RHACM4K-1737: CLC: Cluster lifecycle - actions - check labels of managed cluster for matching cluster info`,
       { tags: ['managedclusters', 'clusteraction'] },
       function () {
+        //TODO: refactor -> failure conditions?
         for (const spoke of spokeCluster.split(',')) {
           cluster.getManagedCluster(spoke).then((mc) => {
             if (mc.isOkStatusCode) {
@@ -93,6 +94,7 @@ describe(
       `RHACM4K-1588: CLC: Cluster lifecycle - actions - edit labels`,
       { tags: ['managedclusters', 'clusteraction'] },
       function () {
+        //TODO: refactor -> failure conditions?
         for (const spoke of spokeCluster.split(',')) {
           cluster.getManagedCluster(spoke).then((mc) => {
             if (mc.isOkStatusCode) {
@@ -113,6 +115,7 @@ describe(
       `RHACM4K-8321: CLC: Cluster lifecycle - actions - as admin, when I update the cluster build-in label, the build-in label should able to recovered`,
       { tags: ['managedclusters', 'clusteraction'] },
       function () {
+        //TODO: refactor -> failure conditions?
         cy.log('executing 1')
         for (const spoke of spokeCluster.split(',')) {
           cluster.getManagedCluster(spoke).then((mc) => {
@@ -171,6 +174,7 @@ describe(
       `RHACM4K-10414: CLC: As an user, I can set the FIPS flags when I provision the cluster on ACM portal`,
       { tags: ['managedclusters', 'clusteraction'] },
       function () {
+        //TODO: refactor -> failure conditions?
         // Enable the FIPS, the FIPS should be true in review page
         // acm23xheaderMethods.goToClusters()
         // managedClustersMethods.clickCreate()

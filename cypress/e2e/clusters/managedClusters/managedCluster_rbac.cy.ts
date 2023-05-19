@@ -31,9 +31,7 @@ describe(
     },
   },
   function () {
-    before(function () {
-      cy.setAPIToken()
-    })
+    before(function () {})
 
     it(
       `RHACM4K-929: CLC: As an user with cluster-wide-role-binding of open-cluster-management:cluster-manager-admin role, the user can create, read, update and delete resources displayed on "Clusters" page for all namespaces`,

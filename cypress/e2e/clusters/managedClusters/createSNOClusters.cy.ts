@@ -26,7 +26,6 @@ describe(
     before(function () {
       cy.clearOCMCookies()
       cy.login()
-      cy.setAPIToken()
     })
     it(
       `RHACM4K-4072: CLC: Clusters - Verify Single Node Openshift(SNO) 'AWS' cluster creation`,

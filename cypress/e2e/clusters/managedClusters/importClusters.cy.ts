@@ -31,7 +31,7 @@ describe(
     before(function () {
       cy.clearOCMCookies()
       cy.login() // login through api instead
-      cy.setAPIToken().then(() => clusterSetActions.createClusterSet(clusterSetImports))
+      .then(() => clusterSetActions.createClusterSet(clusterSetImports))
       // set cluster name if requested in options? solo import
     })
 

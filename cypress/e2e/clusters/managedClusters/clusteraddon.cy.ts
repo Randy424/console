@@ -20,15 +20,15 @@ describe(
   },
   function () {
     before(function () {
-      cy.clearOCMCookies()
+      // cy.clearOCMCookies()
       cy.login()
-      cy.setAPIToken()
     })
 
     it(
       `RHACM4K-1584: CLC: Cluster Addons - Verify klusterlet addons on the UI`,
       { tags: ['managedclusters', 'clusteraddon'] },
       function () {
+        //TODO: refactor -> failure conditions?
         for (const spoke of spokeCluster.split(',')) {
           cluster.getManagedCluster(spoke).then((mc) => {
             // only run this case when the cluster was available and work-manager addon started.
@@ -49,6 +49,7 @@ describe(
       `RHACM4K-1401: CLC: Cluster Addons - Verify ManagedClusterAddon remains in original state`,
       { tags: ['managedclusters', 'clusteraddon'] },
       function () {
+        //TODO: refactor -> failure conditions?
         for (const spoke of spokeCluster.split(',')) {
           cluster.getManagedCluster(spoke).then((mc) => {
             // only run this case when the cluster was available and work-manager addon started.
@@ -72,6 +73,7 @@ describe(
       `RHACM4K-1561: CLC: Cluster Addons - Disable and Re-Enable Cluster Addons`,
       { tags: ['managedclusters', 'clusteraddon'] },
       function () {
+        //TODO: refactor -> failure conditions?
         if (typeof Cypress.env('ACM_NAMESPACE') != 'undefined') {
           // select one spoke cluster with addon enabled
           cluster
@@ -106,6 +108,7 @@ describe(
       `RHACM4K-1585: CLC: Cluster Addons - Verify managedcluster addons on the UI with offline clusters`,
       { tags: ['managedclusters', 'clusteraddon'] },
       function () {
+        //TODO: refactor -> failure conditions?
         let spoke = clusterTestData.addon.testCase.RHACM4K_1585.testData.clusterName
         clusterActions.shouldHaveManagedClusterForUser(spoke)
         clusterActions.addonShouldExists(spoke, 'work-manager')

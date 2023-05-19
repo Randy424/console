@@ -9,12 +9,13 @@ var headers = {
   Accept: 'application/json',
   Authorization: '',
 }
+const apiUrl = Cypress.env('CLUSTER_API_URL')
 
 export const getManagedCluster = (clusterName) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url: constants.apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters/' + clusterName,
+    url: apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters/' + clusterName,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -25,7 +26,7 @@ export const getManagedCluster = (clusterName) => {
 
 export const getManagedClusters = (labels) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
-  let url = constants.apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters'
+  let url = apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters'
   if (labels) url = url + `?labelSelector=${labels}`
   let options = {
     method: 'GET',
@@ -43,7 +44,7 @@ export const getManagedClusterInfo = (clusterName) => {
   let options = {
     method: 'GET',
     url:
-      constants.apiUrl +
+      apiUrl +
       '/apis/internal.open-cluster-management.io/v1beta1/namespaces/' +
       clusterName +
       '/managedclusterinfos/' +
@@ -59,9 +60,10 @@ export const getManagedClusterInfo = (clusterName) => {
 
 export const createManagedCluster = (body) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
+  cy.log('checking bearer: ', Cypress.env('token'))
   let options = {
     method: 'POST',
-    url: constants.apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters',
+    url: apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters',
     headers: headers,
     body: body,
   }
@@ -74,7 +76,7 @@ export const deleteManagedCluster = (clusterName) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'DELETE',
-    url: constants.apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters/' + clusterName,
+    url: apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters/' + clusterName,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -86,7 +88,7 @@ export const deleteManagedCluster = (clusterName) => {
 export const updateManagedCluster = (clusterName, body) => {
   let options = {
     method: 'PATCH',
-    url: constants.apiUrl + constants.ocm_agent_api_path + '/managedclusters/' + clusterName,
+    url: apiUrl + constants.ocm_agent_api_path + '/managedclusters/' + clusterName,
     headers: {
       'Content-Type': 'application/merge-patch+json',
       Accept: 'application/json',
@@ -103,7 +105,7 @@ export const getManagedClusterAddons = (clusterName) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url: constants.apiUrl + constants.ocm_addon_api_path + '/namespaces/' + clusterName + '/managedclusteraddons',
+    url: apiUrl + constants.ocm_addon_api_path + '/namespaces/' + clusterName + '/managedclusteraddons',
     headers: headers,
     failOnStatusCode: false,
   }
@@ -116,8 +118,7 @@ export const getManagedClusterAddon = (clusterName, addon) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url:
-      constants.apiUrl + constants.ocm_addon_api_path + '/namespaces/' + clusterName + '/managedclusteraddons/' + addon,
+    url: apiUrl + constants.ocm_addon_api_path + '/namespaces/' + clusterName + '/managedclusteraddons/' + addon,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -130,8 +131,7 @@ export const deleteManagedClusterAddon = (clusterName, addon) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'DELETE',
-    url:
-      constants.apiUrl + constants.ocm_addon_api_path + '/namespaces/' + clusterName + '/managedclusteraddons/' + addon,
+    url: apiUrl + constants.ocm_addon_api_path + '/namespaces/' + clusterName + '/managedclusteraddons/' + addon,
     headers: headers,
   }
   return cy.request(options).then((resp) => {
@@ -143,12 +143,7 @@ export const updateKlusterletAddonConfig = (clusterName, body) => {
   let options = {
     method: 'PATCH',
     url:
-      constants.apiUrl +
-      constants.ocm_agent_api_path +
-      '/namespaces/' +
-      clusterName +
-      '/klusterletaddonconfigs/' +
-      clusterName,
+      apiUrl + constants.ocm_agent_api_path + '/namespaces/' + clusterName + '/klusterletaddonconfigs/' + clusterName,
     headers: {
       'Content-Type': 'application/merge-patch+json',
       Accept: 'application/json',
@@ -166,7 +161,7 @@ export const getAllSNOClusters = () => {
   let clusters = []
   let options = {
     method: 'GET',
-    url: constants.apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters',
+    url: apiUrl + constants.ocm_cluster_api_v1_path + '/managedclusters',
     headers: headers,
     failOnStatusCode: false,
   }

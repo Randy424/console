@@ -30,7 +30,6 @@ describe(
     before(function () {
       cy.clearOCMCookies()
       cy.login()
-      cy.setAPIToken()
     })
 
     // Hibernate hive cluster

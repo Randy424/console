@@ -18,13 +18,13 @@ describe(
     before(function () {
       cy.clearOCMCookies()
       cy.login()
-      cy.setAPIToken()
     })
 
     it(
       `RHACM4K-8325: CLC: Cluster Nodes - As an admin, I was able to see the node list in cluster nodes page`,
       { tags: ['managedclusters', 'clusternode'] },
       function () {
+        //TODO: refactor -> failure conditions?
         for (const spoke of spokeCluster.split(',')) {
           cluster.getManagedCluster(spoke).then((mc) => {
             // use below check to make sure the cluster was ready

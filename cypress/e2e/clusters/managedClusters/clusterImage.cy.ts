@@ -21,7 +21,6 @@ describe(
     before(function () {
       cy.clearOCMCookies()
       cy.login()
-      cy.setAPIToken()
     })
 
     it(

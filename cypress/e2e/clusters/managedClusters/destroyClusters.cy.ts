@@ -16,7 +16,6 @@ describe(
     before(function () {
       cy.clearOCMCookies()
       cy.login()
-      cy.setAPIToken()
     })
 
     // destroy AWS cluster
