@@ -501,7 +501,7 @@ export const credentialsCreateMethods = {
   }) => {
     credentialAPI.getCredential(name, namespace).then((resp) => {
       if (resp.status == 404) {
-        credentialsPages.goToCreateCredentialPage()
+        cy.visit('multicloud/credentials/create')
         cy.get(credentialsPageSelectors.credentialsTypeLocator.gcp).click()
         credentialsCreatePages.fillBasicInformation(name, namespace, baseDnsDomain)
         credentialsCreatePages.fillGCPCredsInfo(gcpProjectID, gcpServiceAccountJsonKey)
@@ -531,7 +531,7 @@ export const credentialsCreateMethods = {
   ) => {
     credentialAPI.getCredential(name, namespace).then((resp) => {
       if (resp.status == 404) {
-        credentialsPages.goToCreateCredentialPage()
+        cy.visit('multicloud/credentials/create')
         cy.get(credentialsPageSelectors.credentialsTypeLocator.azr).click()
         credentialsCreatePages.fillBasicInformation(name, namespace, baseDnsDomain, cloudName)
         credentialsCreatePages.fillAzureCredsInfo(
@@ -561,7 +561,7 @@ export const credentialsCreateMethods = {
   }) => {
     credentialAPI.getCredential(name, namespace).then((resp) => {
       if (resp.status == 404) {
-        credentialsPages.goToCreateCredentialPage()
+        cy.visit('multicloud/credentials/create')
         cy.get(credentialsPageSelectors.credentialsTypeLocator.ost).click()
         credentialsCreatePages.fillBasicInformation(name, namespace, baseDnsDomain)
         credentialsCreatePages.fillOpenstackCredsInfo(cloudsFile, cloudName)
@@ -594,7 +594,7 @@ export const credentialsCreateMethods = {
   }) => {
     credentialAPI.getCredential(name, namespace).then((resp) => {
       if (resp.status == 404) {
-        credentialsPages.goToCreateCredentialPage()
+        cy.visit('multicloud/credentials/create')
         cy.get(credentialsPageSelectors.credentialsTypeLocator.vmw).click()
         credentialsCreatePages.fillBasicInformation(name, namespace, baseDnsDomain)
         credentialsCreatePages.fillVmwareCredsInfo(
@@ -633,7 +633,7 @@ export const credentialsCreateMethods = {
   }) => {
     credentialAPI.getCredential(name, namespace).then((resp) => {
       if (resp.status == 404) {
-        credentialsPages.goToCreateCredentialPage()
+        cy.visit('multicloud/credentials/create')
         cy.get(credentialsPageSelectors.credentialsTypeLocator.rhv).click()
         credentialsCreatePages.fillBasicInformation(name, namespace, baseDnsDomain)
         credentialsCreatePages.fillRHVCredsInfo(oVirtUrl, oVirtFQDN, oVirtUsername, oVirtPassword, oVirtCACertifcate)
@@ -648,7 +648,7 @@ export const credentialsCreateMethods = {
   addAnsibleTowerCredential: ({ name, namespace, ansibleHost, ansibleToken }) => {
     credentialAPI.getCredential(name, namespace).then((resp) => {
       if (resp.status == 404) {
-        credentialsPages.goToCreateCredentialPage()
+        cy.visit('multicloud/credentials/create')
         cy.get(credentialsPageSelectors.credentialsTypeLocator.ans).click()
         credentialsCreatePages.fillBasicInformation(name, namespace, '')
         credentialsCreatePages.fillAnsibleCredsInfo(ansibleHost, ansibleToken)

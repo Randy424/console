@@ -7,10 +7,11 @@ var headers = {
   Accept: 'application/json',
   Authorization: '',
 }
+const apiUrl = Cypress.env('CLUSTER_API_URL')
 
 export const getLatestImageSet = (labels) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
-  let url = constants.apiUrl + constants.hive_api_path + '/clusterimagesets'
+  let url = apiUrl + constants.hive_api_path + '/clusterimagesets'
   if (labels) url = url + `?labelSelector=${labels}`
   let options = {
     method: 'GET',
@@ -50,7 +51,7 @@ export const enableSNO = () => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url: constants.apiUrl + '/api/v1/namespaces/' + Cypress.env('MCE_NAMESPACE') + '/configmaps/console-mce-config',
+    url: apiUrl + '/api/v1/namespaces/' + Cypress.env('MCE_NAMESPACE') + '/configmaps/console-mce-config',
     headers: headers,
   }
   return cy.request(options).then((resp) => {

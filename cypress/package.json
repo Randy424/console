@@ -7,6 +7,7 @@
     "doc": "docs"
   },
   "dependencies": {
+    "@types/yamljs": "^0.2.31",
     "acorn": "^8.8.2",
     "acorn-jsx": "^5.3.2",
     "acorn-walk": "^8.2.0",
@@ -253,6 +254,7 @@
     "wrap-ansi": "^7.0.0",
     "wrappy": "^1.0.2",
     "yallist": "^3.1.1",
+    "yamljs": "^0.3.0",
     "yauzl": "^2.10.0",
     "yocto-queue": "^0.1.0"
   },

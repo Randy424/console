@@ -9,13 +9,14 @@ var headers = {
   Accept: 'application/json',
   Authorization: '',
 }
+const apiUrl = Cypress.env('CLUSTER_API_URL')
 
 export const getClusterClaim = (clusterClaimName, namespace) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
     url:
-      constants.apiUrl +
+      apiUrl +
       constants.hive_api_path +
       '/namespaces/' +
       namespace +
@@ -34,7 +35,7 @@ export const getClusterClaims = () => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url: constants.apiUrl + constants.hive_api_path + constants.clusterclaims_path,
+    url: apiUrl + constants.hive_api_path + constants.clusterclaims_path,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -48,7 +49,7 @@ export const deleteClusterClaim = (clusterClaimName, namespace) => {
   let options = {
     method: 'DELETE',
     url:
-      constants.apiUrl +
+      apiUrl +
       constants.hive_api_path +
       '/namespaces/' +
       namespace +
@@ -67,7 +68,7 @@ export const getClusterDeployment = (clusterName) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url: constants.apiUrl + constants.hive_namespaced_api_path + clusterName + '/clusterdeployments/' + clusterName,
+    url: apiUrl + constants.hive_namespaced_api_path + clusterName + '/clusterdeployments/' + clusterName,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -81,7 +82,7 @@ export const getClusterDeployments = () => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url: constants.apiUrl + constants.hive_api_path + '/clusterdeployments',
+    url: apiUrl + constants.hive_api_path + '/clusterdeployments',
     headers: headers,
     failOnStatusCode: false,
   }
@@ -95,7 +96,7 @@ export const getClusterPool = (clusterPoolName, namespace) => {
   let options = {
     method: 'GET',
     url:
-      constants.apiUrl +
+      apiUrl +
       constants.hive_api_path +
       '/namespaces/' +
       namespace +
@@ -114,7 +115,7 @@ export const getClusterPools = () => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url: constants.apiUrl + constants.hive_api_path + constants.clusterpools_path,
+    url: apiUrl + constants.hive_api_path + constants.clusterpools_path,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -125,7 +126,7 @@ export const getClusterPools = () => {
 
 export const getClusterProvisions = (namespace, labels) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
-  let url = constants.apiUrl + constants.hive_api_path + '/namespaces/' + namespace + '/clusterprovisions'
+  let url = apiUrl + constants.hive_api_path + '/namespaces/' + namespace + '/clusterprovisions'
   if (labels) url = url + `?labelSelector=${labels}`
   let options = {
     method: 'GET',
@@ -142,7 +143,7 @@ export const getMachinePools = (namespace) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url: constants.apiUrl + constants.hive_api_path + '/namespaces/' + namespace + constants.machinepools_path,
+    url: apiUrl + constants.hive_api_path + '/namespaces/' + namespace + constants.machinepools_path,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -156,13 +157,7 @@ export const getMachinePool = (machinePool, namespace) => {
   let options = {
     method: 'GET',
     url:
-      constants.apiUrl +
-      constants.hive_api_path +
-      '/namespaces/' +
-      namespace +
-      constants.machinepools_path +
-      '/' +
-      machinePool,
+      apiUrl + constants.hive_api_path + '/namespaces/' + namespace + constants.machinepools_path + '/' + machinePool,
     headers: headers,
     failOnStatusCode: false,
   }

@@ -1158,7 +1158,9 @@ export const managedClustersMethods = {
     if (typeof user != 'undefined' && user != 'admin') {
       cy.get(managedClustersSelectors.clusterTableRowOptionsMenu.detachCluster).should('have.attr', 'rbac')
     } else {
-      cy.get(managedClustersSelectors.clusterTableRowOptionsMenu.detachCluster).click()
+      cy.get(managedClustersSelectors.clusterTableRowOptionsMenu.detachCluster)
+        .should('have.attr', 'aria-disabled', 'false')
+        .click()
       commonPageMethods.modal.shouldBeOpen()
       commonPageMethods.modal.confirmAction(clusterName)
       commonPageMethods.modal.clickDanger('Detach')
@@ -1303,6 +1305,7 @@ export const managedClustersMethods = {
     )
     managedClustersMethods.fillNetworkingDetails()
     managedClustersMethods.fillProxyDetails()
+    providerType === 'aws' && managedClustersMethods.fillAWSPrivateConfig()
     managedClustersMethods.fillAutomationDetails(jobTemplateName)
     managedClustersMethods.clickCreateAndVerify(clusterName)
     cy.contains('h1', clusterName).should('exist')

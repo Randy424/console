@@ -10,18 +10,13 @@ var headers = {
   Accept: 'application/json',
   Authorization: '',
 }
+const apiUrl = Cypress.env('CLUSTER_API_URL')
 
 export const getClusterCurator = (name, namespace) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url:
-      constants.apiUrl +
-      constants.ocm_cluster_api_v1beta1_path +
-      '/namespaces/' +
-      namespace +
-      '/clustercurators/' +
-      name,
+    url: apiUrl + constants.ocm_cluster_api_v1beta1_path + '/namespaces/' + namespace + '/clustercurators/' + name,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -32,7 +27,7 @@ export const getClusterCurator = (name, namespace) => {
 
 export const deleteClusterCurators = (namespace) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
-  let url = constants.apiUrl + constants.ocm_cluster_api_v1beta1_path + '/namespaces/' + namespace + '/clustercurators'
+  let url = apiUrl + constants.ocm_cluster_api_v1beta1_path + '/namespaces/' + namespace + '/clustercurators'
   let options = {
     method: 'GET',
     url: url,
@@ -52,8 +47,7 @@ export const deleteClusterCurators = (namespace) => {
 
 export const deleteClusterCurator = (name, namespace) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
-  let url =
-    constants.apiUrl + constants.ocm_cluster_api_v1beta1_path + '/namespaces/' + namespace + '/clustercurators/' + name
+  let url = apiUrl + constants.ocm_cluster_api_v1beta1_path + '/namespaces/' + namespace + '/clustercurators/' + name
   let options = {
     method: 'DELETE',
     url: url,
@@ -77,7 +71,7 @@ export const createClusterCurators = (name, namespace, creds, template) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'POST',
-    url: constants.apiUrl + constants.ocm_cluster_api_v1beta1_path + '/namespaces/' + namespace + '/clustercurators/',
+    url: apiUrl + constants.ocm_cluster_api_v1beta1_path + '/namespaces/' + namespace + '/clustercurators/',
     headers: headers,
     body: `{
             "apiVersion": "cluster.open-cluster-management.io/v1beta1",
@@ -127,7 +121,7 @@ export const createClusterCurators = (name, namespace, creds, template) => {
 
 export const getAnsibleJobResult = (namespace, stage) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
-  let url = constants.apiUrl + `/apis/tower.ansible.com/v1alpha1/namespaces/${namespace}/ansiblejobs`
+  let url = apiUrl + `/apis/tower.ansible.com/v1alpha1/namespaces/${namespace}/ansiblejobs`
   let options = {
     method: 'GET',
     url: url,
