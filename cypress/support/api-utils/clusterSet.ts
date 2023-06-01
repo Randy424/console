@@ -34,12 +34,13 @@ export const getClusterSet = (clusterSet) => {
  * @param {string} clusterSet
  * @returns {resp}
  */
+
+const apiUrl = Cypress.env('CLUSTER_API_URL')
 export const getClusterSetv1beta1 = (clusterSet) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url:
-      constants.apiUrl + constants.ocm_cluster_api_v1beta1_path + constants.managedclustersets_path + '/' + clusterSet,
+    url: apiUrl + constants.ocm_cluster_api_v1beta1_path + constants.managedclustersets_path + '/' + clusterSet,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -56,7 +57,7 @@ export const getClusterSets = () => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'GET',
-    url: constants.apiUrl + constants.ocm_cluster_api_v1beta2_path + constants.managedclustersets_path,
+    url: apiUrl + constants.ocm_cluster_api_v1beta2_path + constants.managedclustersets_path,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -74,7 +75,7 @@ export const createClusterSet = (clusterSet) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'POST',
-    url: constants.apiUrl + constants.ocm_cluster_api_v1beta2_path + constants.managedclustersets_path + '/',
+    url: apiUrl + constants.ocm_cluster_api_v1beta2_path + constants.managedclustersets_path + '/',
     headers: headers,
     body: `{
             "apiVersion": "cluster.open-cluster-management.io/v1beta2",
@@ -104,7 +105,7 @@ export const createClusterSetv1beta1 = (clusterSet) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'POST',
-    url: constants.apiUrl + constants.ocm_cluster_api_v1beta1_path + constants.managedclustersets_path + '/',
+    url: apiUrl + constants.ocm_cluster_api_v1beta1_path + constants.managedclustersets_path + '/',
     headers: headers,
     body: `{
             "apiVersion": "cluster.open-cluster-management.io/v1beta1",
@@ -134,8 +135,7 @@ export const deleteClusterSet = (clusterSet) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'DELETE',
-    url:
-      constants.apiUrl + constants.ocm_cluster_api_v1beta2_path + constants.managedclustersets_path + '/' + clusterSet,
+    url: apiUrl + constants.ocm_cluster_api_v1beta2_path + constants.managedclustersets_path + '/' + clusterSet,
     headers: headers,
     failOnStatusCode: false,
   }
@@ -155,7 +155,7 @@ export const getNamespaceBinding = (clusterSet, namespace) => {
   let options = {
     method: 'GET',
     url:
-      constants.apiUrl +
+      apiUrl +
       constants.ocm_cluster_api_v1beta2_path +
       '/namespaces/' +
       namespace +
@@ -178,12 +178,7 @@ export const createNamespaceBindingv1beta1 = (clusterSet, namespace) => {
   headers.Authorization = `Bearer ${Cypress.env('token')}`
   let options = {
     method: 'POST',
-    url:
-      constants.apiUrl +
-      constants.ocm_cluster_api_v1beta1_path +
-      '/namespaces/' +
-      namespace +
-      '/managedclustersetbindings',
+    url: apiUrl + constants.ocm_cluster_api_v1beta1_path + '/namespaces/' + namespace + '/managedclustersetbindings',
     headers: headers,
     body: `{
             "apiVersion": "cluster.open-cluster-management.io/v1beta1",

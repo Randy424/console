@@ -1123,7 +1123,7 @@ export const managedClustersMethods = {
       cy.get('#additionalLabels').type(additionalLabels).type('{enter}')
     }
 
-    cy.get('#import-mode-label').find('.pf-c-select').click()
+    cy.get('#import-mode-label').find('.pf-c-select__toggle').click()
     cy.contains(commonElementSelectors.elements.selectMenuItem, 'Kubeconfig').click()
     cy.get('#kubeConfigEntry').invoke('val', kubeConfig).type(' ')
   },
