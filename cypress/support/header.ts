@@ -183,6 +183,15 @@ export const acm23xheaderMethods = {
       .click()
   },
 
+  shouldLoad: () => {
+    cy.get(elements.pageClassKey, { timeout: 10000 }).should(
+      'contain',
+      acmHeaderSelectors.leftNavigation.listItemsText.credentials
+    )
+    cy.url().should('include', '/credentials', { timeout: 10000 })
+    cy.get('.pf-c-spinner', { timeout: 20000 }).should('not.exist')
+  },
+
   goToCredentials: () => {
     process.env.NODE_ENV === 'production' && acm23xheaderMethods.openMenu()
     cy.get(acmHeaderSelectors.leftNavigation.leftSideBar, { timeout: 20000 }).should('exist')
@@ -194,7 +203,7 @@ export const acm23xheaderMethods = {
     checkIfElementExists('Add credential').then((onCredentials) => {
       if (!onCredentials) {
         cy.contains(elements.a, acmHeaderSelectors.leftNavigation.listItemsText.credentials).should('exist').click()
-        credentialsPages.shouldLoad()
+        acm23xheaderMethods.shouldLoad()
       } else {
         cy.log('Already on credentials page!')
       }
