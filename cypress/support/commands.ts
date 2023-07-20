@@ -26,3 +26,15 @@ Cypress.Commands.add('login', (user: string = 'kube:admin', password?: string) =
     { cacheAcrossSpecs: true }
   )
 })
+
+Cypress.Commands.add('clearAllCredentials', () => {
+  cy.exec('oc delete secrets -l "cluster.open-cluster-management.io/credentials"=""')
+})
+
+Cypress.Commands.add('clearAllManagedClusters', () => {
+  cy.exec('oc delete managedClusters -l cypress-test-cluster=true')
+})
+
+// Cypress.Commands.add('createCredential', () => {
+
+// })

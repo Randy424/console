@@ -8,6 +8,8 @@ declare global {
     interface Chainable {
       multiselect(value: string): Chainable<Element>
       login(user?: string, password?: string): Chainable<void>
+      clearAllCredentials(): Chainable<void>
+      clearAllManagedClusters(): Chainable<void>
       createNamespace(namespace: string): Chainable<void>
       deleteNamespace(namespace: string): Chainable<void>
       add<T extends keyof Chainable, S extends PrevSubject>(
