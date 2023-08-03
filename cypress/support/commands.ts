@@ -42,8 +42,7 @@ Cypress.Commands.add('createCredential', (credentialFileName: string) => {
 })
 
 Cypress.Commands.add('parseCredential', (credentialFileName: string) => {
-  let credential
-  credential = fs.readFileSync(`./cypress/fixtures/credentials/${credentialFileName}`, {
+  let credential = fs.readFileSync(`./cypress/fixtures/credentials/${credentialFileName}`, {
     encoding: 'utf-8',
   })
   try {
