@@ -10,6 +10,8 @@ declare global {
       login(user?: string, password?: string): Chainable<void>
       clearAllCredentials(): Chainable<void>
       clearAllManagedClusters(): Chainable<void>
+      createCredential(fileName: string): Chainable<void>
+      parseCredential(fileName: string): Chainable<Object>
       createNamespace(namespace: string): Chainable<void>
       deleteNamespace(namespace: string): Chainable<void>
       add<T extends keyof Chainable, S extends PrevSubject>(

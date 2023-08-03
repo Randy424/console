@@ -3,7 +3,8 @@
     "target": "es2017",
     "lib": ["es7", "dom"],
     "types": ["cypress", "node"],
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "moduleResolution": "node"
   },
   "include": ["**/*.ts", "**/*.tsx"]
 }
