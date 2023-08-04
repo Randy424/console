@@ -29,15 +29,22 @@ describe('example to-do app', () => {
     cy.get('#aws').click()
     cy.get('#aws-standard').click()
 
-    //
+    // Load AWS credential fixture
     cy.fixture(`credentials/aws-credential.yaml`, 'utf8').then(async (credential) => {
       const credentialObject: ProviderConnection = await load(credential)
+
       cy.log(JSON.stringify(credentialObject))
 
       // Basic information
       fillBasicInformation(credentialObject)
+
+      // AWS keys
+
+      // Proxy & Pull Secret
+      fillPullSecrets(credentialObject)
     })
   })
 })
 //
-function fillBasicInformation(credentialObject: object) {}
+function fillBasicInformation(credentialObject: ProviderConnection) {}
+function fillPullSecrets(credentialObject: ProviderConnection) {}
