@@ -14,7 +14,6 @@ describe('example to-do app', () => {
   })
 
   it('CLC: Traverse to create credential page from populated credential page', () => {
-    // TODO: add api method for quick credential creation
     // Adding credential
     cy.createCredential('aws-credential.yaml')
     cy.visit('/multicloud/credentials')
