@@ -1,5 +1,5 @@
-import * as fs from 'fs'
-import { yaml } from 'js-yaml'
+import { load } from 'js-yaml'
+
 // Login
 // cy.session & cacheAcrossSpecs option will preserve session cache (cookies) across specs
 // 'local-user' is the session id for caching and restoring session
@@ -39,16 +39,4 @@ Cypress.Commands.add('clearAllManagedClusters', () => {
 
 Cypress.Commands.add('createCredential', (credentialFileName: string) => {
   cy.exec(`oc apply -f ./cypress/fixtures/credentials/${credentialFileName}`)
-})
-
-Cypress.Commands.add('parseCredential', (credentialFileName: string) => {
-  let credential = fs.readFileSync(`./cypress/fixtures/credentials/${credentialFileName}`, {
-    encoding: 'utf-8',
-  })
-  try {
-    credential = yaml(credential)
-    cy.log(credential)
-  } catch (e) {
-    cy.log('Failed to parse yaml: ', e)
-  }
 })

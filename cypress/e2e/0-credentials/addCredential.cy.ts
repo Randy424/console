@@ -1,6 +1,8 @@
+import { load } from 'js-yaml'
+import { ProviderConnection } from '../../resources/provider-connection'
 describe('example to-do app', () => {
   beforeEach(() => {
-    cy.clearAllCredentials()
+    // cy.clearAllCredentials()
   })
   // TODO: VALIDATE THAT THE NECESSARY FIXTURES ARE PRESENT
 
@@ -20,20 +22,22 @@ describe('example to-do app', () => {
     cy.location('href').should('include', '/credentials/create')
   })
 
-  it('RHACM4K-567: CLC: Create AWS provider connections', { tags: ['aws', 'credentials'] }, () => {
+  it('RHACM4K-567: CLC: Create AWS provider connections', { tags: ['aws', 'credentials'] }, async () => {
     cy.visit('/multicloud/credentials/create')
 
     // Select credential type
     cy.get('#aws').click()
     cy.get('#aws-standard').click()
 
-    // Basic information
-    fillBasicInformation('aws-credential.yaml')
     //
+    cy.fixture(`credentials/aws-credential.yaml`, 'utf8').then(async (credential) => {
+      const credentialObject: ProviderConnection = await load(credential)
+      cy.log(JSON.stringify(credentialObject))
+
+      // Basic information
+      fillBasicInformation(credentialObject)
+    })
   })
 })
 //
-function fillBasicInformation(credentialFileName: string) {
-  const credentialObject = cy.parseCredential('aws-credential.yml')
-  console.log(credentialObject)
-}
+function fillBasicInformation(credentialObject: object) {}
