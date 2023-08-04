@@ -2,7 +2,7 @@ import { load } from 'js-yaml'
 import { ProviderConnection } from '../../resources/provider-connection'
 describe('example to-do app', () => {
   beforeEach(() => {
-    // cy.clearAllCredentials()
+    cy.clearAllCredentials()
   })
   // TODO: VALIDATE THAT THE NECESSARY FIXTURES ARE PRESENT
 
