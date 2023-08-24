@@ -35,6 +35,6 @@ Cypress.Commands.add('clearAllManagedClusters', () => {
   cy.exec('oc delete managedClusters -l cypress-test-cluster=true')
 })
 
-// Cypress.Commands.add('createCredential', () => {
-
-// })
+Cypress.Commands.add('createCredential', (credentialFileName) => {
+  cy.exec(`oc apply -f ./cypress/fixtures/credentials/${credentialFileName}`)
+})
