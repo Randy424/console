@@ -40,3 +40,15 @@ Cypress.Commands.add('clearAllManagedClusters', () => {
 Cypress.Commands.add('createCredential', (credentialFileName: string) => {
   cy.exec(`oc apply -f ./cypress/fixtures/credentials/${credentialFileName}`)
 })
+
+Cypress.Commands.add('typeToInputField', (selector: string, content: string) => {
+  // It is unsafe to chain further commands that rely on the subject after .click().
+  // Dividing operation into two commands
+  cy.get(selector).click()
+  cy.focused().type(content)
+})
+
+Cypress.Commands.add('selectFromSelectField', (selector: string, target: string) => {
+  cy.get(selector).click()
+  cy.get('li').contains(target).click()
+})
