@@ -45,7 +45,7 @@ Cypress.Commands.add('typeToInputField', (selector: string, content: string) => 
   // It is unsafe to chain further commands that rely on the subject after .click().
   // Dividing operation into two commands
   cy.get(selector).click()
-  cy.focused().type(content)
+  cy.focused().type(content, { parseSpecialCharSequences: false })
 })
 
 Cypress.Commands.add('selectFromSelectField', (selector: string, target: string) => {

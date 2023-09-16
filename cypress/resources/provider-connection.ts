@@ -90,3 +90,10 @@ export interface ProviderConnection {
   stringData?: ProviderConnectionStringData
   type: 'Opaque'
 }
+
+export interface ServicePrinciple {
+  clientId: string
+  clientSecret: string
+  tenantId: string
+  subscriptionId: string
+}
