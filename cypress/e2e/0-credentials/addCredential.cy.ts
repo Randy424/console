@@ -48,7 +48,6 @@ describe(
     before(() => {
       cy.readFile('cypress/fixtures/credentials/aws-credential.yaml').as('awsCredential')
     })
-
     it('RHACM4K-567: CLC: Create AWS provider connection', { tags: ['aws', 'credentials'] }, function () {
       // move directly to creation page
       cy.visit('/multicloud/credentials/create')
@@ -86,7 +85,6 @@ describe(
     before(() => {
       cy.readFile('cypress/fixtures/credentials/azure-credential.yaml').as('azureCredential')
     })
-    //TODO: have a discussion with David about using id attributes for selectors. Should we use role+content selectors?
     it('RHACM4K-568: CLC: Create Azure provider connections', { tags: ['azure', 'credentials'] }, function () {
       // move directly to creation page
       cy.visit('/multicloud/credentials/create')
@@ -171,7 +169,6 @@ describe(
     before(() => {
       cy.readFile('cypress/fixtures/credentials/gcp-credential.yaml').as('gcpCredential')
     })
-
     it(
       'RHACM4K-569: CLC: Create Google Cloud provider connections',
       { tags: ['gcp', 'credentials', '@ocpInterop'] },
@@ -208,7 +205,6 @@ describe(
     before(() => {
       cy.readFile('cypress/fixtures/credentials/vmware-credential.yaml').as('vmwareCredential')
     })
-
     it('RHACM4K-1232: CLC: Create VMware provider connections', { tags: ['vmware', 'credentials'] }, function () {
       // move directly to creation page
       cy.visit('/multicloud/credentials/create')
@@ -253,7 +249,6 @@ describe(
     before(() => {
       cy.readFile('cypress/fixtures/credentials/ansible-credential.yaml').as('ansibleCredential')
     })
-
     it('RHACM4K-6917: CLC: Create Ansible credentials', { tags: ['ansible', 'credentials'] }, function () {
       cy.visit('/multicloud/credentials/create')
 
@@ -266,7 +261,7 @@ describe(
       cy.selectFromSelectField('#namespaceName-input-toggle', ansibleCred.metadata.namespace)
       cy.get('button').contains('Next').click()
 
-      // ansible details
+      // Ansible details
       cy.typeToInputField('#ansibleHost', ansibleCred.stringData.host)
       cy.typeToInputField('#ansibleToken', ansibleCred.stringData.token)
       cy.get('button').contains('Next').click()
@@ -278,32 +273,124 @@ describe(
       cy.get('a').contains(ansibleCred.metadata.name)
     })
 
-    // TODO: finish these...
-    // it(`RHACM4K-30168: CLC: Create Red Hat OpenStack Platform credentials with CA cert`, {tags: ['openstack', 'credentials']}, function () {
-    // })
+    before(() => {
+      cy.readFile('cypress/fixtures/credentials/openstack-credential.yaml').as('openStackCredential')
+    })
+    it(
+      `RHACM4K-30168: CLC: Create Red Hat OpenStack Platform credentials with CA cert`,
+      { tags: ['openstack', 'credentials'] },
+      function () {
+        cy.visit('/multicloud/credentials/create')
 
-    // it(`RHACM4K-3177: CLC: Create Red Hat OpenStack Platform credentials`, { tags: ['openstack', 'credentials'] }, function () {
-    // })
+        cy.get('article').contains('Red Hat OpenStack Platform').click()
 
-    // it(`RHACM4K-13213: CLC: Create a Red Hat Virtualization credential`, { tags: ['rhv', 'credentials'] }, function () {
-    // });
+        const openStackCred = load(this.openStackCredential) as ProviderConnection
 
-    // it('CLC: Create provider connection using Editor input', { tags: ['aws', 'credentials'] }, function () {
-    //   cy.visit('/multicloud/credentials/create')
-    //   // Select credential type
-    //   cy.get('article').contains('Amazon Web Services').click()
-    //   cy.get('article').contains('Red Hat OpenShift Provisioning').click()
+        // Basic information
+        cy.typeToInputField('#credentialsName', openStackCred.metadata.name + '-w-cert')
+        cy.selectFromSelectField('#namespaceName-form-group', openStackCred.metadata.namespace)
+        cy.typeToInputField('#baseDomain', openStackCred.stringData.baseDomain)
 
-    //   const awsCred = load(this.awsCredential) as ProviderConnection
-    //   cy.log('checking parsed cred: ', awsCred)
-    //   console.log('checking parsed cred: ', awsCred.metadata)
-    //   console.log('checking parsed cred type: ', typeof awsCred)
-    //   cy.get('h2').contains('Enter the basic credentials information')
-    //   cy.get('span').contains('YAML').click()
-    //   cy.get('div.monaco-scrollable-element').click()
-    //   cy.focused().clear()
+        // fillBasicInformation(openStackCred)
+        cy.get('button').contains('Next').click()
 
-    //   cy.focused().type(JSON.stringify(awsCred), { parseSpecialCharSequences: false })
-    // })
+        // Openstack details (and CA cert)
+        cy.typeToInputField('textarea[label="OpenStack clouds.yaml"]', openStackCred.stringData['clouds.yaml'])
+        // cy.typeToInputField('#cloud', openStackCred.stringData.cloud)
+        cy.typeToInputField('textarea[label="Internal CA certificate"]', openStackCred.stringData.os_ca_bundle)
+        cy.get('button').contains('Next').click()
+
+        // disconnected install (skipped)
+        cy.get('button').contains('Next').click()
+
+        // proxy (skipped)
+        cy.get('button').contains('Next').click()
+
+        // Pull Secret
+        fillPullSecrets(openStackCred)
+        cy.get('button').contains('Next').click()
+
+        // Summary page
+        cy.get('button').contains('Add').click()
+
+        // confirm credential exists in credential list
+        cy.get('a').contains(openStackCred.metadata.name)
+      }
+    )
+
+    before(() => {
+      cy.readFile('cypress/fixtures/credentials/openstack-credential.yaml').as('openStackCredential')
+    })
+    it(
+      `RHACM4K-3177: CLC: Create Red Hat OpenStack Platform credentials`,
+      { tags: ['openstack', 'credentials'] },
+      function () {
+        cy.visit('/multicloud/credentials/create')
+
+        cy.get('article').contains('Red Hat OpenStack Platform').click()
+
+        const openStackCred = load(this.openStackCredential) as ProviderConnection
+
+        // Basic information
+        fillBasicInformation(openStackCred)
+        cy.get('button').contains('Next').click()
+
+        // Openstack details (and CA cert)
+        cy.typeToInputField('textarea[label="OpenStack clouds.yaml"]', openStackCred.stringData['clouds.yaml'])
+        cy.get('button').contains('Next').click()
+
+        // disconnected install (skipped)
+        cy.get('button').contains('Next').click()
+
+        // proxy (skipped)
+        cy.get('button').contains('Next').click()
+
+        // Pull secrets
+        fillPullSecrets(openStackCred)
+        cy.get('button').contains('Next').click()
+
+        // Summary page
+        cy.get('button').contains('Add').click()
+
+        // confirm credential exists in credential list
+        cy.get('a').contains(openStackCred.metadata.name)
+      }
+    )
+
+    before(() => {
+      cy.readFile('cypress/fixtures/credentials/rhv-credential.yaml').as('RHVCredential')
+    })
+    it(`RHACM4K-13213: CLC: Create a Red Hat Virtualization credential`, { tags: ['rhv', 'credentials'] }, function () {
+      cy.visit('/multicloud/credentials/create')
+
+      cy.get('article').contains('Red Hat Virtualization').click()
+
+      const RHVCred = load(this.RHVCredential) as ProviderConnection
+
+      // Basic information
+      fillBasicInformation(RHVCred)
+      cy.get('button').contains('Next').click()
+
+      // RHV details
+      cy.typeToInputField('#ovirt_url', RHVCred.stringData.ovirt_url)
+      cy.typeToInputField('#ovirt_fqdn', RHVCred.stringData.ovirt_fqdn)
+      cy.typeToInputField('#ovirt_username', RHVCred.stringData.ovirt_username)
+      cy.typeToInputField('#ovirt_password', RHVCred.stringData.ovirt_password)
+      cy.typeToInputField('textarea[label="oVirt CA Certificate"]', RHVCred.stringData.ovirt_ca_bundle)
+      cy.get('button').contains('Next').click()
+
+      // Proxy (skipped)
+      cy.get('button').contains('Next').click()
+
+      // Pull secrets
+      fillPullSecrets(RHVCred)
+      cy.get('button').contains('Next').click()
+
+      // Summary page
+      cy.get('button').contains('Add').click()
+
+      // confirm credential exists in credential list
+      cy.get('a').contains(RHVCred.metadata.name)
+    })
   }
 )
