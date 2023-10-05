@@ -20,15 +20,10 @@ describe(
   },
   function () {
     beforeEach(() => {
-      // TODO: convert to monolith credential file
       cy.clearAllCredentials()
-      // for monolith files, can also use
-      // cy.readFile('cypress/fixtures/credentials/allCredentials.yaml').then(function (allCredential) {
-      //   this.awsCredential = loadAll(allCredential).find((resource) => resource['metadata']['name'] === 'aws-credential')
-      // })
+      cy.readFile('cypress/fixtures/credentials/credentials.yaml').as('credentials')
     })
 
-    // TODO: VALIDATE THAT THE NECESSARY FIXTURES ARE PRESENT
     // TODO: add tags
     it('CLC: Traverse to create credential page from empty state credential page', () => {
       cy.visit('/multicloud/credentials')
@@ -45,9 +40,6 @@ describe(
       cy.location('href').should('include', '/credentials/create')
     })
 
-    before(() => {
-      cy.readFile('cypress/fixtures/credentials/aws-credential.yaml').as('awsCredential')
-    })
     it('RHACM4K-567: CLC: Create AWS provider connection', { tags: ['aws', 'credentials'] }, function () {
       // move directly to creation page
       cy.visit('/multicloud/credentials/create')
@@ -57,7 +49,8 @@ describe(
       cy.get('article').contains('Red Hat OpenShift Provisioning').click()
 
       // get credential fixture
-      const awsCred = load(this.awsCredential) as ProviderConnection
+      const allCredentials = loadAll(this.credentials) as ProviderConnection[]
+      const awsCred = allCredentials.find((credential) => credential.metadata.name === 'aws-connection')
 
       // Basic information
       fillBasicInformation(awsCred)
@@ -82,9 +75,6 @@ describe(
       cy.get('a').contains(awsCred.metadata.name)
     })
 
-    before(() => {
-      cy.readFile('cypress/fixtures/credentials/azure-credential.yaml').as('azureCredential')
-    })
     it('RHACM4K-568: CLC: Create Azure provider connections', { tags: ['azure', 'credentials'] }, function () {
       // move directly to creation page
       cy.visit('/multicloud/credentials/create')
@@ -93,7 +83,8 @@ describe(
       cy.get('article').contains('Microsoft Azure').click()
 
       // get credential fixture
-      const azureCred = load(this.azureCredential) as ProviderConnection
+      const allCredentials = loadAll(this.credentials) as ProviderConnection[]
+      const azureCred = allCredentials.find((credential) => credential.metadata.name === 'azure-connection')
 
       // Basic information
       fillBasicInformation(azureCred)
@@ -126,16 +117,14 @@ describe(
       cy.get('a').contains(azureCred.metadata.name)
     })
 
-    before(() => {
-      cy.readFile('cypress/fixtures/credentials/azure-gov-credential.yaml').as('azureGovCredential')
-    })
     //TODO: have a discussion with David about using id attributes for selectors. Should we use role+content selectors?
     it('RHACM4K-8106: CLC: Create Azure Government credentials', { tags: ['azgov', 'credentials'] }, function () {
       cy.visit('/multicloud/credentials/create')
 
       cy.get('article').contains('Microsoft Azure').click()
 
-      const azureGovCred = load(this.azureGovCredential) as ProviderConnection
+      const allCredentials = loadAll(this.credentials) as ProviderConnection[]
+      const azureGovCred = allCredentials.find((credential) => credential.metadata.name === 'azure-gov-connection')
 
       fillBasicInformation(azureGovCred)
 
@@ -166,9 +155,6 @@ describe(
       cy.get('a').contains(azureGovCred.metadata.name)
     })
 
-    before(() => {
-      cy.readFile('cypress/fixtures/credentials/gcp-credential.yaml').as('gcpCredential')
-    })
     it(
       'RHACM4K-569: CLC: Create Google Cloud provider connections',
       { tags: ['gcp', 'credentials', '@ocpInterop'] },
@@ -177,7 +163,8 @@ describe(
 
         cy.get('article').contains('Google Cloud Platform').click()
 
-        const gcpCred = load(this.gcpCredential) as ProviderConnection
+        const allCredentials = loadAll(this.credentials) as ProviderConnection[]
+        const gcpCred = allCredentials.find((credential) => credential.metadata.name === 'gcp-connection')
 
         fillBasicInformation(gcpCred)
         cy.get('button').contains('Next').click()
@@ -202,16 +189,14 @@ describe(
       }
     )
 
-    before(() => {
-      cy.readFile('cypress/fixtures/credentials/vmware-credential.yaml').as('vmwareCredential')
-    })
     it('RHACM4K-1232: CLC: Create VMware provider connections', { tags: ['vmware', 'credentials'] }, function () {
       // move directly to creation page
       cy.visit('/multicloud/credentials/create')
 
       cy.get('article').contains('VMware vSphere').click()
 
-      const vmwareCred = load(this.vmwareCredential) as ProviderConnection
+      const allCredentials = loadAll(this.credentials) as ProviderConnection[]
+      const vmwareCred = allCredentials.find((credential) => credential.metadata.name === 'vsphere-connection')
 
       fillBasicInformation(vmwareCred)
       cy.get('button').contains('Next').click()
@@ -246,15 +231,13 @@ describe(
       cy.get('a').contains(vmwareCred.metadata.name)
     })
 
-    before(() => {
-      cy.readFile('cypress/fixtures/credentials/ansible-credential.yaml').as('ansibleCredential')
-    })
     it('RHACM4K-6917: CLC: Create Ansible credentials', { tags: ['ansible', 'credentials'] }, function () {
       cy.visit('/multicloud/credentials/create')
 
       cy.get('article').contains('Red Hat Ansible Automation Platform').click()
 
-      const ansibleCred = load(this.ansibleCredential) as ProviderConnection
+      const allCredentials = loadAll(this.credentials) as ProviderConnection[]
+      const ansibleCred = allCredentials.find((credential) => credential.metadata.name === 'ansible-connection')
 
       // Basic information
       cy.typeToInputField('#credentialsName', ansibleCred.metadata.name)
@@ -273,9 +256,6 @@ describe(
       cy.get('a').contains(ansibleCred.metadata.name)
     })
 
-    before(() => {
-      cy.readFile('cypress/fixtures/credentials/openstack-credential.yaml').as('openStackCredential')
-    })
     it(
       `RHACM4K-30168: CLC: Create Red Hat OpenStack Platform credentials with CA cert`,
       { tags: ['openstack', 'credentials'] },
@@ -284,7 +264,8 @@ describe(
 
         cy.get('article').contains('Red Hat OpenStack Platform').click()
 
-        const openStackCred = load(this.openStackCredential) as ProviderConnection
+        const allCredentials = loadAll(this.credentials) as ProviderConnection[]
+        const openStackCred = allCredentials.find((credential) => credential.metadata.name === 'open-stack-connection')
 
         // Basic information
         cy.typeToInputField('#credentialsName', openStackCred.metadata.name + '-w-cert')
@@ -318,9 +299,6 @@ describe(
       }
     )
 
-    before(() => {
-      cy.readFile('cypress/fixtures/credentials/openstack-credential.yaml').as('openStackCredential')
-    })
     it(
       `RHACM4K-3177: CLC: Create Red Hat OpenStack Platform credentials`,
       { tags: ['openstack', 'credentials'] },
@@ -329,7 +307,8 @@ describe(
 
         cy.get('article').contains('Red Hat OpenStack Platform').click()
 
-        const openStackCred = load(this.openStackCredential) as ProviderConnection
+        const allCredentials = loadAll(this.credentials) as ProviderConnection[]
+        const openStackCred = allCredentials.find((credential) => credential.metadata.name === 'open-stack-connection')
 
         // Basic information
         fillBasicInformation(openStackCred)
@@ -357,15 +336,13 @@ describe(
       }
     )
 
-    before(() => {
-      cy.readFile('cypress/fixtures/credentials/rhv-credential.yaml').as('RHVCredential')
-    })
     it(`RHACM4K-13213: CLC: Create a Red Hat Virtualization credential`, { tags: ['rhv', 'credentials'] }, function () {
       cy.visit('/multicloud/credentials/create')
 
       cy.get('article').contains('Red Hat Virtualization').click()
 
-      const RHVCred = load(this.RHVCredential) as ProviderConnection
+      const allCredentials = loadAll(this.credentials) as ProviderConnection[]
+      const RHVCred = allCredentials.find((credential) => credential.metadata.name === 'rhv-connection')
 
       // Basic information
       fillBasicInformation(RHVCred)
