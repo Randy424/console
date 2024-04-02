@@ -1,5 +1,4 @@
 /* Copyright Contributors to the Open Cluster Management project */
-import { V1CustomResourceDefinitionCondition } from '@kubernetes/client-node/dist/gen/model/v1CustomResourceDefinitionCondition'
 import { Metadata } from './metadata'
 import { IResourceDefinition } from './resource'
 import { Selector } from './selector'
@@ -62,8 +61,8 @@ export interface ClusterDeployment {
       namespace: string
       poolName: string
     }
-    pullSecretRef?: {
-      name?: string
+    pullSecretRef: {
+      name: string
     }
     clusterInstallRef?: {
       group: string
@@ -103,7 +102,6 @@ export interface ClusterDeployment {
       observedGeneration: number
       versionHash: string
     }
-    conditions: V1CustomResourceDefinitionCondition[]
     installedTimestamp?: string
     installerImage: string
     powerState: string

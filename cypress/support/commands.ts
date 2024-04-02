@@ -29,6 +29,10 @@ Cypress.Commands.add('login', (user: string = 'kube:admin', password?: string) =
   )
 })
 
+Cypress.Commands.add('clearCredentialsWithLabel', (label: string) => {
+  cy.exec(`oc delete secrets -l "cluster.open-cluster-management.io/credentials"="" -l ${label}`)
+})
+
 Cypress.Commands.add('clearAllCredentials', () => {
   cy.exec('oc delete secrets -l "cluster.open-cluster-management.io/credentials"=""')
 })
@@ -48,7 +52,7 @@ Cypress.Commands.add('typeToInputField', (selector: string, content: string) => 
   cy.focused().type(content, { parseSpecialCharSequences: false })
 })
 
-Cypress.Commands.add('selectFromSelectField', (selector: string, target: string) => {
+Cypress.Commands.add('selectFromSelectField', (selector: string, targetSelectValue: string) => {
   cy.get(selector).click()
-  cy.get('li').contains(target).click()
+  cy.get('li').contains(targetSelectValue).click()
 })

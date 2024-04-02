@@ -1,19 +1,11 @@
 import { dump, load, loadAll } from 'js-yaml'
-import { ProviderConnection, ServicePrinciple } from '../../resources/provider-connection'
-const fs = require('fs')
+import { ProviderConnection } from '../../resources/provider-connection'
+import { createCredential } from '../../support/utils/apiUtils'
+
 /* 
     Note: This test will create credentials via API + fixtures, then delete them within various test cases.
     This way the spec can run as a standalone e2e test
 */
-
-function createCredential(credentialName: string) {
-  const allCredentials = loadAll(this.credentials) as ProviderConnection[]
-  const serializedAwsCred = dump(allCredentials.find((credential) => credential.metadata.name === credentialName))
-  cy.task('createFile', { path: `${credentialName}.yaml`, data: serializedAwsCred }).then(() => {
-    cy.exec(`oc apply -f ${credentialName}.yaml`)
-    cy.exec(`rm ${credentialName}.yaml`)
-  })
-}
 
 describe(
   'Create provider credentials',

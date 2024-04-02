@@ -9,6 +9,7 @@ declare global {
       multiselect(value: string): Chainable<Element>
       login(user?: string, password?: string): Chainable<void>
       clearAllCredentials(): Chainable<void>
+      clearCredentialsWithLabel(label: string): Chainable<void>
       clearAllManagedClusters(): Chainable<void>
       createCredential(fileName: string): Chainable<void>
       typeToInputField(selector: string, contents: string): Chainable<void>

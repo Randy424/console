@@ -1,4 +1,4 @@
-import { load, loadAll } from 'js-yaml'
+import { loadAll } from 'js-yaml'
 import { ProviderConnection, ServicePrinciple } from '../../resources/provider-connection'
 
 function fillBasicInformation(credentialObject: ProviderConnection) {
@@ -20,13 +20,13 @@ describe(
   },
   function () {
     beforeEach(() => {
-      cy.clearAllCredentials()
+      cy.clearCredentialsWithLabel('"credential-usage"="cypress-credential"')
       cy.readFile('cypress/fixtures/credentials/credentials.yaml').as('credentials')
+      cy.visit('/multicloud/credentials')
     })
 
     // TODO: add tags
     it('CLC: Traverse to create credential page from empty state credential page', () => {
-      cy.visit('/multicloud/credentials')
       cy.get('a').contains('Add credential').should('have.attr', 'aria-disabled', 'false').click()
       cy.location('href').should('include', '/credentials/create')
     })
@@ -35,7 +35,6 @@ describe(
       // Adding credential via api call
       cy.createCredential('aws-credential.yaml')
 
-      cy.visit('/multicloud/credentials')
       cy.get('button').contains('Add credential').should('have.attr', 'aria-disabled', 'false').click()
       cy.location('href').should('include', '/credentials/create')
     })
