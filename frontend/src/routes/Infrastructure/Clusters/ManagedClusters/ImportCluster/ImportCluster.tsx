@@ -66,7 +66,6 @@ import {
   WizTextArea,
   WizTextInput,
   useSetHasValue,
-  useValidate,
 } from '@patternfly-labs/react-form-wizard'
 import { TemplateLinkOut, TemplateSummaryExpandable } from '../../../../../components/TemplateSummaryModal'
 import { ExternalLinkAltIcon } from '@patternfly/react-icons'
@@ -75,6 +74,7 @@ import { AutomationProviderHint } from '../../../../../components/AutomationProv
 import { validateYAML } from '../../../../../lib/validation'
 import { useWizardStrings } from '../../../../../lib/wizardStrings'
 import { css } from '@emotion/css'
+import { AcmFormInputAdapter } from '../../../../../wizards/common/AcmFormInputAdapter'
 
 const acmSchema = [...schema, ...kac]
 
@@ -262,12 +262,12 @@ export default function ImportClusterPage() {
   const ocmCredentials = useRecoilValue(RHOCMCredentials)
   const initalAPIToken =
     ocmCredentials.find((cred) => cred.metadata.name === initialDiscoveryCredential)?.stringData?.ocmAPIToken ?? ''
-  
+
   if (discoveryType === 'ROSA') {
     initialClusterID = sessionStorage.getItem('DiscoveredClusterID') ?? ''
     initialDiscoveryCredential = sessionStorage.getItem('DiscoveryCredential') ?? ''
   }
-  
+
   const [state, dispatch] = useReducer(
     reducer,
     getInitialState(
@@ -589,7 +589,6 @@ const AdditionalLabels = (props: { state: State; dispatch: Dispatch<Action> }) =
   } = props
   const { t } = useTranslation()
   const resources = useItem() as any[]
-  const { update } = useData()
   const mode = useDisplayMode()
 
   const managedCluster = resources.find((item) => item.kind === ManagedClusterKind) as ManagedCluster
@@ -619,9 +618,8 @@ const AdditionalLabels = (props: { state: State; dispatch: Dispatch<Action> }) =
       }
       dispatch({ type: 'setManagedClusterSet', managedClusterSet: clusterSet })
       dispatch({ type: 'setAdditionalLabels', additionalLabels: labels })
-      update()
     },
-    [dispatch, managedCluster, klusterletAddonConfig, update]
+    [dispatch, managedCluster, klusterletAddonConfig]
   )
 
   const onChangeAdditionalLabels = useCallback(
@@ -679,8 +677,6 @@ const AutoImportControls = (props: { state: State; dispatch: Dispatch<Action> })
   const { t } = useTranslation()
   const secretName = 'auto-import-secret'
   const resources = useItem() as any[]
-  const { update } = useData()
-  const validate = useValidate()
   const mode = useDisplayMode()
   const { RHOCMCredentials } = useSharedSelectors()
   const ocmCredentials = useRecoilValue(RHOCMCredentials)
@@ -754,7 +750,7 @@ const AutoImportControls = (props: { state: State; dispatch: Dispatch<Action> })
       const discoverySecret = cloneDeep(autoImportSecret)
       discoverySecret.stringData = {
         ...discoverySecret.stringData,
-        api_token:  newToken,
+        api_token: newToken,
         cluster_id: clusterID,
       }
       discoverySecret.type = 'auto-import/rosa'
@@ -797,22 +793,9 @@ const AutoImportControls = (props: { state: State; dispatch: Dispatch<Action> })
           }
         }
         dispatch({ type: 'setImportMode', importMode: importMode })
-        update()
-        validate()
       }
     },
-    [
-      autoImportSecret,
-      dispatch,
-      kubeconfig,
-      resources,
-      server,
-      token,
-      update,
-      validate,
-      credentialSelection,
-      updateROSAImportSecret,
-    ]
+    [autoImportSecret, dispatch, kubeconfig, resources, server, token, credentialSelection, updateROSAImportSecret]
   )
 
   useEffect(() => {
@@ -836,55 +819,59 @@ const AutoImportControls = (props: { state: State; dispatch: Dispatch<Action> })
           <DescriptionListDescription id={controlId}>{getImportModeDescription(importMode)}</DescriptionListDescription>
         </DescriptionListGroup>
       ) : (
+        <AcmFormInputAdapter>
+          <AcmSelect
+            id={controlId}
+            label={controlLabel}
+            placeholder={t('import.mode.default')}
+            value={importMode}
+            onChange={onChangeImportMode}
+            helperText={getImportModeHelperText(importMode)}
+            isRequired
+          >
+            {Object.values(ImportMode).map((m) => {
+              return (
+                <SelectOption key={m} value={m}>
+                  {getImportModeDescription(m)}
+                </SelectOption>
+              )
+            })}
+          </AcmSelect>
+        </AcmFormInputAdapter>
+      )}
+      <AcmFormInputAdapter>
         <AcmSelect
-          id={controlId}
-          label={controlLabel}
-          placeholder={t('import.mode.default')}
-          value={importMode}
-          onChange={onChangeImportMode}
-          helperText={getImportModeHelperText(importMode)}
-          isRequired
+          id={'namespace'}
+          label={t('discoveryConfig.namespaces.label')}
+          placeholder={t('discoveryConfig.namespaces.placeholder')}
+          labelHelp={t('discoveryConfig.namespaces.labelHelp')}
+          value={namespaceSelection}
+          isRequired={importMode === ImportMode.discoveryOCM}
+          hidden={importMode !== ImportMode.discoveryOCM}
+          onChange={(namespaceName) => {
+            namespaceName && setNamespaceSelection(namespaceName)
+            setCredentialSelection('')
+            const discoverySecret = updateROSAImportSecret('')
+            resources.splice(1, 1, discoverySecret)
+          }}
         >
-          {Object.values(ImportMode).map((m) => {
+          {ocmCredentialNamespaces.map((namespace) => {
             return (
-              <SelectOption key={m} value={m}>
-                {getImportModeDescription(m)}
+              <SelectOption key={namespace} value={namespace}>
+                {namespace}
               </SelectOption>
             )
           })}
         </AcmSelect>
-      )}
-      <AcmSelect
-        id={'namespace'}
-        label={t('discoveryConfig.namespaces.label')}
-        placeholder={t('discoveryConfig.namespaces.placeholder')}
-        labelHelp={t('discoveryConfig.namespaces.labelHelp')}
-        value={namespaceSelection}
-        isRequired={importMode === ImportMode.discoveryOCM}
-        hidden={importMode !== ImportMode.discoveryOCM}
-        onChange={(namespaceName) => {
-          namespaceName && setNamespaceSelection(namespaceName)
-          setCredentialSelection('')
-          const discoverySecret = updateROSAImportSecret('')
-          resources.splice(1, 1, discoverySecret)
-          update()
-          validate()
-        }}
-      >
-        {ocmCredentialNamespaces.map((namespace) => {
-          return (
-            <SelectOption key={namespace} value={namespace}>
-              {namespace}
-            </SelectOption>
-          )
-        })}
-      </AcmSelect>
+      </AcmFormInputAdapter>
+
       {mode === DisplayMode.Details ? (
         <DescriptionListGroup>
           <DescriptionListTerm>{credentialLabel}</DescriptionListTerm>
           <DescriptionListDescription id={credentialControlId}>{credentialSelection}</DescriptionListDescription>
         </DescriptionListGroup>
       ) : (
+        <AcmFormInputAdapter>
           <AcmSelect
             id={credentialControlId}
             label={credentialLabel}
@@ -895,7 +882,6 @@ const AutoImportControls = (props: { state: State; dispatch: Dispatch<Action> })
                 const discoverySecret = updateROSAImportSecret(credentialName)
                 resources.splice(1, 1, discoverySecret)
               }
-              update()
             }}
             isRequired={importMode === ImportMode.discoveryOCM}
             hidden={importMode !== ImportMode.discoveryOCM}
@@ -906,9 +892,10 @@ const AutoImportControls = (props: { state: State; dispatch: Dispatch<Action> })
                 <SelectOption key={credential.metadata.uid} value={credential.metadata.name}>
                   {credential.metadata.name}
                 </SelectOption>
-              ) 
+              )
             })}
           </AcmSelect>
+        </AcmFormInputAdapter>
       )}
       <Sync kind={ManagedClusterKind} path="metadata.name" targetKind={SecretKind} targetPath="metadata.namespace" />
       <Sync kind={ManagedClusterKind} path="metadata.name" targetKind={ClusterCuratorKind} targetPath="metadata.name" />
@@ -1051,9 +1038,8 @@ const AutomationTemplate = (props: { state: State; dispatch: Dispatch<Action> })
       }
       setSelectedTemplateName(curatorTemplate)
       dispatch({ type: 'setTemplateName', templateName: template })
-      update()
     },
-    [ansibleCredentials, clusterName, curatorTemplates, dispatch, resources, supportedCurations, update]
+    [ansibleCredentials, clusterName, curatorTemplates, dispatch, resources, supportedCurations]
   )
 
   const controlId = 'templateName'
@@ -1065,44 +1051,46 @@ const AutomationTemplate = (props: { state: State; dispatch: Dispatch<Action> })
     </DescriptionListGroup>
   ) : (
     <>
-      <AcmSelect
-        id={controlId}
-        label={controlLabel}
-        placeholder={t('template.clusterCreate.select.placeholder')}
-        labelHelp={t('template.clusterImport.tooltip')}
-        variant={SelectVariant.typeahead}
-        helperText={
-          <Split>
-            <SplitItem isFilled />
-            <SplitItem>
-              <AcmButton
-                variant="link"
-                style={{ paddingRight: '0px' }}
-                onClick={() =>
-                  window.open(
-                    `${window.location.origin}${NavigationPath.addAnsibleAutomation}`,
-                    'add-automation-template'
-                  )
-                }
-              >
-                {t('creation.ocp.cloud.add.template')}
-                <ExternalLinkAltIcon style={{ verticalAlign: '-0.125em', marginLeft: '8px' }} />
-              </AcmButton>
-            </SplitItem>
-          </Split>
-        }
-        value={templateName}
-        onChange={onChangeAutomationTemplate}
-      >
-        {Object.values(curatorTemplates).map((template) => {
-          const templateName = template.metadata.name
-          return (
-            <SelectOption key={templateName} value={templateName}>
-              {templateName}
-            </SelectOption>
-          )
-        })}
-      </AcmSelect>
+      <AcmFormInputAdapter>
+        <AcmSelect
+          id={controlId}
+          label={controlLabel}
+          placeholder={t('template.clusterCreate.select.placeholder')}
+          labelHelp={t('template.clusterImport.tooltip')}
+          variant={SelectVariant.typeahead}
+          helperText={
+            <Split>
+              <SplitItem isFilled />
+              <SplitItem>
+                <AcmButton
+                  variant="link"
+                  style={{ paddingRight: '0px' }}
+                  onClick={() =>
+                    window.open(
+                      `${window.location.origin}${NavigationPath.addAnsibleAutomation}`,
+                      'add-automation-template'
+                    )
+                  }
+                >
+                  {t('creation.ocp.cloud.add.template')}
+                  <ExternalLinkAltIcon style={{ verticalAlign: '-0.125em', marginLeft: '8px' }} />
+                </AcmButton>
+              </SplitItem>
+            </Split>
+          }
+          value={templateName}
+          onChange={onChangeAutomationTemplate}
+        >
+          {Object.values(curatorTemplates).map((template) => {
+            const templateName = template.metadata.name
+            return (
+              <SelectOption key={templateName} value={templateName}>
+                {templateName}
+              </SelectOption>
+            )
+          })}
+        </AcmSelect>
+      </AcmFormInputAdapter>
       <TemplateLinkOut templateCurator={selectedTemplateName} />
       <TemplateSummaryExpandable clusterCurator={resources.find((r) => r.kind === ClusterCuratorKind)} />
     </>
