@@ -17,7 +17,7 @@ import {
 } from '@patternfly/react-core'
 import { GlobeAmericasIcon, PencilAltIcon, SearchIcon } from '@patternfly/react-icons'
 import _ from 'lodash'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useContext, useEffect, useMemo, useState } from 'react'
 import { generatePath, Link, useNavigate } from 'react-router-dom-v5-compat'
 import { findResourceFieldLineNumber } from '../../../components/YamlEditor'
 import { useTranslation } from '../../../lib/acm-i18next'
@@ -26,6 +26,7 @@ import { NavigationPath } from '../../../NavigationPath'
 import { OwnerReference } from '../../../resources'
 import { AcmAlert, AcmLoadingPage, AcmTable, compareStrings } from '../../../ui-components'
 import { useSearchDetailsContext } from './DetailsPage'
+import { PluginContext } from '../../../lib/PluginContext'
 
 export function ResourceSearchLink(props: {
   cluster: string
@@ -319,6 +320,12 @@ export default function DetailsOverviewPage() {
     }
   }, [cluster, resource, navigate])
 
+  const { acmExtensions } = useContext(PluginContext)
+  let VirtualMachinesOverviewTab
+  if (acmExtensions?.searchDetails && acmExtensions.searchDetails.length) {
+    VirtualMachinesOverviewTab = acmExtensions.searchDetails[0].properties.component
+  }
+
   if (resourceError) {
     return (
       <PageSection>
@@ -341,166 +348,173 @@ export default function DetailsOverviewPage() {
 
   if (resource && !resourceLoading && !resourceError) {
     return (
-      <PageSection>
-        <PageSection variant={'light'}>
-          <Stack hasGutter>
-            <Text style={{ fontSize: '1.25rem', fontFamily: 'RedHatDisplay' }} component={'h2'}>
-              {t('search.resource.details', { resource: resource.kind })}
-            </Text>
-            <DescriptionList
-              columnModifier={{
-                default: '2Col',
-              }}
-              style={{ fontSize: '14px' }}
-            >
-              <DescriptionListGroup>
-                <DescriptionListTerm>{t('Name')}</DescriptionListTerm>
-                <DescriptionListDescription>{resource.metadata?.name}</DescriptionListDescription>
-              </DescriptionListGroup>
-
-              {resource.metadata?.namespace && (
+      <>
+        <PageSection>
+          <PageSection variant={'light'}>
+            <Stack hasGutter>
+              <Text style={{ fontSize: '1.25rem', fontFamily: 'RedHatDisplay' }} component={'h2'}>
+                {t('search.resource.details', { resource: resource.kind })}
+              </Text>
+              <DescriptionList
+                columnModifier={{
+                  default: '2Col',
+                }}
+                style={{ fontSize: '14px' }}
+              >
                 <DescriptionListGroup>
-                  <DescriptionListTerm>{t('Namespace')}</DescriptionListTerm>
+                  <DescriptionListTerm>{t('Name')}</DescriptionListTerm>
+                  <DescriptionListDescription>{resource.metadata?.name}</DescriptionListDescription>
+                </DescriptionListGroup>
+
+                {resource.metadata?.namespace && (
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>{t('Namespace')}</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      <Button
+                        data-test="namespace-nav-link"
+                        type="button"
+                        isInline
+                        onClick={() => {
+                          navigate(
+                            `${NavigationPath.resources}?cluster=${cluster}&kind=Namespace&apiversion=v1&name=${resource.metadata?.namespace}`
+                          )
+                        }}
+                        variant="link"
+                      >
+                        {resource.metadata?.namespace}
+                      </Button>
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                )}
+
+                <DescriptionListGroup>
+                  <DescriptionListTerm>{t('Cluster')}</DescriptionListTerm>
                   <DescriptionListDescription>
-                    <Button
-                      data-test="namespace-nav-link"
-                      type="button"
-                      isInline
-                      onClick={() => {
-                        navigate(
-                          `${NavigationPath.resources}?cluster=${cluster}&kind=Namespace&apiversion=v1&name=${resource.metadata?.namespace}`
-                        )
+                    <Link
+                      to={{
+                        pathname: generatePath(NavigationPath.clusterOverview, {
+                          name: cluster,
+                          namespace: cluster,
+                        }),
                       }}
-                      variant="link"
                     >
-                      {resource.metadata?.namespace}
-                    </Button>
+                      {cluster}
+                    </Link>
                   </DescriptionListDescription>
                 </DescriptionListGroup>
-              )}
 
-              <DescriptionListGroup>
-                <DescriptionListTerm>{t('Cluster')}</DescriptionListTerm>
-                <DescriptionListDescription>
-                  <Link
-                    to={{
-                      pathname: generatePath(NavigationPath.clusterOverview, {
-                        name: cluster,
-                        namespace: cluster,
-                      }),
+                <DescriptionListGroup>
+                  <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }}>
+                    <FlexItem>
+                      <DescriptionListTerm>{t('Labels')}</DescriptionListTerm>
+                    </FlexItem>
+                    {canEditResource && (
+                      <FlexItem>
+                        <Link
+                          to={NavigationPath.resourceYAML + window.location.search}
+                          state={{ scrollToLine: labelsLineNumber }}
+                        >
+                          {t('Edit')}
+                          <PencilAltIcon style={{ marginLeft: '.5rem' }} />
+                        </Link>
+                      </FlexItem>
+                    )}
+                  </Flex>
+                  <DescriptionListDescription
+                    style={{
+                      border: '1px solid var(--pf-global--BorderColor--300)',
+                      borderRadius: 'var(--pf-c-label-group--m-category--BorderRadius)',
+                      padding: '0.25rem',
                     }}
                   >
-                    {cluster}
-                  </Link>
-                </DescriptionListDescription>
-              </DescriptionListGroup>
-
-              <DescriptionListGroup>
-                <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }}>
-                  <FlexItem>
-                    <DescriptionListTerm>{t('Labels')}</DescriptionListTerm>
-                  </FlexItem>
-                  {canEditResource && (
-                    <FlexItem>
-                      <Link
-                        to={NavigationPath.resourceYAML + window.location.search}
-                        state={{ scrollToLine: labelsLineNumber }}
-                      >
-                        {t('Edit')}
-                        <PencilAltIcon style={{ marginLeft: '.5rem' }} />
-                      </Link>
-                    </FlexItem>
-                  )}
-                </Flex>
-                <DescriptionListDescription
-                  style={{
-                    border: '1px solid var(--pf-global--BorderColor--300)',
-                    borderRadius: 'var(--pf-c-label-group--m-category--BorderRadius)',
-                    padding: '0.25rem',
-                  }}
-                >
-                  <LablesGroup labels={resource.metadata?.labels ?? {}} />
-                </DescriptionListDescription>
-              </DescriptionListGroup>
-
-              {podSelectorLink && (
-                <DescriptionListGroup>
-                  <DescriptionListTerm>{t('Pod selector')}</DescriptionListTerm>
-                  <DescriptionListDescription>{podSelectorLink}</DescriptionListDescription>
+                    <LablesGroup labels={resource.metadata?.labels ?? {}} />
+                  </DescriptionListDescription>
                 </DescriptionListGroup>
-              )}
 
-              {nodeSelectorLink && (
-                <DescriptionListGroup>
-                  <DescriptionListTerm>{t('Node selector')}</DescriptionListTerm>
-                  <DescriptionListDescription>{nodeSelectorLink}</DescriptionListDescription>
-                </DescriptionListGroup>
-              )}
+                {podSelectorLink && (
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>{t('Pod selector')}</DescriptionListTerm>
+                    <DescriptionListDescription>{podSelectorLink}</DescriptionListDescription>
+                  </DescriptionListGroup>
+                )}
 
-              {resourceTolerationsCount > 0 && (
+                {nodeSelectorLink && (
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>{t('Node selector')}</DescriptionListTerm>
+                    <DescriptionListDescription>{nodeSelectorLink}</DescriptionListDescription>
+                  </DescriptionListGroup>
+                )}
+
+                {resourceTolerationsCount > 0 && (
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>{t('Tolerations')}</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      {canEditResource ? (
+                        <Link
+                          to={NavigationPath.resourceYAML + window.location.search}
+                          state={{ scrollToLine: tolerationsLineNumber }}
+                        >
+                          {t('tolerations.count', {
+                            count: resourceTolerationsCount,
+                          })}
+                          <PencilAltIcon style={{ marginLeft: '.5rem' }} />
+                        </Link>
+                      ) : (
+                        t('tolerations.count', {
+                          count: resourceTolerationsCount,
+                        })
+                      )}
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                )}
+
                 <DescriptionListGroup>
-                  <DescriptionListTerm>{t('Tolerations')}</DescriptionListTerm>
+                  <DescriptionListTerm>{t('Annotations')}</DescriptionListTerm>
                   <DescriptionListDescription>
                     {canEditResource ? (
                       <Link
                         to={NavigationPath.resourceYAML + window.location.search}
-                        state={{ scrollToLine: tolerationsLineNumber }}
+                        state={{ scrollToLine: annotationsLineNumber }}
                       >
-                        {t('tolerations.count', {
-                          count: resourceTolerationsCount,
+                        {t('annotations.count', {
+                          count: Object.keys(resource.metadata?.annotations ?? {}).length,
                         })}
                         <PencilAltIcon style={{ marginLeft: '.5rem' }} />
                       </Link>
                     ) : (
-                      t('tolerations.count', {
-                        count: resourceTolerationsCount,
+                      t('annotations.count', {
+                        count: Object.keys(resource.metadata?.annotations ?? {}).length,
                       })
                     )}
                   </DescriptionListDescription>
                 </DescriptionListGroup>
-              )}
 
-              <DescriptionListGroup>
-                <DescriptionListTerm>{t('Annotations')}</DescriptionListTerm>
-                <DescriptionListDescription>
-                  {canEditResource ? (
-                    <Link
-                      to={NavigationPath.resourceYAML + window.location.search}
-                      state={{ scrollToLine: annotationsLineNumber }}
-                    >
-                      {t('annotations.count', {
-                        count: Object.keys(resource.metadata?.annotations ?? {}).length,
-                      })}
-                      <PencilAltIcon style={{ marginLeft: '.5rem' }} />
-                    </Link>
-                  ) : (
-                    t('annotations.count', {
-                      count: Object.keys(resource.metadata?.annotations ?? {}).length,
-                    })
-                  )}
-                </DescriptionListDescription>
-              </DescriptionListGroup>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>{t('Created at')}</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    {getDate(resource.metadata?.creationTimestamp)}
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
 
-              <DescriptionListGroup>
-                <DescriptionListTerm>{t('Created at')}</DescriptionListTerm>
-                <DescriptionListDescription>{getDate(resource.metadata?.creationTimestamp)}</DescriptionListDescription>
-              </DescriptionListGroup>
-
-              <DescriptionListGroup>
-                <DescriptionListTerm>{t('Owner')}</DescriptionListTerm>
-                <DescriptionListDescription>
-                  <OwnerReferences
-                    cluster={cluster}
-                    ownerReferences={resource.metadata?.ownerReferences}
-                    namespace={resource.metadata?.namespace}
-                  />
-                </DescriptionListDescription>
-              </DescriptionListGroup>
-            </DescriptionList>
-          </Stack>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>{t('Owner')}</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <OwnerReferences
+                      cluster={cluster}
+                      ownerReferences={resource.metadata?.ownerReferences}
+                      namespace={resource.metadata?.namespace}
+                    />
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              </DescriptionList>
+            </Stack>
+          </PageSection>
+          {resource.status?.conditions && <ResourceConditions conditions={resource.status.conditions} />}
         </PageSection>
-        {resource.status?.conditions && <ResourceConditions conditions={resource.status.conditions} />}
-      </PageSection>
+        {resource.kind === 'VirtualMachine' && VirtualMachinesOverviewTab && (
+          <VirtualMachinesOverviewTab obj={resource} />
+        )}
+      </>
     )
   }
   return <Fragment />
