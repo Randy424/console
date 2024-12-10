@@ -6,13 +6,15 @@ import { KubevirtPluginData } from '../../../plugin-extensions/extensions/Kubevi
 // Define a default context
 const DefaultKubevirtPluginContext = createContext<KubevirtPluginData>({} as KubevirtPluginData)
 
+const ResourceLink = () => <div>Hello!!</div>
+
 const KubevirtPluginWrapper = (props: { children: React.ReactNode }) => {
   const { children } = props
   const { acmExtensions } = useContext(PluginContext)
   const KubevirtPluginContext = acmExtensions?.kubevirtContext?.[0].properties.context ?? DefaultKubevirtPluginContext
 
   const { dynamicPluginSDK, ...other } = useContext(KubevirtPluginContext)
-  const contextOverride = { dynamicPluginSDK: { ...dynamicPluginSDK }, ...other }
+  const contextOverride = { dynamicPluginSDK: { ...dynamicPluginSDK, ResourceLink }, ...other }
 
   return <KubevirtPluginContext.Provider value={contextOverride}>{children}</KubevirtPluginContext.Provider>
 }
