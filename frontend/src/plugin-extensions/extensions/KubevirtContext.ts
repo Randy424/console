@@ -6,6 +6,9 @@ import { Context } from 'react'
 /** Properties type */
 export type KubevirtPluginContext = {
   dynamicPluginSDK: typeof OpenshiftDynamicPluginSDK
+  dynamicPluginSharedComponents: {
+    SearchDetailsNamespaceLink?: React.ReactNode;
+  };
 }
 
 export type KubevirtPluginDataProps = {

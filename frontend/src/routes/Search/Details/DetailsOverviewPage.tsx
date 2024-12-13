@@ -322,6 +322,22 @@ export default function DetailsOverviewPage() {
   }, [cluster, resource, navigate])
 
   const { acmExtensions } = useContext(PluginContext)
+  const sharedNamespaceLink = () => (
+    <Button
+      data-test="namespace-nav-link"
+      type="button"
+      isInline
+      onClick={() => {
+        navigate(
+          `${NavigationPath.resources}?cluster=${cluster}&kind=Namespace&apiversion=v1&name=${resource.metadata?.namespace}`
+        )
+      }}
+      variant="link"
+    >
+      {resource.metadata?.namespace}
+    </Button>
+  )
+
   let VirtualMachinesOverviewTab: React.ComponentType<any> | undefined
   if (acmExtensions?.searchDetails && acmExtensions.searchDetails.length) {
     VirtualMachinesOverviewTab = acmExtensions.searchDetails[0].properties.component
@@ -513,7 +529,7 @@ export default function DetailsOverviewPage() {
           {resource.status?.conditions && <ResourceConditions conditions={resource.status.conditions} />}
         </PageSection>
         {resource.kind === 'VirtualMachine' && VirtualMachinesOverviewTab && (
-          <KubevirtPluginWrapper>
+          <KubevirtPluginWrapper sharedDetailsNamespaceLink={sharedNamespaceLink()}>
             <VirtualMachinesOverviewTab obj={resource} />
           </KubevirtPluginWrapper>
         )}
