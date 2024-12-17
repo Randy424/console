@@ -513,7 +513,7 @@ export default function DetailsOverviewPage() {
           {resource.status?.conditions && <ResourceConditions conditions={resource.status.conditions} />}
         </PageSection>
         {resource.kind === 'VirtualMachine' && VirtualMachinesOverviewTab && (
-          <KubevirtPluginWrapper>
+          <KubevirtPluginWrapper clusterName={cluster}>
             <VirtualMachinesOverviewTab obj={resource} />
           </KubevirtPluginWrapper>
         )}
