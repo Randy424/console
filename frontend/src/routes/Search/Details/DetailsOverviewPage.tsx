@@ -35,8 +35,9 @@ export function ResourceSearchLink(props: {
   kind: string
   name: string
   namespace?: string
+  className?: string
 }) {
-  const { cluster, kind, name, namespace, apiversion } = props
+  const { cluster, kind, name, namespace, apiversion, className } = props
   let searchParams = `?filters={"textsearch":"cluster%3A${cluster}%20kind%3A${kind}%20name%3A${name}`
   if (namespace) {
     searchParams = `${searchParams}%20namespace%3A${namespace}`
@@ -48,6 +49,7 @@ export function ResourceSearchLink(props: {
   }
   return (
     <Link
+      className={className}
       to={{
         pathname: NavigationPath.search,
         search: searchParams,
@@ -404,33 +406,33 @@ export default function DetailsOverviewPage() {
                   </DescriptionListDescription>
                 </DescriptionListGroup>
 
-              <DescriptionListGroup>
-                <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }}>
-                  <FlexItem>
-                    <DescriptionListTerm>{t('Labels')}</DescriptionListTerm>
-                  </FlexItem>
-                  {canEditResource && (
+                <DescriptionListGroup>
+                  <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }}>
                     <FlexItem>
-                      <Link
-                        to={NavigationPath.resourceYAML + window.location.search}
-                        state={{ scrollToLine: labelsLineNumber }}
-                      >
-                        {t('Edit')}
-                        <PencilAltIcon style={{ marginLeft: '.5rem' }} />
-                      </Link>
+                      <DescriptionListTerm>{t('Labels')}</DescriptionListTerm>
                     </FlexItem>
-                  )}
-                </Flex>
-                <DescriptionListDescription
-                  style={{
-                    border: '1px solid var(--pf-v5-global--BorderColor--300)',
-                    borderRadius: 'var(--pf-v5-c-label-group--m-category--BorderRadius)',
-                    padding: '0.25rem',
-                  }}
-                >
-                  <LablesGroup labels={resource.metadata?.labels ?? {}} />
-                </DescriptionListDescription>
-              </DescriptionListGroup>
+                    {canEditResource && (
+                      <FlexItem>
+                        <Link
+                          to={NavigationPath.resourceYAML + window.location.search}
+                          state={{ scrollToLine: labelsLineNumber }}
+                        >
+                          {t('Edit')}
+                          <PencilAltIcon style={{ marginLeft: '.5rem' }} />
+                        </Link>
+                      </FlexItem>
+                    )}
+                  </Flex>
+                  <DescriptionListDescription
+                    style={{
+                      border: '1px solid var(--pf-v5-global--BorderColor--300)',
+                      borderRadius: 'var(--pf-v5-c-label-group--m-category--BorderRadius)',
+                      padding: '0.25rem',
+                    }}
+                  >
+                    <LablesGroup labels={resource.metadata?.labels ?? {}} />
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
 
                 {podSelectorLink && (
                   <DescriptionListGroup>
@@ -513,7 +515,7 @@ export default function DetailsOverviewPage() {
           {resource.status?.conditions && <ResourceConditions conditions={resource.status.conditions} />}
         </PageSection>
         {resource.kind === 'VirtualMachine' && VirtualMachinesOverviewTab && (
-          <KubevirtPluginWrapper>
+          <KubevirtPluginWrapper clusterName={cluster}>
             <VirtualMachinesOverviewTab obj={resource} />
           </KubevirtPluginWrapper>
         )}
