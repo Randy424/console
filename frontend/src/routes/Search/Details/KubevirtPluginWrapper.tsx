@@ -33,7 +33,8 @@ const getWithCluster = (localHubName: string) => {
     const consoleFetch: ConsoleFetch = isLocalHub
       ? consoleFetchDefault
       : async (url, options, timeout) => {
-          const overrideUrl = url?.startsWith(KUBERNETES_API_PREFIX)
+          let overrideUrl = url.startsWith('/') ? url : `/${url}`
+          overrideUrl = url?.startsWith(KUBERNETES_API_PREFIX)
             ? `${getBackendUrl()}/managedclusterproxy/${cluster}/${url.substring(KUBERNETES_API_PREFIX.length)}`
             : url
           return consoleFetchDefault(overrideUrl, options, timeout)
