@@ -9,6 +9,9 @@ import {
   ResourceLink as ResourceLinkDefault,
   ResourceLinkProps,
   WatchK8sResource,
+  k8sCreate as k8sCreateDefault,
+  consoleFetchJSON as coFetchJSON,
+  QueryParams,
 } from '@openshift-console/dynamic-plugin-sdk'
 import * as DefaultDynamicPluginSDK from '@openshift-console/dynamic-plugin-sdk'
 import { useIsLocalHub, useLocalHubName } from '../../../hooks/use-local-hub'
@@ -22,14 +25,98 @@ import { ClusterScope, ClusterScopeContext } from '../../../plugin-extensions/Cl
 import { useKubevirtPluginContext } from '../../../plugin-extensions/hooks/useKubevirtPluginContext'
 import classNames from 'classnames'
 import { useK8sWatchResource } from './useK8sWatchResource'
-import { getBackendUrl } from '../../../resources/utils'
+import { fetchRetry, getBackendUrl } from '../../../resources/utils'
 import { KubevirtPluginData, SearchResult } from '../../../plugin-extensions/extensions/KubevirtContext'
+import { getResourceApiPath } from '../../../resources'
+import meta from '../../../ui-components/AcmAlert/AcmAlert.stories'
 
 const KUBERNETES_API_PREFIX = '/api/kubernetes/'
+interface APIGroup {
+  apiVersion: string
+  name: string
+  versions: { version: string; groupVersion: string }[]
+}
+interface APIResourceList {
+  apiVersion: string
+  name: string
+  groupVersion: string
+  resources: {
+    name: string
+    kind: string
+  }[]
+}
+
+export type Options = {
+  ns?: string
+  name?: string
+  path?: string
+  queryParams?: QueryParams
+  cluster?: string
+}
+
+// check apiVersion for managed cluster CRs
+export const getSupportedManagedClusterApiVersions = async (cluster: string, apiVersion: string, kind: string) => {
+  const requestPath = `${getBackendUrl()}/managedclusterproxy/${cluster}/apis/${apiVersion}`
+  const headers: HeadersInit = { ['Content-Type']: 'application/json' }
+  try {
+    const res = await fetchRetry({
+      method: 'GET',
+      url: requestPath,
+      headers: headers,
+      retries: 0,
+    })
+    if (res.status !== 200) {
+      throw new Error('Failed to fetch data')
+    }
+    const apiGroupsData: APIGroup = await res.json()
+
+    const supportedVersions = apiGroupsData.versions.filter(async (version) => {
+      const res = await fetchRetry({
+        method: 'GET',
+        url: `${getBackendUrl()}/managedclusterproxy/${cluster}/apis/${version.groupVersion}`,
+        headers: headers,
+        retries: 0,
+      })
+      const resourceList: APIResourceList = await res.json()
+      return resourceList.resources.some((resource) => resource.kind === kind)
+    })
+    return supportedVersions
+  } catch (err) {
+    console.error(err)
+    throw err
+  }
+}
+
+const getK8sCreate =
+  (clusterName: string): typeof k8sCreateDefault =>
+  async <R extends K8sResourceCommon>(options: { model: K8sModel; data: R; opts?: Options }): Promise<any> => {
+    const resource = {
+      apiVersion: `${options.model.apiGroup}/${options.model.apiVersion}`,
+      kind: options.model.kind,
+      plural: options.model.plural,
+      metadata: { namespace: options.data.metadata?.namespace },
+    }
+
+    const resourcePath = await Promise.resolve(resource).then(async (resource) => {
+      return getResourceApiPath(resource).then((path) => {
+        let url = `${getBackendUrl()}/managedclusterproxy/${clusterName}/${path}`
+
+        // testing with dryRun
+        url += '?dryRun=All'
+        return url
+      })
+    })
+
+    return coFetchJSON.post(resourcePath, options.data, undefined, undefined)
+  }
 
 const getWithCluster = (localHubName: string) => {
   return (cluster?: string) => {
     const isLocalHub = localHubName === cluster
+    let k8sCreate = k8sCreateDefault
+    if (!isLocalHub && cluster) {
+      k8sCreate = getK8sCreate(cluster)
+    }
     const consoleFetch: ConsoleFetch = isLocalHub
       ? consoleFetchDefault
       : async (url, options, timeout) => {
@@ -39,7 +126,7 @@ const getWithCluster = (localHubName: string) => {
             : url
           return consoleFetchDefault(overrideUrl, options, timeout)
         }
-    return { ...DefaultDynamicPluginSDK, consoleFetch }
+    return { ...DefaultDynamicPluginSDK, consoleFetch, k8sCreate }
   }
 }
 
