@@ -325,7 +325,15 @@ const KubevirtPluginWrapper = ({
       useUtilizationQueries,
       getResourceUrlOverride,
     }
-  }, [currentCluster, currentNamespace, defaultClusterName, getStandaloneVMConsoleUrl, isLocalHub, localHubName])
+  }, [
+    currentCluster,
+    currentNamespace,
+    defaultClusterName,
+    getResourceUrl,
+    getStandaloneVMConsoleUrl,
+    isLocalHub,
+    localHubName,
+  ])
 
   return (
     <KubevirtPluginContext.Provider value={contextValue}>
