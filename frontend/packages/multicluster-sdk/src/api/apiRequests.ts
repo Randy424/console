@@ -281,5 +281,41 @@ export const fleetWatch = (
     basePath: backendURL,
   })
 
-  return new WebSocket(requestPath)
+  // MINIMAL KEEP-ALIVE: Configurable WebSocket keep-alive mechanism
+  const ws = new WebSocket(requestPath)
+
+  // CONFIRMED: Universal WebSocket timeout in ACM cluster-proxy-addon-user service
+  //
+  // FINDINGS:
+  // - ALL WebSocket connections served through this module timeout at ~30-47 seconds,
+  //   regardless of resource type
+  // - Affects Events, ConfigMaps, VirtualMachines, Pods, Services, etc. equally
+  // - Keep-alive attempts were counterproductive (reduced connection lifetime)
+  // - Backend timeout configuration has no effect (timeout is in ACM infrastructure)
+  // - Other hooks appear stable due to socket caching and silent reconnections
+  //
+  // ROOT CAUSE: Maybe(?) ACM's cluster-proxy-addon-user service has universal timeout policy
+  // ACTION: We'll need to reach out to the foundation team to learn more about the
+  // limitations of the addon service...
+
+  const connectionStart = Date.now()
+  const resourceInfo = `${model?.kind || 'Unknown'}/${query.cluster || 'hub'}`
+
+  ws.addEventListener('open', () => {
+    console.log(`[${resourceInfo}] WebSocket opened at ${Date.now() - connectionStart}ms`)
+  })
+
+  ws.addEventListener('close', (event) => {
+    const duration = Date.now() - connectionStart
+    console.log(
+      `[${resourceInfo}] WebSocket closed after ${duration}ms (${Math.round(duration / 1000)}s) - Code: ${event.code}`
+    )
+  })
+
+  ws.addEventListener('message', () => {
+    const messageTime = Date.now() - connectionStart
+    console.log(`[${resourceInfo}] Message at ${messageTime}ms`)
+  })
+
+  return ws
 }
