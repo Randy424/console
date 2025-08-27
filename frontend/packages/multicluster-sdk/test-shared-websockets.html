@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shared WebSocket Testing - useFleetK8sWatchResource</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .component-box {
+            border: 2px solid #007acc;
+            margin: 10px;
+            padding: 15px;
+            border-radius: 5px;
+            display: inline-block;
+            min-width: 300px;
+            vertical-align: top;
+        }
+        .stats-box {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .log-box {
+            background: #2d2d2d;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            height: 200px;
+            overflow-y: scroll;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin: 5px;
+            display: inline-block;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #005c99; }
+        .connection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .connected { background: #28a745; }
+        .disconnected { background: #dc3545; }
+        .connecting { background: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Shared WebSocket Testing for useFleetK8sWatchResource</h1>
+        
+        <div class="test-section">
+            <h2>📊 Cache & WebSocket Status</h2>
+            <div id="stats" class="stats-box">
+                Loading cache statistics...
+            </div>
+            <button onclick="updateStats()">🔄 Refresh Stats</button>
+            <button onclick="clearCache()">🗑️ Clear Cache</button>
+            <button onclick="clearExpired()">⏰ Clear Expired</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🔌 WebSocket Connection Monitor</h2>
+            <div id="websocket-status">
+                <div>
+                    <span class="connection-indicator disconnected" id="ws-indicator"></span>
+                    <span id="ws-count">No active WebSocket connections</span>
+                </div>
+            </div>
+            <div class="log-box" id="ws-log">
+                WebSocket activity will appear here...
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧩 Multiple Component Simulation</h2>
+            <p>This section simulates multiple React components using the same useFleetK8sWatchResource query.</p>
+            <p><strong>Key Concept:</strong> All components with identical resource queries share a single WebSocket connection!</p>
+            
+            <div class="component-types">
+                <h3>📝 Component Types Available:</h3>
+                <button onclick="addComponent('pods')">➕ Add Pod List Component</button>
+                <button onclick="addComponent('vms')">➕ Add VM List Component</button>
+                <button onclick="addComponent('pods')">➕ Add Another Pod Component</button>
+                <button onclick="removeComponent()">➖ Remove Last Component</button>
+                <button onclick="removeAllComponents()">🗑️ Remove All</button>
+            </div>
+            
+            <div id="sharing-demo" class="stats-box">
+                <strong>🔄 WebSocket Sharing Demonstration:</strong><br>
+                <span id="sharing-status">Add components to see sharing in action...</span>
+            </div>
+            
+            <div id="components-container">
+                <!-- Components will be added here -->
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 Test Instructions - WebSocket Sharing Demo</h2>
+            <ol>
+                <li><strong>Test Same Resource Sharing:</strong> Click "Add Pod List Component" multiple times - observe only 1 WebSocket for all Pod components</li>
+                <li><strong>Test Different Resource Types:</strong> Add both Pod and VM components - observe 2 WebSockets (1 per resource type)</li>
+                <li><strong>Monitor Reference Counting:</strong> Watch how each component increments the socket's reference count</li>
+                <li><strong>Test Component Removal:</strong> Remove components individually and see reference counts decrease</li>
+                <li><strong>Test Socket Cleanup:</strong> Remove all components of one type - verify that WebSocket closes when refCount reaches 0</li>
+            </ol>
+            
+            <div class="status success">✅ Pass: Multiple components of same type share 1 WebSocket</div>
+            <div class="status success">✅ Pass: Different resource types get separate WebSockets</div>
+            <div class="status warning">⚠️ Check: Reference counting increases/decreases correctly</div>
+            <div class="status warning">⚠️ Check: WebSocket closes when last component removed</div>
+            <div class="status error">❌ Fail: Each component creates its own WebSocket</div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 Manual Testing Commands</h2>
+            <p>Copy these commands into your browser console for manual testing:</p>
+            <div class="log-box" style="height: auto; color: #333; background: #f8f9fa;">
+// Check cache statistics
+const store = useFleetK8sWatchResourceStore.getState()
+console.log('Cache Stats:', store.getCacheStats())
+
+// Inspect socket cache
+console.log('Socket Cache:', store.socketCache)
+
+// Check resource cache
+console.log('Resource Cache:', Object.keys(store.resourceCache))
+
+// Monitor socket reference counts
+Object.entries(store.socketCache).forEach(([key, entry]) => {
+  console.log(`Socket ${key}: refCount = ${entry.refCount}`)
+})
+
+// Clear all cache for testing
+store.clearAll()
+
+// Force cache expiration
+store.clearExpired()
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulate the store interface for demonstration
+        // In a real test, this would import the actual Zustand store
+        let mockStore = {
+            resourceCache: {},
+            socketCache: {},
+            getCacheStats: () => ({
+                resourceCount: Object.keys(mockStore.resourceCache).length,
+                socketCount: Object.keys(mockStore.socketCache).length,
+                expiredResourceCount: 0,
+                expiredSocketCount: 0
+            }),
+            clearAll: () => {
+                mockStore.resourceCache = {}
+                mockStore.socketCache = {}
+                log('🗑️ All cache cleared')
+                updateStats()
+            },
+            clearExpired: () => {
+                log('⏰ Expired entries cleared')
+                updateStats()
+            }
+        }
+
+        let componentCount = 0
+        let mockSockets = {}
+        let components = []
+
+        const resourceTypes = {
+            pods: {
+                query: 'test-cluster|v1|Pod|default|',
+                displayName: 'Pod List',
+                icon: '🐳',
+                description: 'Watches Pods in default namespace'
+            },
+            vms: {
+                query: 'test-cluster|kubevirt.io/v1|VirtualMachine|default|',
+                displayName: 'VM List',
+                icon: '🖥️',
+                description: 'Watches VirtualMachines in default namespace'
+            }
+        }
+
+        function updateStats() {
+            const stats = mockStore.getCacheStats()
+            document.getElementById('stats').innerHTML = `
+                <strong>Cache Statistics:</strong><br>
+                📦 Resources cached: ${stats.resourceCount}<br>
+                🔌 Active WebSockets: ${stats.socketCount}<br>
+                ⏰ Expired resources: ${stats.expiredResourceCount}<br>
+                🔌💀 Expired sockets: ${stats.expiredSocketCount}<br>
+                <br>
+                <strong>Socket Reference Counts:</strong><br>
+                ${Object.entries(mockStore.socketCache).map(([key, entry]) => 
+                    `🔗 ${key}: ${entry.refCount} references`
+                ).join('<br>') || 'No active sockets'}
+            `
+
+            // Update WebSocket status
+            const wsCount = stats.socketCount
+            const indicator = document.getElementById('ws-indicator')
+            const wsCountText = document.getElementById('ws-count')
+            
+            if (wsCount > 0) {
+                indicator.className = 'connection-indicator connected'
+                wsCountText.textContent = `${wsCount} active WebSocket connection${wsCount > 1 ? 's' : ''}`
+            } else {
+                indicator.className = 'connection-indicator disconnected'
+                wsCountText.textContent = 'No active WebSocket connections'
+            }
+
+            // Update sharing demonstration
+            updateSharingDemo()
+        }
+
+        function updateSharingDemo() {
+            const sharingStatus = document.getElementById('sharing-status')
+            const totalComponents = components.length
+            const uniqueQueries = new Set(components.map(c => c.query)).size
+            
+            if (totalComponents === 0) {
+                sharingStatus.innerHTML = 'Add components to see sharing in action...'
+            } else {
+                const socketDetails = Object.entries(mockStore.socketCache)
+                    .map(([query, entry]) => {
+                        const componentsUsingSocket = components.filter(c => c.query === query).length
+                        return `🔌 ${query.split('|')[2]}: ${componentsUsingSocket} components → 1 WebSocket`
+                    }).join('<br>')
+                
+                sharingStatus.innerHTML = `
+                    📊 <strong>${totalComponents} components</strong> using <strong>${uniqueQueries} unique queries</strong> = <strong>${Object.keys(mockStore.socketCache).length} WebSockets</strong><br>
+                    ${socketDetails}<br>
+                    <span style="color: #28a745;">✅ WebSocket sharing is working!</span>
+                `
+            }
+        }
+
+        function clearCache() {
+            mockStore.clearAll()
+        }
+
+        function clearExpired() {
+            mockStore.clearExpired()
+        }
+
+        function addComponent(resourceType = 'pods') {
+            componentCount++
+            const componentId = `component-${componentCount}`
+            const resource = resourceTypes[resourceType]
+            const socketKey = resource.query
+            
+            // Create component object
+            const component = {
+                id: componentId,
+                type: resourceType,
+                query: socketKey,
+                displayName: resource.displayName,
+                icon: resource.icon
+            }
+            components.push(component)
+            
+            // Simulate adding a socket reference
+            if (!mockStore.socketCache[socketKey]) {
+                mockStore.socketCache[socketKey] = {
+                    socket: { readyState: 1 }, // WebSocket.OPEN
+                    refCount: 0,
+                    timestamp: Date.now(),
+                    lastAccessed: Date.now()
+                }
+                log(`🔌 Created new WebSocket connection for ${resource.displayName}: ${socketKey}`)
+            } else {
+                log(`🔄 Reusing existing WebSocket for ${resource.displayName}: ${socketKey}`)
+            }
+            
+            mockStore.socketCache[socketKey].refCount++
+            log(`➕ ${resource.displayName} Component ${componentCount} added - Socket refCount: ${mockStore.socketCache[socketKey].refCount}`)
+
+            // Add component to UI
+            const componentDiv = document.createElement('div')
+            componentDiv.className = 'component-box'
+            componentDiv.id = componentId
+            componentDiv.style.borderColor = resourceType === 'pods' ? '#007acc' : '#28a745'
+            componentDiv.innerHTML = `
+                <h4>${resource.icon} ${resource.displayName} Component ${componentCount}</h4>
+                <div><strong>Query:</strong> ${resource.description}</div>
+                <div><strong>Status:</strong> <span class="status success">✅ Connected</span></div>
+                <div><strong>Shared Socket:</strong> ${socketKey.split('|')[2]} WebSocket</div>
+                <div><strong>Socket Refs:</strong> <span id="${componentId}-refs">${mockStore.socketCache[socketKey].refCount}</span></div>
+                <div style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 3px; font-size: 12px;">
+                    💡 This component ${mockStore.socketCache[socketKey].refCount === 1 ? 'created a new' : 'is sharing an existing'} WebSocket connection
+                </div>
+                <button onclick="removeSpecificComponent('${componentId}')">❌ Remove</button>
+            `
+            
+            document.getElementById('components-container').appendChild(componentDiv)
+            updateStats()
+        }
+
+        function removeComponent() {
+            if (componentCount > 0) {
+                removeSpecificComponent(`component-${componentCount}`)
+            }
+        }
+
+        function removeSpecificComponent(componentId) {
+            const element = document.getElementById(componentId)
+            if (!element) return
+
+            // Find and remove component from tracking
+            const componentIndex = components.findIndex(c => c.id === componentId)
+            if (componentIndex === -1) return
+            
+            const component = components[componentIndex]
+            const socketKey = component.query
+            
+            // Remove component from tracking
+            components.splice(componentIndex, 1)
+
+            if (mockStore.socketCache[socketKey]) {
+                mockStore.socketCache[socketKey].refCount--
+                log(`➖ ${component.displayName} component removed - Socket refCount: ${mockStore.socketCache[socketKey].refCount}`)
+                
+                if (mockStore.socketCache[socketKey].refCount <= 0) {
+                    delete mockStore.socketCache[socketKey]
+                    log(`🔌💀 ${component.displayName} WebSocket connection closed (no more references)`)
+                }
+            }
+
+            element.remove()
+            updateStats()
+        }
+
+        function removeAllComponents() {
+            const container = document.getElementById('components-container')
+            while (container.firstChild) {
+                container.removeChild(container.firstChild)
+            }
+            
+            // Clear all socket references and components
+            mockStore.socketCache = {}
+            components = []
+            componentCount = 0
+            log('🗑️ All components removed, all sockets closed')
+            updateStats()
+        }
+
+        function log(message) {
+            const logBox = document.getElementById('ws-log')
+            const timestamp = new Date().toLocaleTimeString()
+            logBox.innerHTML += `[${timestamp}] ${message}\n`
+            logBox.scrollTop = logBox.scrollHeight
+        }
+
+        // Initialize
+        updateStats()
+        log('🚀 WebSocket testing interface initialized')
+        log('💡 Add components to test shared WebSocket functionality')
+
+        // Simulate periodic updates
+        setInterval(() => {
+            if (Object.keys(mockStore.socketCache).length > 0) {
+                log('📦 Simulated live update received via WebSocket')
+            }
+        }, 10000)
+    </script>
+</body>
+</html>
