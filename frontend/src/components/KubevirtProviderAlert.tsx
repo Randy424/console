@@ -112,7 +112,11 @@ export function KubevirtProviderAlert(
   const { component, className, variant } = props
   const multiClusterHubConsoleUrl = useMultiClusterHubConsoleUrl()
 
-  const showInstallPrompt = !kubevirtOperator.installed
+  // TEMPORARY: Force alert to show for visual inspection
+  const FORCE_SHOW_UPGRADE_HUB_CLUSTER_ALERT = false
+
+  const FORCE_SHOW_ALERT = true
+  const showInstallPrompt = FORCE_SHOW_ALERT || !kubevirtOperator.installed
 
   const { t } = useTranslation()
 
@@ -197,7 +201,7 @@ export function KubevirtProviderAlert(
     }
 
     const getPopoverPrimaryButton = () => {
-      if (isHubVersionLessThan420) {
+      if (isHubVersionLessThan420 || FORCE_SHOW_UPGRADE_HUB_CLUSTER_ALERT) {
         return (
           <Button
             variant="primary"

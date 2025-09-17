@@ -16,9 +16,12 @@ export const useSuggestedQueryTemplates = () => {
   const kubevirtOperator = useOperatorCheck(SupportedOperator.kubevirt, kubevirtOperatorSubscriptionsValue)
 
   return useMemo(() => {
-    const alertComponent = !kubevirtOperator.installed ? (
-      <KubevirtProviderAlert variant="search" component="hint" useLabelAlert />
-    ) : undefined
+    // TEMPORARY: Force alert to show for visual inspection
+    const FORCE_SHOW_ALERT = true
+    const alertComponent =
+      FORCE_SHOW_ALERT || !kubevirtOperator.installed ? (
+        <KubevirtProviderAlert variant="search" component="hint" useLabelAlert />
+      ) : undefined
 
     return {
       templates: [
