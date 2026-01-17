@@ -363,6 +363,10 @@ export type UpgradeInfo = {
     success: boolean
     failed: boolean
   }
+  // Upgradeable condition from ManagedClusterInfo (PR #1129)
+  // Per API contract: undefined = upgradeable, False = not upgradeable
+  isUpgradeable?: boolean
+  upgradeableCondition?: V1CustomResourceDefinitionCondition
 }
 
 //** for testing only; allows mapping of partial data */
@@ -449,6 +453,81 @@ export function mapClusters({
   const clusterClaimsMap = keyBy(clusterClaims, 'spec.namespace')
   const clusterDeploymentsMap = keyBy(cds, 'metadata.name')
   const managedClusterInfosMap = keyBy(managedClusterInfos, 'metadata.name')
+
+  // Development spoofing: Add Upgradeable=False condition to test clusters
+  // IMPORTANT: Remove this code before committing to production
+  console.log('[DEBUG] Available cluster names:', Object.keys(managedClusterInfosMap))
+
+  const applySpoofing = (clusterName: string) => {
+    if (!managedClusterInfosMap[clusterName]) return
+
+    console.log(`[DEBUG] Applying Upgradeable=False spoofing to ${clusterName}`)
+    const mci = managedClusterInfosMap[clusterName]
+    const upgradeableCondition: V1CustomResourceDefinitionCondition = {
+      type: 'Upgradeable',
+      status: 'False',
+      lastTransitionTime: new Date().toISOString(),
+      reason: 'CVO: Generic Upgrade Risk',
+      message: 'This cluster has potential issues that may affect the upgrade process. Before proceeding with a minor or major version upgrade, review the identified risks in the Red Hat Hybrid Cloud Console to understand the impact. Resolving these issues before upgrading can help prevent service disruptions.',
+    }
+
+    // Add or replace the Upgradeable condition
+    if (mci.status?.conditions) {
+      const existingIndex = mci.status.conditions.findIndex((c) => c.type === 'Upgradeable')
+      if (existingIndex >= 0) {
+        mci.status.conditions[existingIndex] = upgradeableCondition
+      } else {
+        mci.status.conditions.push(upgradeableCondition)
+      }
+      console.log(`[DEBUG] ${clusterName}: Condition added. Total conditions:`, mci.status.conditions.length)
+    } else if (mci.status) {
+      mci.status.conditions = [upgradeableCondition]
+      console.log(`[DEBUG] ${clusterName}: Created new conditions array`)
+    }
+
+    // Add fake available updates for testing (patch, minor, major)
+    const currentVersion = mci.status?.distributionInfo?.ocp?.version || '4.20.0'
+    const currentMajor = parseInt(currentVersion.split('.')[0])
+    const currentMinor = parseInt(currentVersion.split('.')[1])
+    const currentPatch = parseInt(currentVersion.split('.')[2] || '0')
+
+    const fakeUpdates = [
+      // Patch upgrade
+      {
+        version: `${currentMajor}.${currentMinor}.${currentPatch + 1}`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor}.${currentMinor}.${currentPatch + 1}-x86_64`,
+      },
+      // Minor upgrade
+      {
+        version: `${currentMajor}.${currentMinor + 1}.0`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor}.${currentMinor + 1}.0-x86_64`,
+      },
+      {
+        version: `${currentMajor}.${currentMinor + 1}.1`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor}.${currentMinor + 1}.1-x86_64`,
+      },
+      // Another minor upgrade
+      {
+        version: `${currentMajor}.${currentMinor + 2}.0`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor}.${currentMinor + 2}.0-x86_64`,
+      },
+      // Major upgrade
+      {
+        version: `${currentMajor + 1}.0.0`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor + 1}.0.0-x86_64`,
+      },
+    ]
+
+    if (mci.status?.distributionInfo?.ocp) {
+      mci.status.distributionInfo.ocp.versionAvailableUpdates = fakeUpdates
+      console.log(`[DEBUG] ${clusterName}: Added fake available updates:`, fakeUpdates.map(u => u.version))
+    }
+  }
+
+  applySpoofing('rbrunopi-hosted-ii')
+  applySpoofing('virt-acm')
+  applySpoofing('virt-managed')
+
   const hostedClusterMap = keyBy(hostedClusters, 'metadata.name')
   const clusterManagementAddOns = keyBy(allClusterManagementAddOns, 'metadata.name')
   const discoveredClustersMap = keyBy(discoveredClusters, 'spec.displayName')
@@ -889,6 +968,20 @@ export function getDistributionInfo(
     }
   }
 
+  // Extract Upgradeable condition from ManagedClusterInfo (PR #1129)
+  const upgradeableCondition = managedClusterInfo?.status?.conditions?.find((c) => c.type === 'Upgradeable')
+  const isUpgradeable = upgradeableCondition ? upgradeableCondition.status !== 'False' : undefined
+
+  // Debug logging for rbrunopi-hosted-ii
+  if (managedClusterInfo?.metadata?.name === 'rbrunopi-hosted-ii') {
+    console.log('[DEBUG] getDistributionInfo for rbrunopi-hosted-ii:')
+    console.log('[DEBUG]   - Total conditions:', managedClusterInfo?.status?.conditions?.length)
+    console.log('[DEBUG]   - Condition types:', managedClusterInfo?.status?.conditions?.map(c => c.type))
+    console.log('[DEBUG]   - Upgradeable condition found:', !!upgradeableCondition)
+    console.log('[DEBUG]   - Upgradeable condition:', upgradeableCondition)
+    console.log('[DEBUG]   - isUpgradeable:', isUpgradeable)
+  }
+
   const upgradeInfo: UpgradeInfo = {
     isUpgrading: false,
     isReadyUpdates: false,
@@ -921,6 +1014,8 @@ export function getDistributionInfo(
       success: false,
       failed: false,
     },
+    isUpgradeable,
+    upgradeableCondition,
   }
 
   const versionRegex = /([\d]{1,5})\.([\d]{1,5})\.([\d]{1,5})/

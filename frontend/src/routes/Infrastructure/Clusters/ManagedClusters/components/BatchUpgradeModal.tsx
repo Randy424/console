@@ -1,7 +1,7 @@
 /* Copyright Contributors to the Open Cluster Management project */
 
-import { Skeleton, Stack, StackItem, Content, ContentVariants, SelectOption } from '@patternfly/react-core'
-import { ExternalLinkAltIcon } from '@patternfly/react-icons'
+import { Skeleton, Stack, StackItem, Content, ContentVariants, SelectOption, FormHelperText, Popover, Button } from '@patternfly/react-core'
+import { ExternalLinkAltIcon, ExclamationTriangleIcon } from '@patternfly/react-icons'
 import { useEffect, useMemo, useState } from 'react'
 import { BulkActionModal } from '../../../../../components/BulkActionModal'
 import { PrePostTemplatesList } from '../../../../../components/TemplateSummaryModal'
@@ -20,6 +20,7 @@ import { useRecoilValue, useSharedAtoms } from '../../../../../shared-recoil'
 import { AcmAlert, AcmButton, AcmEmptyState, AcmSelect } from '../../../../../ui-components'
 import { ClusterAction, clusterSupportsAction } from '../utils/cluster-actions'
 import { ReleaseNotesLink } from './ReleaseNotesLink'
+import { isMinorOrMajorUpgrade } from './utils/version-utils'
 import './style.css'
 
 // compare version
@@ -80,6 +81,18 @@ export function BatchUpgradeModal(props: {
       const curator = clusterCurators.find((cc) => cc.metadata?.namespace === cluster.namespace)
       return curatorActionHasJobs(curator?.spec?.upgrade)
     })
+
+    // Check if any clusters have Upgradeable=False condition AND a minor/major version selected
+    const hasUpgradeRiskWithMinorMajor = upgradeableClusters.some((cluster) => {
+      const condition = cluster.distribution?.upgradeInfo?.upgradeableCondition
+      if (condition?.status !== 'False') return false
+
+      const currentVersion = cluster.distribution?.upgradeInfo?.currentVersion
+      const selectedVersion = selectVersions[cluster.name || '']
+
+      return selectedVersion && isMinorOrMajorUpgrade(currentVersion, selectedVersion)
+    })
+
     return (
       <Stack hasGutter>
         {hasUpgradeActions && (
@@ -95,10 +108,23 @@ export function BatchUpgradeModal(props: {
             />
           </StackItem>
         )}
+        {hasUpgradeRiskWithMinorMajor && (
+          <StackItem>
+            <AcmAlert
+              isInline
+              noClose
+              variant="warning"
+              title={t('Upgrade risks detected')}
+              message={t(
+                'One or more of the selected clusters have unresolved issues that impact the update. To prevent a potential service disruption, review and resolve these risks.'
+              )}
+            />
+          </StackItem>
+        )}
         <StackItem>{t('bulk.message.upgrade')}</StackItem>
       </Stack>
     )
-  }, [clusterCurators, upgradeableClusters, t])
+  }, [clusterCurators, upgradeableClusters, selectVersions, t])
 
   useEffect(() => {
     // set up latest if not selected
@@ -206,16 +232,26 @@ export function BatchUpgradeModal(props: {
           cell: (cluster: Cluster) => {
             const availableUpdates = (cluster.distribution?.upgradeInfo?.availableUpdates ?? []).sort(compareVersion)
             const hasAvailableUpgrades = availableUpdates && availableUpdates.length > 0
+            const currentVersion = cluster.distribution?.upgradeInfo?.currentVersion
+            const selectedVersion = selectVersions[cluster.name || '']
+            const upgradeableCondition = cluster.distribution?.upgradeInfo?.upgradeableCondition
+            const hasUpgradeableIssue = upgradeableCondition?.status === 'False'
+
+            // Check if selected version is a minor/major upgrade
+            const isMinorMajor = selectedVersion && isMinorOrMajorUpgrade(currentVersion, selectedVersion)
+            const showWarning = hasUpgradeableIssue && isMinorMajor
+
             return (
               <div>
                 {hasAvailableUpgrades && (
                   <>
                     <AcmSelect
-                      value={selectVersions[cluster.name || ''] || ''}
+                      value={selectedVersion || ''}
                       id={`${cluster.name}-upgrade-selector`}
                       maxHeight={'6em'}
                       label=""
                       isRequired
+                      validated={showWarning ? 'warning' : undefined}
                       onChange={(version) => {
                         if (cluster.name && version) {
                           selectVersions[cluster.name] = version
@@ -223,13 +259,43 @@ export function BatchUpgradeModal(props: {
                         }
                       }}
                     >
-                      {availableUpdates?.map((version) => (
-                        <SelectOption key={`${cluster.name}-${version}`} value={version}>
-                          {version}
-                        </SelectOption>
-                      ))}
+                      {availableUpdates?.map((version) => {
+                        const isVersionMinorMajor = isMinorOrMajorUpgrade(currentVersion, version)
+                        const hasWarning = hasUpgradeableIssue && isVersionMinorMajor
+                        return (
+                          <SelectOption key={`${cluster.name}-${version}`} value={version}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                              <span>{version}</span>
+                              {hasWarning && (
+                                <ExclamationTriangleIcon
+                                  style={{ color: 'var(--pf-v5-global--warning-color--100)' }}
+                                />
+                              )}
+                            </div>
+                          </SelectOption>
+                        )
+                      })}
                     </AcmSelect>
-                    <ReleaseNotesLink version={selectVersions[cluster.name!]} />
+                    {showWarning ? (
+                      <FormHelperText>
+                        <ExclamationTriangleIcon
+                          style={{ marginRight: '4px', verticalAlign: 'middle', color: 'var(--pf-v5-global--warning-color--100)' }}
+                        />
+                        {t('Upgrade risks detected')} -{' '}
+                        <Popover
+                          headerContent={upgradeableCondition?.reason || t('Upgrade risks detected')}
+                          bodyContent={upgradeableCondition?.message}
+                        >
+                          <Button variant="link" isInline style={{ padding: 0, fontSize: 'inherit' }}>
+                            {t('View alert details')}
+                          </Button>
+                        </Popover>
+                        {' | '}
+                        <ReleaseNotesLink version={selectedVersion} />
+                      </FormHelperText>
+                    ) : (
+                      <ReleaseNotesLink version={selectedVersion} />
+                    )}
                   </>
                 )}
               </div>
