@@ -6,8 +6,17 @@ import {
   HostedClusterK8sResource,
   NodePoolK8sResource,
 } from '@openshift-assisted/ui-lib/cim'
-import { ActionGroup, Button, ButtonVariant, Checkbox, SelectOption } from '@patternfly/react-core'
+import {
+  ActionGroup,
+  Button,
+  ButtonVariant,
+  Checkbox,
+  SelectOption,
+  FormHelperText,
+  Popover,
+} from '@patternfly/react-core'
 import { ModalVariant } from '@patternfly/react-core/deprecated'
+import { ExclamationTriangleIcon } from '@patternfly/react-icons'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import _ from 'lodash'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -34,6 +43,7 @@ import {
 } from '../../../../../ui-components'
 import { getNodepoolAgents } from '../utils/nodepool'
 import { ReleaseNotesLink } from './ReleaseNotesLink'
+import { isMinorOrMajorUpgrade } from './utils/version-utils'
 
 export function HypershiftUpgradeModal(props: {
   close: () => void
@@ -499,20 +509,37 @@ export function HypershiftUpgradeModal(props: {
     return <></>
   }
 
+  const upgradeableCondition = props.controlPlane.distribution?.upgradeInfo?.upgradeableCondition
+  const currentVersion = props.controlPlane.distribution?.ocp?.version
+  const isMinorMajorUpgrade = controlPlaneNewVersion && isMinorOrMajorUpgrade(currentVersion, controlPlaneNewVersion)
+  const showUpgradeAlert = upgradeableCondition?.status === 'False' && isMinorMajorUpgrade
+
   return (
-    <AcmModal variant={ModalVariant.medium} title={t('Upgrade version')} isOpen={true} onClose={props.close}>
+    <AcmModal variant={ModalVariant.large} title={t('Upgrade version')} isOpen={true} onClose={props.close}>
       <AcmForm style={{ gap: 0 }}>
         {patchErrors.length === 0 ? (
           <Fragment>
+            {showUpgradeAlert && (
+              <AcmAlert
+                isInline
+                noClose
+                variant="warning"
+                title={t('Cluster version upgrade risks detected')}
+                message={t(
+                  'Clusters with warnings have version-specific risks that may cause upgrade failure. Resolve these risks or choose a different target version.'
+                )}
+                style={{ marginBottom: '16px' }}
+              />
+            )}
             {t(
               'Select the new versions for the cluster and node pools that you want to upgrade. This action is irreversible.'
             )}
             <Table aria-label={t('Hypershift upgrade table')} variant="compact">
               <Thead>
                 <Tr>
-                  <Th>{columnNamesTranslated.name}</Th>
-                  <Th>{columnNamesTranslated.currentVersion}</Th>
-                  <Th>{columnNamesTranslated.newVersion}</Th>
+                  <Th width={20}>{columnNamesTranslated.name}</Th>
+                  <Th width={15}>{columnNamesTranslated.currentVersion}</Th>
+                  <Th width={65}>{columnNamesTranslated.newVersion}</Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -573,14 +600,57 @@ export function HypershiftUpgradeModal(props: {
                       label=""
                       maxHeight={'10em'}
                       isDisabled={!controlPlaneChecked}
+                      validated={showUpgradeAlert ? 'warning' : undefined}
                     >
-                      {availableUpdateKeys.map((version) => (
-                        <SelectOption key={`${version}`} value={version}>
-                          {version}
-                        </SelectOption>
-                      ))}
+                      {availableUpdateKeys.map((version) => {
+                        const isVersionMinorMajor = isMinorOrMajorUpgrade(currentVersion, version)
+                        const hasWarning = upgradeableCondition?.status === 'False' && isVersionMinorMajor
+                        return (
+                          <SelectOption key={`${version}`} value={version}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                width: '100%',
+                              }}
+                            >
+                              <span>{version}</span>
+                              {hasWarning && (
+                                <ExclamationTriangleIcon style={{ color: 'var(--pf-v5-global--warning-color--100)' }} />
+                              )}
+                            </div>
+                          </SelectOption>
+                        )
+                      })}
                     </AcmSelect>
-                    <ReleaseNotesLink version={controlPlaneNewVersion} />
+                    {showUpgradeAlert ? (
+                      <FormHelperText>
+                        <ExclamationTriangleIcon
+                          style={{
+                            marginRight: '4px',
+                            verticalAlign: 'middle',
+                            color: 'var(--pf-v5-global--warning-color--100)',
+                          }}
+                        />
+                        {t('Cluster version upgrade risk detected for {{version}}', {
+                          version: controlPlaneNewVersion,
+                        })}{' '}
+                        -{' '}
+                        <Popover
+                          headerContent={t('Cluster version upgrade risk')}
+                          bodyContent={upgradeableCondition?.message}
+                        >
+                          <Button variant="link" isInline style={{ padding: 0, fontSize: 'inherit' }}>
+                            {t('View alert details')}
+                          </Button>
+                        </Popover>
+                        {' | '}
+                        <ReleaseNotesLink version={controlPlaneNewVersion} />
+                      </FormHelperText>
+                    ) : (
+                      <ReleaseNotesLink version={controlPlaneNewVersion} />
+                    )}
                   </Td>
                 </Tr>
                 {props.nodepools && props.nodepools?.length > 0 && (

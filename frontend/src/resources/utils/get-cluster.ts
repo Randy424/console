@@ -363,6 +363,10 @@ export type UpgradeInfo = {
     success: boolean
     failed: boolean
   }
+  // Upgradeable condition from ManagedClusterInfo (PR #1129)
+  // Per API contract: undefined = upgradeable, False = not upgradeable
+  isUpgradeable?: boolean
+  upgradeableCondition?: V1CustomResourceDefinitionCondition
 }
 
 //** for testing only; allows mapping of partial data */
@@ -889,6 +893,10 @@ export function getDistributionInfo(
     }
   }
 
+  // Extract Upgradeable condition from ManagedClusterInfo (PR #1129)
+  const upgradeableCondition = managedClusterInfo?.status?.conditions?.find((c) => c.type === 'Upgradeable')
+  const isUpgradeable = upgradeableCondition ? upgradeableCondition.status !== 'False' : undefined
+
   const upgradeInfo: UpgradeInfo = {
     isUpgrading: false,
     isReadyUpdates: false,
@@ -921,6 +929,8 @@ export function getDistributionInfo(
       success: false,
       failed: false,
     },
+    isUpgradeable,
+    upgradeableCondition,
   }
 
   const versionRegex = /([\d]{1,5})\.([\d]{1,5})\.([\d]{1,5})/
