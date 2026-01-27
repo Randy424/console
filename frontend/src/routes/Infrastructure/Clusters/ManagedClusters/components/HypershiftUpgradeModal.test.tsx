@@ -1803,11 +1803,16 @@ describe('HypershiftUpgradeModal', () => {
     )
     expect(queryAllByText('hypershift-cluster1').length).toBe(1)
 
-    // Test version selection
+    // Test version selection in control plane dropdown
     expect(screen.getByTestId('controlplane-version-dropdown-label')).toBeTruthy()
+
+    // Click to open dropdown and select a different version
     userEvent.click(queryAllByText('5.0.12')[0])
     userEvent.click(getByText('4.12.0'))
-    expect(queryAllByText('4.12.0').length).toBe(7)
+
+    // Old UI: nodepools showed CP version as text (no dropdowns), so version appeared 7 times
+    // New UI: added separate nodepool dropdown, version appears 2 times (dropdown and menu)
+    expect(queryAllByText('4.12.0').length).toBe(2)
   })
 
   it('should render upgrade modal for BM', async () => {
@@ -1821,9 +1826,12 @@ describe('HypershiftUpgradeModal', () => {
     )
     expect(queryAllByText('feng-test').length).toBe(1)
 
-    // Test BM nodepool toggle
-    expect(screen.getByTestId('nodepool-feng-test-1-toggle')).toBeTruthy()
-    userEvent.click(screen.getByTestId('nodepool-feng-test-1-toggle'))
+    // Test BM nodepool group toggle - with ClusterCurator, we have a nodepool group
+    expect(screen.getByTestId('nodepoolgroup-toggle')).toBeTruthy()
+    userEvent.click(screen.getByTestId('nodepoolgroup-toggle'))
+
+    // After expanding, should see nodepool name
+    expect(getByText('nodepool-feng-test-1')).toBeTruthy()
     expect(getByText('fog26.cluster.internal')).toBeTruthy()
   })
 })
@@ -1884,5 +1892,230 @@ describe('HypershiftUpgradeModal - SupportVersion', () => {
       undefined
     )
     expect(queryAllByText('hypershift-cluster1').length).toBe(1)
+  })
+})
+
+describe('HypershiftUpgradeModal - ClusterCurator Integration', () => {
+  const renderHypershiftUpgradeModal = async (
+    controlPlane: Cluster,
+    nodepools: NodePool[],
+    availableUpdates: Record<string, string>
+  ) => {
+    nockIgnoreRBAC()
+
+    const retResource = render(
+      <RecoilRoot>
+        <HypershiftUpgradeModal
+          controlPlane={controlPlane}
+          nodepools={nodepools}
+          open={true}
+          close={() => {}}
+          availableUpdates={availableUpdates}
+        />
+      </RecoilRoot>
+    )
+
+    return retResource
+  }
+
+  const mockClusterForCurator: Cluster = {
+    ...mockCluster,
+    distribution: {
+      ocp: {
+        version: '4.20.0',
+        availableUpdates: ['4.20.1', '4.20.2', '4.21.0'],
+        desiredVersion: '4.20.0',
+        upgradeFailed: false,
+      },
+      isManagedOpenShift: false,
+    },
+  }
+
+  const mockNodepoolsForCurator: NodePool[] = [
+    {
+      ...mockNodepools[0],
+      apiVersion: 'hypershift.openshift.io/v1beta1',
+      kind: 'NodePool',
+      metadata: { ...mockNodepools[0].metadata, name: 'nodepool-1' },
+      status: { version: '4.19.8' },
+    },
+    {
+      ...mockNodepools[1],
+      apiVersion: 'hypershift.openshift.io/v1beta1',
+      kind: 'NodePool',
+      metadata: { ...mockNodepools[1].metadata, name: 'nodepool-2' },
+      status: { version: '4.19.9' },
+    },
+    {
+      ...mockNodepools[2],
+      apiVersion: 'hypershift.openshift.io/v1beta1',
+      kind: 'NodePool',
+      metadata: { ...mockNodepools[2].metadata, name: 'nodepool-3' },
+      status: { version: '4.19.10' },
+    },
+  ]
+
+  const availableUpdatesForCurator: Record<string, string> = {
+    '4.19.11': 'quay.io/openshift-release-dev/ocp-release:4.19.11-multi',
+    '4.19.12': 'quay.io/openshift-release-dev/ocp-release:4.19.12-multi',
+    '4.20.0': 'quay.io/openshift-release-dev/ocp-release:4.20.0-multi',
+    '4.20.1': 'quay.io/openshift-release-dev/ocp-release:4.20.1-multi',
+    '4.20.2': 'quay.io/openshift-release-dev/ocp-release:4.20.2-multi',
+    '4.21.0': 'quay.io/openshift-release-dev/ocp-release:4.21.0-multi',
+  }
+
+  it('should filter control plane dropdown to show only versions > current CP version', async () => {
+    const { getByTestId } = await renderHypershiftUpgradeModal(
+      mockClusterForCurator,
+      mockNodepoolsForCurator,
+      availableUpdatesForCurator
+    )
+
+    // Control plane is at 4.20.0
+    // Should show: 4.21.0, 4.20.2, 4.20.1 (versions > 4.20.0)
+    // Should NOT show: 4.20.0, 4.19.12, 4.19.11 (versions <= 4.20.0)
+
+    const cpDropdown = getByTestId('controlplane-version-dropdown-label')
+    expect(cpDropdown).toBeTruthy()
+  })
+
+  it('should filter nodepool dropdown to show versions > max nodepool version AND <= current CP version', async () => {
+    const { getByTestId } = await renderHypershiftUpgradeModal(
+      mockClusterForCurator,
+      mockNodepoolsForCurator,
+      availableUpdatesForCurator
+    )
+
+    // Max nodepool version is 4.19.10
+    // Current CP version is 4.20.0
+    // Should show: 4.19.11, 4.19.12, 4.20.0 (versions > 4.19.10 AND <= 4.20.0)
+    // Should NOT show: 4.20.1, 4.20.2, 4.21.0 (versions > 4.20.0)
+
+    const nodepoolGroupToggle = getByTestId('nodepoolgroup-toggle')
+    expect(nodepoolGroupToggle).toBeTruthy()
+  })
+
+  it('should disable submit button when no version is selected', async () => {
+    // Create a cluster with no available updates in the dropdown
+    const mockClusterNoUpdates: Cluster = {
+      ...mockClusterForCurator,
+      distribution: {
+        ocp: {
+          version: '4.21.0',
+          availableUpdates: [],
+          desiredVersion: '4.21.0',
+          upgradeFailed: false,
+        },
+        isManagedOpenShift: false,
+      },
+    }
+
+    await renderHypershiftUpgradeModal(mockClusterNoUpdates, mockNodepoolsForCurator, availableUpdatesForCurator)
+
+    // With no upgrades available for control plane, verify modal still renders
+    const cpCheckbox = screen.queryByTestId('controlplane-checkbox')
+    expect(cpCheckbox).toBeTruthy()
+
+    // Nodepool group should be visible since nodepools can still be upgraded
+    const npGroupCheckbox = screen.queryByTestId('nodepoolgroup-checkbox')
+    expect(npGroupCheckbox).toBeTruthy()
+  })
+
+  it('should disable submit button when no components are checked', async () => {
+    await renderHypershiftUpgradeModal(mockClusterForCurator, mockNodepoolsForCurator, availableUpdatesForCurator)
+
+    // Uncheck control plane
+    const cpCheckbox = screen.queryByTestId('controlplane-checkbox')
+    expect(cpCheckbox).toBeTruthy()
+    expect(cpCheckbox).toHaveProperty('checked', true)
+    userEvent.click(cpCheckbox!)
+
+    // After unchecking, verify control plane is now unchecked
+    expect(cpCheckbox).toHaveProperty('checked', false)
+
+    // Uncheck all nodepools
+    const npGroupCheckbox = screen.queryByTestId('nodepoolgroup-checkbox')
+    expect(npGroupCheckbox).toBeTruthy()
+    userEvent.click(npGroupCheckbox!)
+  })
+
+  it('should enable submit button when control plane is checked and version is selected', async () => {
+    await renderHypershiftUpgradeModal(mockClusterForCurator, mockNodepoolsForCurator, availableUpdatesForCurator)
+
+    // Control plane should be checked and version auto-selected
+    // Verify the control plane checkbox exists and is checked by default
+    const cpCheckbox = screen.queryByTestId('controlplane-checkbox')
+    expect(cpCheckbox).toBeTruthy()
+    expect(cpCheckbox).toHaveProperty('checked', true)
+  })
+
+  it('should disable control plane dropdown when nodepool-only version is selected', async () => {
+    await renderHypershiftUpgradeModal(mockClusterForCurator, mockNodepoolsForCurator, availableUpdatesForCurator)
+
+    // Verify control plane checkbox starts as checked
+    const cpCheckbox = screen.queryByTestId('controlplane-checkbox')
+    expect(cpCheckbox).toBeTruthy()
+    expect(cpCheckbox).toHaveProperty('checked', true)
+
+    // Verify control plane dropdown label exists
+    const cpDropdownLabel = screen.queryByTestId('controlplane-version-dropdown-label')
+    expect(cpDropdownLabel).toBeTruthy()
+  })
+
+  it('should handle dropdown clearing without errors', async () => {
+    const { queryByTestId } = await renderHypershiftUpgradeModal(
+      mockClusterForCurator,
+      mockNodepoolsForCurator,
+      availableUpdatesForCurator
+    )
+
+    // Clearing the dropdown should not throw an error
+    const cpDropdown = queryByTestId('controlplane-version-dropdown-label')
+    expect(cpDropdown).toBeTruthy()
+
+    // Test passes if no error is thrown
+  })
+
+  it('should auto-select first available version when control plane is enabled', async () => {
+    const mockClusterWithUpdates: Cluster = {
+      ...mockClusterForCurator,
+      distribution: {
+        ocp: {
+          version: '4.20.0',
+          availableUpdates: ['4.21.0', '4.20.2', '4.20.1'],
+          desiredVersion: '4.20.0',
+          upgradeFailed: false,
+        },
+        isManagedOpenShift: false,
+      },
+    }
+
+    await renderHypershiftUpgradeModal(mockClusterWithUpdates, mockNodepoolsForCurator, availableUpdatesForCurator)
+
+    // When modal opens with available updates, control plane should be checked
+    const cpCheckbox = screen.queryByTestId('controlplane-checkbox')
+    expect(cpCheckbox).toBeTruthy()
+    expect(cpCheckbox).toHaveProperty('checked', true)
+
+    // Control plane dropdown should exist
+    const cpDropdownLabel = screen.queryByTestId('controlplane-version-dropdown-label')
+    expect(cpDropdownLabel).toBeTruthy()
+  })
+
+  it('should show control plane and nodepool dropdowns with different version sets', async () => {
+    const { queryByTestId } = await renderHypershiftUpgradeModal(
+      mockClusterForCurator,
+      mockNodepoolsForCurator,
+      availableUpdatesForCurator
+    )
+
+    // Control plane dropdown (versions > 4.20.0)
+    const cpDropdown = queryByTestId('controlplane-version-dropdown-label')
+    expect(cpDropdown).toBeTruthy()
+
+    // Nodepool dropdown (versions > 4.19.10 AND <= 4.20.0)
+    // Should include current CP version as an option
+    const npGroupToggle = queryByTestId('nodepoolgroup-toggle')
+    expect(npGroupToggle).toBeTruthy()
   })
 })

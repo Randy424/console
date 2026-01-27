@@ -611,8 +611,22 @@ export function getCluster({
             (name) => !!name
           ),
           hostingNamespace: hostedCluster.metadata?.namespace || '',
-          isUpgrading: getHCUpgradeStatus(hostedCluster),
-          upgradePercentage: getHCUpgradePercent(hostedCluster),
+          // Use curator status if available, otherwise fall back to HostedCluster status
+          isUpgrading: clusterCurator
+            ? !checkCuratorConditionInProgress('clustercurator-job', clusterCurator.status?.conditions ?? [])
+              ? false
+              : clusterCurator.spec?.desiredCuration === 'upgrade' ||
+                checkCuratorLatestOperation(CuratorCondition.upgrade, clusterCurator.status?.conditions ?? []) ||
+                checkCuratorLatestFailedOperation(CuratorCondition.upgrade, clusterCurator.status?.conditions ?? [])
+            : getHCUpgradeStatus(hostedCluster),
+          upgradePercentage: clusterCurator
+            ? (() => {
+                const curatorConditions = clusterCurator.status?.conditions ?? []
+                const upgradeDetailedMessage = getConditionMessage('monitor-upgrade', curatorConditions) || ''
+                const percentageMatch = upgradeDetailedMessage.match(/\d+%/) || []
+                return percentageMatch.length > 0 ? percentageMatch[0] : ''
+              })()
+            : getHCUpgradePercent(hostedCluster),
         }
       : undefined,
   }

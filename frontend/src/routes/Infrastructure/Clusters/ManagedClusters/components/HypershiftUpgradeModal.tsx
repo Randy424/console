@@ -13,15 +13,15 @@ import _ from 'lodash'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import semver from 'semver'
 import { useTranslation } from '../../../../../lib/acm-i18next'
+import { ClusterCurator, ClusterCuratorDefinition, NodePool } from '../../../../../resources'
 import {
-  HostedClusterApiVersion,
-  HostedClusterKind,
-  IResource,
-  NodePool,
-  NodePoolApiVersion,
-  NodePoolKind,
-} from '../../../../../resources'
-import { Cluster, IRequestResult, patchResource, ResourceError, resultsSettled } from '../../../../../resources/utils'
+  Cluster,
+  createResource,
+  IRequestResult,
+  patchResource,
+  ResourceError,
+  ResourceErrorCode,
+} from '../../../../../resources/utils'
 import { useRecoilValue, useSharedAtoms } from '../../../../../shared-recoil'
 import {
   AcmAlert,
@@ -77,34 +77,127 @@ export function HypershiftUpgradeModal(props: {
       : zeroVersion
   if (supportedVersions.versions) {
     for (let i = 1; i < supportedVersions.versions.length; i++) {
-      if (semver.gt(supportedVersions.versions[i] + '.0', latestSupportedVersion)) {
-        latestSupportedVersion = supportedVersions.versions[i] + '.0'
+      try {
+        if (semver.gt(supportedVersions.versions[i] + '.0', latestSupportedVersion)) {
+          latestSupportedVersion = supportedVersions.versions[i] + '.0'
+        }
+      } catch {
+        // Skip invalid versions
       }
     }
   }
 
-  const availableUpdateKeys = useMemo(() => {
+  // Control plane dropdown: only show versions > current CP version
+  const controlPlaneUpdateKeys = useMemo(() => {
+    const currentCPVersion = props.controlPlane.distribution?.ocp?.version || '0.0.0'
+
     return Object.keys(props.availableUpdates)
       .filter((version) => {
-        if (latestSupportedVersion === zeroVersion) {
-          return true
+        try {
+          // Filter by supported version
+          if (latestSupportedVersion !== zeroVersion) {
+            const withinSupported =
+              semver.major(version) <= semver.major(latestSupportedVersion) &&
+              semver.minor(version) <= semver.minor(latestSupportedVersion)
+            if (!withinSupported) {
+              return false
+            }
+          }
+
+          // Only show versions greater than current control plane version
+          return semver.gt(version, currentCPVersion)
+        } catch {
+          // Skip invalid versions
+          return false
         }
-        return (
-          semver.major(version) <= semver.major(latestSupportedVersion) &&
-          semver.minor(version) <= semver.minor(latestSupportedVersion)
-        )
       })
       .sort((a, b) => {
-        if (semver.lt(a, b)) {
-          return -1
+        try {
+          if (semver.lt(a, b)) {
+            return -1
+          }
+          if (semver.gt(a, b)) {
+            return 1
+          }
+          return 0
+        } catch {
+          return 0
         }
-        if (semver.gt(a, b)) {
-          return 1
-        }
-        return 0
       })
       .reverse()
-  }, [props.availableUpdates, latestSupportedVersion])
+  }, [props.availableUpdates, latestSupportedVersion, props.controlPlane.distribution?.ocp?.version])
+
+  // Nodepool dropdown: show versions > max nodepool version AND <= current CP version
+  const nodepoolUpdateKeys = useMemo(() => {
+    const currentCPVersion = props.controlPlane.distribution?.ocp?.version || '0.0.0'
+
+    // Find the maximum nodepool version
+    let maxNodepoolVersion = '0.0.0'
+    props.nodepools?.forEach((np) => {
+      const npVersion = np.status?.version || '0.0.0'
+      try {
+        if (semver.gt(npVersion, maxNodepoolVersion)) {
+          maxNodepoolVersion = npVersion
+        }
+      } catch {
+        // Skip invalid versions
+      }
+    })
+
+    const versions = Object.keys(props.availableUpdates).filter((version) => {
+      try {
+        // Filter by supported version
+        if (latestSupportedVersion !== zeroVersion) {
+          const withinSupported =
+            semver.major(version) <= semver.major(latestSupportedVersion) &&
+            semver.minor(version) <= semver.minor(latestSupportedVersion)
+          if (!withinSupported) {
+            return false
+          }
+        }
+
+        // Must be greater than the highest nodepool version
+        if (!semver.gt(version, maxNodepoolVersion)) {
+          return false
+        }
+
+        // Cannot exceed current control plane version
+        return semver.lte(version, currentCPVersion)
+      } catch {
+        // Skip invalid versions
+        return false
+      }
+    })
+
+    // Include current CP version as an option (to catch up to control plane)
+    try {
+      if (
+        currentCPVersion !== '0.0.0' &&
+        !versions.includes(currentCPVersion) &&
+        semver.gt(currentCPVersion, maxNodepoolVersion)
+      ) {
+        versions.push(currentCPVersion)
+      }
+    } catch {
+      // Skip if invalid version
+    }
+
+    return versions
+      .sort((a, b) => {
+        try {
+          if (semver.lt(a, b)) {
+            return -1
+          }
+          if (semver.gt(a, b)) {
+            return 1
+          }
+          return 0
+        } catch {
+          return 0
+        }
+      })
+      .reverse()
+  }, [props.availableUpdates, latestSupportedVersion, props.controlPlane.distribution?.ocp?.version, props.nodepools])
 
   const controlPlaneNameTdRef = useRef<HTMLTableCellElement>(null)
   const controlPlaneVersionTdRef = useRef<HTMLTableCellElement>(null)
@@ -170,25 +263,38 @@ export function HypershiftUpgradeModal(props: {
 
   useEffect(() => {
     setPatchErrors([])
-    if (availableUpdateKeys.length === 0) {
+    if (controlPlaneUpdateKeys.length === 0 && nodepoolUpdateKeys.length === 0) {
       setControlPlaneCheckboxDisabled(true)
       setControlPlaneChecked(false)
       checkNodepoolErrors(props.controlPlane.distribution?.ocp?.version)
     }
 
-    if (!controlPlaneNewVersion && availableUpdateKeys.length > 0) {
-      setControlPlaneNewVersion(availableUpdateKeys[0])
-      checkNodepoolsDisabled(availableUpdateKeys[0])
-      checkNodepoolErrors(availableUpdateKeys[0])
+    // Initialize version: prefer control plane updates, fallback to nodepool updates
+    if (!controlPlaneNewVersion) {
+      const initialVersion =
+        controlPlaneUpdateKeys.length > 0
+          ? controlPlaneUpdateKeys[0]
+          : nodepoolUpdateKeys.length > 0
+            ? nodepoolUpdateKeys[0]
+            : undefined
+
+      if (initialVersion) {
+        setControlPlaneNewVersion(initialVersion)
+        checkNodepoolsDisabled(initialVersion)
+        checkNodepoolErrors(initialVersion)
+      }
     }
 
-    if (availableUpdateKeys.length > 0 && availableUpdateKeys[0] === props.controlPlane.distribution?.ocp?.version) {
+    // Disable control plane if no updates available for it
+    if (controlPlaneUpdateKeys.length === 0) {
       setControlPlaneCheckboxDisabled(true)
       setControlPlaneChecked(false)
     }
+
     let initialNodepoolVer: string | undefined
     let isOverallNodepoolVersionSet = false
-    const availableUpdateVersion = availableUpdateKeys[0] || props.controlPlane.distribution?.ocp?.version
+    const availableUpdateVersion =
+      controlPlaneUpdateKeys[0] || nodepoolUpdateKeys[0] || props.controlPlane.distribution?.ocp?.version
     if (Object.keys(nodepoolsChecked).length === 0) {
       const npsChecked: any = {}
       const npsDisabled: any = {}
@@ -420,7 +526,26 @@ export function HypershiftUpgradeModal(props: {
       }
     }
     if (!controlPlaneChecked) {
-      checkNodepoolErrors()
+      // Set the version to the first available upgrade when checkbox is enabled
+      if (controlPlaneUpdateKeys.length > 0) {
+        const firstVersion = controlPlaneUpdateKeys[0]
+        setControlPlaneNewVersion(firstVersion)
+        checkNodepoolErrors(firstVersion)
+        checkNodepoolsDisabled(firstVersion)
+
+        // Auto-check nodepools that are 2+ minor versions behind
+        props.nodepools?.forEach((np) => {
+          if (isTwoVersionsGreater(firstVersion, np.status?.version)) {
+            nodepoolsChecked[np.metadata.name || ''] = true
+          }
+        })
+        setNodepoolsChecked({ ...nodepoolsChecked })
+        if (countTrue(nodepoolsChecked) === props.nodepools?.length) {
+          setNodepoolGroupChecked(true)
+        }
+      } else {
+        checkNodepoolErrors()
+      }
       setControlPlaneError(false)
       setNodepoolGroupChecked(true)
       setAllNodepoolsCheckState(true)
@@ -431,52 +556,57 @@ export function HypershiftUpgradeModal(props: {
     }
   }
 
-  const performUpgrade = (resourceType: string, resource: Cluster | NodePool, newVersion: string | undefined) => {
-    let resourceYAML
-    let resourceCastType
-    const patchYAML = {
+  const performUpgrade = (
+    cluster: Cluster,
+    desiredVersion: string,
+    upgradeType?: 'ControlPlane' | 'NodePools',
+    nodePoolNames?: string[]
+  ) => {
+    const patchSpec = {
       spec: {
-        release: {
-          image: newVersion,
+        desiredCuration: 'upgrade',
+        upgrade: {
+          channel: '', // Empty to use version only
+          desiredUpdate: desiredVersion,
+          ...(upgradeType && { upgradeType }),
+          ...(nodePoolNames && nodePoolNames.length > 0 && { nodePoolNames }),
         },
       },
     }
 
-    if (resourceType === 'Cluster') {
-      resourceCastType = resource as Cluster
-      resourceYAML = {
-        apiVersion: HostedClusterApiVersion,
-        kind: HostedClusterKind,
-        metadata: {
-          name: resourceCastType.name,
-          namespace: resourceCastType.hypershift?.hostingNamespace,
-        },
-      } as HostedClusterK8sResource
-    } else if (resourceType === 'NodePool') {
-      resourceCastType = resource as NodePool
-      resourceYAML = {
-        apiVersion: NodePoolApiVersion,
-        kind: NodePoolKind,
-        metadata: {
-          name: resourceCastType.metadata.name,
-          namespace: resourceCastType.metadata.namespace,
-        },
-      } as NodePool
-    }
+    const clusterCurator = {
+      apiVersion: ClusterCuratorDefinition.apiVersion,
+      kind: ClusterCuratorDefinition.kind,
+      metadata: {
+        name: cluster.name,
+        namespace: cluster.namespace,
+      },
+    } as ClusterCurator
 
-    const patchResult = patchResource(resourceYAML as IResource, patchYAML)
+    const patchCuratorResult = patchResource(clusterCurator, patchSpec)
+    let createCuratorResult: IRequestResult<ClusterCurator> | undefined = undefined
+
     return {
       promise: new Promise((resolve, reject) => {
-        patchResult.promise
+        patchCuratorResult.promise
           .then((data) => {
             return resolve(data)
           })
           .catch((err: ResourceError) => {
-            reject(err)
+            if (err.code === ResourceErrorCode.NotFound) {
+              // Create ClusterCurator if it doesn't exist
+              createCuratorResult = createResource({ ...clusterCurator, ...patchSpec })
+              createCuratorResult.promise.then((data) => resolve(data)).catch((err) => reject(err))
+            } else {
+              reject(err)
+            }
           })
       }),
       abort: () => {
-        patchResult.abort()
+        patchCuratorResult.abort()
+        if (createCuratorResult) {
+          createCuratorResult.abort()
+        }
       },
     }
   }
@@ -484,16 +614,15 @@ export function HypershiftUpgradeModal(props: {
   const columnNames = {
     name: 'Name',
     currentVersion: 'Current version',
-    newVersion: 'New version',
+    newVersion: 'Target version',
   }
   const columnNamesTranslated = {
     name: t('Name'),
     currentVersion: t('Current version'),
-    newVersion: t('New version'),
+    newVersion: t('Target version'),
   }
 
   const paddingZero = { paddingLeft: 0, paddingRight: 0 }
-  const borderNone = { border: 'none' }
 
   if (props.open === false) {
     return <></>
@@ -505,9 +634,9 @@ export function HypershiftUpgradeModal(props: {
         {patchErrors.length === 0 ? (
           <Fragment>
             {t(
-              'Select the new versions for the cluster and node pools that you want to upgrade. This action is irreversible.'
+              'Select the components to upgrade (control plane and/or node pools) and the target version. All selected components will be upgraded to the same version. This action is irreversible.'
             )}
-            <Table aria-label={t('Hypershift upgrade table')} variant="compact">
+            <Table aria-label={t('Hypershift upgrade table')} variant="compact" borders={false}>
               <Thead>
                 <Tr>
                   <Th>{columnNamesTranslated.name}</Th>
@@ -517,7 +646,7 @@ export function HypershiftUpgradeModal(props: {
               </Thead>
               <Tbody>
                 {controlPlaneCheckboxDisabled && (
-                  <Tr key="hypershift-controlplane-error" style={{ borderBottom: '0px' }}>
+                  <Tr key="hypershift-controlplane-error">
                     <Td colSpan={3} style={paddingZero}>
                       <AcmAlert
                         isInline
@@ -553,40 +682,66 @@ export function HypershiftUpgradeModal(props: {
                     {props.controlPlane.distribution?.ocp?.version}
                   </Td>
                   <Td dataLabel={columnNames.newVersion}>
-                    <AcmSelect
-                      id="controlplane-version-dropdown"
-                      onChange={(version) => {
-                        setControlPlaneNewVersion(version)
-                        checkNodepoolErrors(version)
-                        checkNodepoolsDisabled(version)
-                        props.nodepools?.forEach((np) => {
-                          if (isTwoVersionsGreater(version, np.status?.version)) {
-                            nodepoolsChecked[np.metadata.name || ''] = true
-                          }
-                        })
-                        setNodepoolsChecked({ ...nodepoolsChecked })
-                        if (countTrue(nodepoolsChecked) === props.nodepools?.length) {
-                          setNodepoolGroupChecked(true)
-                        }
-                      }}
-                      value={controlPlaneNewVersion || ''}
-                      label=""
-                      maxHeight={'10em'}
-                      isDisabled={!controlPlaneChecked}
-                    >
-                      {availableUpdateKeys.map((version) => (
-                        <SelectOption key={`${version}`} value={version}>
-                          {version}
-                        </SelectOption>
-                      ))}
-                    </AcmSelect>
-                    <ReleaseNotesLink version={controlPlaneNewVersion} />
+                    {/* All version dropdowns (control plane and nodepools) are synchronized.
+                        They all update the same state (controlPlaneNewVersion) since all
+                        selected components upgrade to the same version per ClusterCurator API. */}
+                    {controlPlaneChecked ? (
+                      <>
+                        <AcmSelect
+                          id="controlplane-version-dropdown"
+                          onChange={(version) => {
+                            // Handle clearing the dropdown (undefined or empty string)
+                            if (!version) {
+                              setControlPlaneNewVersion(undefined)
+                              return
+                            }
+
+                            setControlPlaneNewVersion(version)
+                            checkNodepoolErrors(version)
+                            checkNodepoolsDisabled(version)
+                            props.nodepools?.forEach((np) => {
+                              if (isTwoVersionsGreater(version, np.status?.version)) {
+                                nodepoolsChecked[np.metadata.name || ''] = true
+                              }
+                            })
+                            setNodepoolsChecked({ ...nodepoolsChecked })
+                            if (countTrue(nodepoolsChecked) === props.nodepools?.length) {
+                              setNodepoolGroupChecked(true)
+                            }
+                          }}
+                          value={controlPlaneNewVersion || ''}
+                          label=""
+                          maxHeight={'10em'}
+                          isDisabled={(() => {
+                            // Disable if selected version is less than current CP version (nodepool-only upgrade)
+                            try {
+                              return !!(
+                                controlPlaneNewVersion &&
+                                props.controlPlane.distribution?.ocp?.version &&
+                                semver.lt(controlPlaneNewVersion, props.controlPlane.distribution.ocp.version)
+                              )
+                            } catch {
+                              return false
+                            }
+                          })()}
+                        >
+                          {controlPlaneUpdateKeys.map((version) => (
+                            <SelectOption key={`${version}`} value={version}>
+                              {version}
+                            </SelectOption>
+                          ))}
+                        </AcmSelect>
+                        <ReleaseNotesLink version={controlPlaneNewVersion} />
+                      </>
+                    ) : (
+                      <span>-</span>
+                    )}
                   </Td>
                 </Tr>
                 {props.nodepools && props.nodepools?.length > 0 && (
                   <Fragment>
                     {countTrue(nodepoolErrors) > 0 && (
-                      <Tr key="nodepool-error" style={borderNone}>
+                      <Tr key="nodepool-error">
                         <Td colSpan={3} style={paddingZero}>
                           <AcmAlert
                             isInline
@@ -601,7 +756,7 @@ export function HypershiftUpgradeModal(props: {
                       </Tr>
                     )}
                     {controlPlaneError && (
-                      <Tr key="nodepool-error" style={borderNone}>
+                      <Tr key="nodepool-error">
                         <Td colSpan={3} style={paddingZero}>
                           <AcmAlert
                             isInline
@@ -616,7 +771,7 @@ export function HypershiftUpgradeModal(props: {
                       </Tr>
                     )}
                     <Tr key="hypershift-nodepools">
-                      <Td colSpan={nodepoolsExpanded ? 3 : undefined} dataLabel={columnNames.name} style={paddingZero}>
+                      <Td dataLabel={columnNames.name} style={paddingZero}>
                         <AcmExpandableCheckbox
                           onToggle={() => setNodepoolsExpanded(!nodepoolsExpanded)}
                           expanded={nodepoolsExpanded}
@@ -627,85 +782,114 @@ export function HypershiftUpgradeModal(props: {
                           expandable={true}
                           id="nodepoolgroup"
                         >
-                          <Table
-                            aria-label={t('Hypershift upgrade node pools table')}
-                            borders={false}
-                            variant="compact"
-                          >
-                            <Tbody>
-                              {props.nodepools?.map((np) => {
-                                return (
-                                  <Tr key={np.metadata.name}>
-                                    <Td style={{ width: nodepoolsNameTdWidth }}>
-                                      <AcmExpandableCheckbox
-                                        onToggle={() => handleNodepoolToggled(np.metadata.name || '')}
-                                        expanded={isNodepoolToggled(np.metadata.name || '')}
-                                        checked={isNodepoolChecked(np.metadata.name)}
-                                        label={np.metadata.name || ''}
-                                        onCheck={() => handleNodepoolsChecked(np.metadata.name || '')}
-                                        isDisabled={isNodepoolDisabled(np.metadata.name || '')}
-                                        additionalLabels={
-                                          props.controlPlane.hypershift?.agent
-                                            ? [`${np.spec.replicas} hosts`]
-                                            : undefined
-                                        }
-                                        expandable={props.controlPlane.hypershift?.agent}
-                                        id={np.metadata.name}
-                                      >
-                                        {props.controlPlane.hypershift?.agent &&
-                                          getNodepoolAgents(
-                                            np as NodePoolK8sResource,
-                                            props.agents,
-                                            props.agentMachines,
-                                            props.hostedCluster!
-                                          ).map((agent) => {
-                                            const hostName = agent.spec.hostname || agent.status?.inventory.hostname
-                                            return (
-                                              <div key={hostName}>
-                                                <span
-                                                  style={{
-                                                    paddingLeft: controlPlaneCheckboxSpanWidth,
-                                                  }}
-                                                >
-                                                  {hostName}
-                                                </span>
-                                              </div>
-                                            )
-                                          })}
-                                      </AcmExpandableCheckbox>
-                                    </Td>
-                                    <Td style={{ width: nodepoolsVersionTdWidth }}>{np.status?.version}</Td>
-                                    <Td>
-                                      {isNodepoolChecked(np.metadata.name) ? (
-                                        <Fragment>
-                                          {controlPlaneChecked ? (
-                                            <span>{controlPlaneNewVersion}</span>
-                                          ) : (
-                                            <span>{props.controlPlane.distribution?.ocp?.version}</span>
-                                          )}
-                                        </Fragment>
-                                      ) : (
-                                        <span>-</span>
-                                      )}
-                                    </Td>
-                                  </Tr>
-                                )
-                              })}
-                            </Tbody>
-                          </Table>
+                          <Fragment />
                         </AcmExpandableCheckbox>
                       </Td>
-                      {!nodepoolsExpanded && (
-                        <Fragment>
-                          <Td dataLabel={columnNames.currentVersion}>
-                            <span>{overallNodepoolVersion}</span>
-                          </Td>
-                          <Td dataLabel={columnNames.newVersion}>
-                            <span>{nodepoolGroupChecked ? controlPlaneNewVersion : '-'}</span>
-                          </Td>
-                        </Fragment>
-                      )}
+                      <Td dataLabel={columnNames.currentVersion}>
+                        <span>{overallNodepoolVersion}</span>
+                      </Td>
+                      <Td dataLabel={columnNames.newVersion}>
+                        {countTrue(nodepoolsChecked) > 0 ? (
+                          <AcmSelect
+                            id="nodepoolgroup-version-dropdown"
+                            onChange={(version) => {
+                              // Handle clearing the dropdown (undefined or empty string)
+                              if (!version) {
+                                setControlPlaneNewVersion(undefined)
+                                return
+                              }
+
+                              setControlPlaneNewVersion(version)
+                              checkNodepoolErrors(version)
+                              checkNodepoolsDisabled(version)
+
+                              // If selected version is less than current CP version, uncheck control plane
+                              const currentCPVersion = props.controlPlane.distribution?.ocp?.version || '0.0.0'
+                              try {
+                                if (currentCPVersion !== '0.0.0' && semver.lt(version, currentCPVersion)) {
+                                  setControlPlaneChecked(false)
+                                }
+                              } catch {
+                                // Skip if invalid version
+                              }
+
+                              props.nodepools?.forEach((np) => {
+                                if (isTwoVersionsGreater(version, np.status?.version)) {
+                                  nodepoolsChecked[np.metadata.name || ''] = true
+                                }
+                              })
+                              setNodepoolsChecked({ ...nodepoolsChecked })
+                              if (countTrue(nodepoolsChecked) === props.nodepools?.length) {
+                                setNodepoolGroupChecked(true)
+                              }
+                            }}
+                            value={controlPlaneNewVersion || ''}
+                            label=""
+                            maxHeight={'10em'}
+                            isDisabled={false}
+                          >
+                            {nodepoolUpdateKeys.map((version) => (
+                              <SelectOption key={`${version}-nodepoolgroup`} value={version}>
+                                {version}
+                              </SelectOption>
+                            ))}
+                          </AcmSelect>
+                        ) : (
+                          <span>-</span>
+                        )}
+                      </Td>
                     </Tr>
+                    {nodepoolsExpanded &&
+                      props.nodepools?.map((np) => {
+                        return (
+                          <Tr key={np.metadata.name}>
+                            <Td dataLabel={columnNames.name} style={paddingZero}>
+                              <AcmExpandableCheckbox
+                                onToggle={() => handleNodepoolToggled(np.metadata.name || '')}
+                                expanded={isNodepoolToggled(np.metadata.name || '')}
+                                checked={isNodepoolChecked(np.metadata.name)}
+                                label={np.metadata.name || ''}
+                                onCheck={() => handleNodepoolsChecked(np.metadata.name || '')}
+                                isDisabled={isNodepoolDisabled(np.metadata.name || '')}
+                                additionalLabels={
+                                  props.controlPlane.hypershift?.agent ? [`${np.spec.replicas} hosts`] : undefined
+                                }
+                                expandable={props.controlPlane.hypershift?.agent}
+                                id={np.metadata.name}
+                              >
+                                {props.controlPlane.hypershift?.agent &&
+                                  getNodepoolAgents(
+                                    np as NodePoolK8sResource,
+                                    props.agents,
+                                    props.agentMachines,
+                                    props.hostedCluster!
+                                  ).map((agent) => {
+                                    const hostName = agent.spec.hostname || agent.status?.inventory.hostname
+                                    return (
+                                      <div key={hostName}>
+                                        <span
+                                          style={{
+                                            paddingLeft: controlPlaneCheckboxSpanWidth,
+                                          }}
+                                        >
+                                          {hostName}
+                                        </span>
+                                      </div>
+                                    )
+                                  })}
+                              </AcmExpandableCheckbox>
+                            </Td>
+                            <Td dataLabel={columnNames.currentVersion}>{np.status?.version}</Td>
+                            <Td dataLabel={columnNames.newVersion}>
+                              {isNodepoolChecked(np.metadata.name) ? (
+                                <span>{controlPlaneNewVersion}</span>
+                              ) : (
+                                <span>-</span>
+                              )}
+                            </Td>
+                          </Tr>
+                        )
+                      })}
                   </Fragment>
                 )}
               </Tbody>
@@ -714,43 +898,63 @@ export function HypershiftUpgradeModal(props: {
               <AcmSubmit
                 key="submit-hypershift-upgrade-action"
                 id="submit-button-hypershift-upgrade"
-                isDisabled={!(controlPlaneChecked || countTrue(nodepoolsChecked) > 0) || controlPlaneError}
+                isDisabled={
+                  !(controlPlaneChecked || countTrue(nodepoolsChecked) > 0) ||
+                  controlPlaneError ||
+                  !controlPlaneNewVersion
+                }
                 variant={ButtonVariant.primary}
                 onClick={async () => {
                   const errors: any[] = []
-                  const resultArr: IRequestResult[] = []
-                  if (controlPlaneChecked) {
-                    resultArr.push(
-                      performUpgrade(
-                        'Cluster',
-                        props.controlPlane,
-                        props.availableUpdates[controlPlaneNewVersion || '']
-                      )
-                    )
-                  }
+
+                  // Determine which nodepools are selected
+                  const selectedNodePoolNames: string[] = []
                   props.nodepools?.forEach((np) => {
                     if (nodepoolsChecked[np.metadata.name || ''] === true) {
-                      resultArr.push(
-                        performUpgrade(
-                          'NodePool',
-                          np,
-                          controlPlaneChecked
-                            ? props.availableUpdates[controlPlaneNewVersion || '']
-                            : props.controlPlane.distribution?.ocp?.desired?.image
-                        )
-                      )
+                      selectedNodePoolNames.push(np.metadata.name || '')
                     }
                   })
 
-                  const requestResult = resultsSettled(resultArr)
-                  const promiseResults = await requestResult.promise
-                  promiseResults.forEach((promiseResult) => {
-                    if (promiseResult.status === 'rejected') {
-                      errors.push({
-                        msg: `${promiseResult.reason.code} ${promiseResult.reason.name} ${promiseResult.reason.message}`,
-                      })
+                  const allNodePoolsSelected = selectedNodePoolNames.length === props.nodepools?.length
+                  const anyNodePoolsSelected = selectedNodePoolNames.length > 0
+
+                  // Determine upgradeType and nodePoolNames based on selection
+                  let upgradeType: 'ControlPlane' | 'NodePools' | undefined
+                  let nodePoolNames: string[] | undefined
+
+                  if (controlPlaneChecked && !anyNodePoolsSelected) {
+                    // Control plane only
+                    upgradeType = 'ControlPlane'
+                  } else if (!controlPlaneChecked && anyNodePoolsSelected) {
+                    // NodePools only (all or selective)
+                    upgradeType = 'NodePools'
+                    // If not all nodepools selected, specify which ones
+                    if (!allNodePoolsSelected) {
+                      nodePoolNames = selectedNodePoolNames
                     }
-                  })
+                  } else if (controlPlaneChecked && anyNodePoolsSelected) {
+                    // Both control plane and nodepools
+                    // If all nodepools selected, omit upgradeType (upgrades both)
+                    // If selective nodepools, specify nodePoolNames
+                    if (!allNodePoolsSelected) {
+                      nodePoolNames = selectedNodePoolNames
+                    }
+                    // upgradeType remains undefined for "both"
+                  }
+
+                  // Determine the target version - always use the selected version from dropdown
+                  const desiredVersion = controlPlaneNewVersion || ''
+
+                  // Perform the upgrade via ClusterCurator
+                  const upgradeResult = performUpgrade(props.controlPlane, desiredVersion, upgradeType, nodePoolNames)
+
+                  try {
+                    await upgradeResult.promise
+                  } catch (err: any) {
+                    errors.push({
+                      msg: `${err.code || ''} ${err.name || ''} ${err.message || ''}`,
+                    })
+                  }
 
                   await new Promise((resolve) => setTimeout(resolve, 500))
                   setPatchErrors(errors)
