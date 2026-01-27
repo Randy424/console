@@ -622,21 +622,8 @@ export function getCluster({
           ),
           hostingNamespace: hostedCluster.metadata?.namespace || '',
           // Use curator status if available, otherwise fall back to HostedCluster status
-          isUpgrading: clusterCurator
-            ? !checkCuratorConditionInProgress('clustercurator-job', clusterCurator.status?.conditions ?? [])
-              ? false
-              : clusterCurator.spec?.desiredCuration === 'upgrade' ||
-                checkCuratorLatestOperation(CuratorCondition.upgrade, clusterCurator.status?.conditions ?? []) ||
-                checkCuratorLatestFailedOperation(CuratorCondition.upgrade, clusterCurator.status?.conditions ?? [])
-            : getHCUpgradeStatus(hostedCluster),
-          upgradePercentage: clusterCurator
-            ? (() => {
-                const curatorConditions = clusterCurator.status?.conditions ?? []
-                const upgradeDetailedMessage = getConditionMessage('monitor-upgrade', curatorConditions) || ''
-                const percentageMatch = upgradeDetailedMessage.match(/\d+%/) || []
-                return percentageMatch.length > 0 ? percentageMatch[0] : ''
-              })()
-            : getHCUpgradePercent(hostedCluster),
+          isUpgrading: getCCUpgradeStatus(clusterCurator, hostedCluster),
+          upgradePercentage: getCCUpgradePercent(clusterCurator, hostedCluster),
         }
       : undefined,
   }
@@ -1651,4 +1638,27 @@ export function getHCUpgradePercent(hostedCluster?: HostedClusterK8sResource) {
     }
   }
   return ''
+}
+
+//Return true if ClusterCurator is upgrading, false otherwise
+export function getCCUpgradeStatus(clusterCurator?: ClusterCurator, hostedCluster?: HostedClusterK8sResource) {
+  if (clusterCurator) {
+    return !checkCuratorConditionInProgress('clustercurator-job', clusterCurator.status?.conditions ?? [])
+      ? false
+      : clusterCurator.spec?.desiredCuration === 'upgrade' ||
+          checkCuratorLatestOperation(CuratorCondition.upgrade, clusterCurator.status?.conditions ?? []) ||
+          checkCuratorLatestFailedOperation(CuratorCondition.upgrade, clusterCurator.status?.conditions ?? [])
+  }
+  return getHCUpgradeStatus(hostedCluster)
+}
+
+//Return the progress of a ClusterCurator upgrade as a percentage
+export function getCCUpgradePercent(clusterCurator?: ClusterCurator, hostedCluster?: HostedClusterK8sResource) {
+  if (clusterCurator) {
+    const curatorConditions = clusterCurator.status?.conditions ?? []
+    const upgradeDetailedMessage = getConditionMessage('monitor-upgrade', curatorConditions) || ''
+    const percentageMatch = upgradeDetailedMessage.match(/\d+%/) || []
+    return percentageMatch.length > 0 ? percentageMatch[0] : ''
+  }
+  return getHCUpgradePercent(hostedCluster)
 }

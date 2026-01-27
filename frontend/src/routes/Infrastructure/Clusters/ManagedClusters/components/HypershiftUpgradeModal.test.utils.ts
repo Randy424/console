@@ -8,11 +8,7 @@ export const TEST_MODE = true
 /**
  * Intercepts ClusterCurator creation/patch and logs to console instead of calling API
  */
-export function interceptCuratorCreation(
-  curatorResource: any,
-  operation: 'create' | 'patch',
-  patchSpec?: any
-) {
+export function interceptCuratorCreation(curatorResource: any, operation: 'create' | 'patch', patchSpec?: any) {
   if (!TEST_MODE) return null
 
   const spec = operation === 'patch' ? patchSpec : curatorResource

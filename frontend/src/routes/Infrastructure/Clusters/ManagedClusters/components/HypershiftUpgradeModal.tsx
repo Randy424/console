@@ -36,6 +36,38 @@ import { getNodepoolAgents } from '../utils/nodepool'
 import { ReleaseNotesLink } from './ReleaseNotesLink'
 import { interceptCuratorCreation, logUpgradeSummary, TEST_MODE } from './HypershiftUpgradeModal.test.utils'
 
+// Helper: Check if version is within supported range
+// Only check minor version if major versions are equal
+function isWithinSupportedVersion(version: string, latestSupportedVersion: string, zeroVersion: string): boolean {
+  if (latestSupportedVersion === zeroVersion) return true
+  try {
+    const versionMajor = semver.major(version)
+    const versionMinor = semver.minor(version)
+    const supportedMajor = semver.major(latestSupportedVersion)
+    const supportedMinor = semver.minor(latestSupportedVersion)
+    // Only check minor if major versions are equal
+    if (versionMajor !== supportedMajor) {
+      return versionMajor <= supportedMajor
+    }
+    return versionMinor <= supportedMinor
+  } catch {
+    return false
+  }
+}
+
+// Helper: Sort versions in descending order using semver.compare
+function sortVersionsDescending(versions: string[]): string[] {
+  return versions
+    .sort((a, b) => {
+      try {
+        return semver.compare(a, b)
+      } catch {
+        return 0
+      }
+    })
+    .reverse()
+}
+
 export function HypershiftUpgradeModal(props: {
   close: () => void
   open: boolean
@@ -88,51 +120,26 @@ export function HypershiftUpgradeModal(props: {
     }
   }
 
-  // Control plane dropdown: only show versions > current CP version
-  const controlPlaneUpdateKeys = useMemo(() => {
+  // Single dropdown: dynamically filter based on what's checked
+  // - If control plane checked: show versions > current CP version
+  // - If only nodepools checked: show versions > max nodepool AND <= current CP version
+  const availableUpdateKeys = useMemo(() => {
     const currentCPVersion = props.controlPlane.distribution?.ocp?.version || '0.0.0'
 
-    return Object.keys(props.availableUpdates)
-      .filter((version) => {
+    // If control plane is checked, show versions > CP version
+    if (controlPlaneChecked) {
+      const filtered = Object.keys(props.availableUpdates).filter((version) => {
         try {
-          // Filter by supported version
-          if (latestSupportedVersion !== zeroVersion) {
-            const withinSupported =
-              semver.major(version) <= semver.major(latestSupportedVersion) &&
-              semver.minor(version) <= semver.minor(latestSupportedVersion)
-            if (!withinSupported) {
-              return false
-            }
-          }
-
-          // Only show versions greater than current control plane version
+          if (!isWithinSupportedVersion(version, latestSupportedVersion, zeroVersion)) return false
           return semver.gt(version, currentCPVersion)
         } catch {
-          // Skip invalid versions
           return false
         }
       })
-      .sort((a, b) => {
-        try {
-          if (semver.lt(a, b)) {
-            return -1
-          }
-          if (semver.gt(a, b)) {
-            return 1
-          }
-          return 0
-        } catch {
-          return 0
-        }
-      })
-      .reverse()
-  }, [props.availableUpdates, latestSupportedVersion, props.controlPlane.distribution?.ocp?.version])
+      return sortVersionsDescending(filtered)
+    }
 
-  // Nodepool dropdown: show versions > max nodepool version AND <= current CP version
-  const nodepoolUpdateKeys = useMemo(() => {
-    const currentCPVersion = props.controlPlane.distribution?.ocp?.version || '0.0.0'
-
-    // Find the maximum nodepool version
+    // Only nodepools checked: show versions > max nodepool AND <= CP version
     let maxNodepoolVersion = '0.0.0'
     props.nodepools?.forEach((np) => {
       const npVersion = np.status?.version || '0.0.0'
@@ -147,30 +154,15 @@ export function HypershiftUpgradeModal(props: {
 
     const versions = Object.keys(props.availableUpdates).filter((version) => {
       try {
-        // Filter by supported version
-        if (latestSupportedVersion !== zeroVersion) {
-          const withinSupported =
-            semver.major(version) <= semver.major(latestSupportedVersion) &&
-            semver.minor(version) <= semver.minor(latestSupportedVersion)
-          if (!withinSupported) {
-            return false
-          }
-        }
-
-        // Must be greater than the highest nodepool version
-        if (!semver.gt(version, maxNodepoolVersion)) {
-          return false
-        }
-
-        // Cannot exceed current control plane version
+        if (!isWithinSupportedVersion(version, latestSupportedVersion, zeroVersion)) return false
+        if (!semver.gt(version, maxNodepoolVersion)) return false
         return semver.lte(version, currentCPVersion)
       } catch {
-        // Skip invalid versions
         return false
       }
     })
 
-    // Include current CP version as an option (to catch up to control plane)
+    // Include current CP version as option
     try {
       if (
         currentCPVersion !== '0.0.0' &&
@@ -183,22 +175,14 @@ export function HypershiftUpgradeModal(props: {
       // Skip if invalid version
     }
 
-    return versions
-      .sort((a, b) => {
-        try {
-          if (semver.lt(a, b)) {
-            return -1
-          }
-          if (semver.gt(a, b)) {
-            return 1
-          }
-          return 0
-        } catch {
-          return 0
-        }
-      })
-      .reverse()
-  }, [props.availableUpdates, latestSupportedVersion, props.controlPlane.distribution?.ocp?.version, props.nodepools])
+    return sortVersionsDescending(versions)
+  }, [
+    props.availableUpdates,
+    latestSupportedVersion,
+    props.controlPlane.distribution?.ocp?.version,
+    props.nodepools,
+    controlPlaneChecked,
+  ])
 
   const controlPlaneNameTdRef = useRef<HTMLTableCellElement>(null)
   const controlPlaneVersionTdRef = useRef<HTMLTableCellElement>(null)
@@ -264,7 +248,61 @@ export function HypershiftUpgradeModal(props: {
 
   useEffect(() => {
     setPatchErrors([])
-    if (controlPlaneUpdateKeys.length === 0 && nodepoolUpdateKeys.length === 0) {
+
+    // Calculate available updates for both scenarios (to determine if anything is available)
+    const currentCPVersion = props.controlPlane.distribution?.ocp?.version || '0.0.0'
+
+    // CP updates: versions > CP version
+    const cpUpdates = sortVersionsDescending(
+      Object.keys(props.availableUpdates).filter((version) => {
+        try {
+          if (!isWithinSupportedVersion(version, latestSupportedVersion, zeroVersion)) return false
+          return semver.gt(version, currentCPVersion)
+        } catch {
+          return false
+        }
+      })
+    )
+
+    // NP updates: versions > max nodepool AND <= CP version
+    let maxNodepoolVersion = '0.0.0'
+    props.nodepools?.forEach((np) => {
+      const npVersion = np.status?.version || '0.0.0'
+      try {
+        if (semver.gt(npVersion, maxNodepoolVersion)) {
+          maxNodepoolVersion = npVersion
+        }
+      } catch {
+        // Skip invalid versions
+      }
+    })
+
+    const npUpdates = Object.keys(props.availableUpdates).filter((version) => {
+      try {
+        if (!isWithinSupportedVersion(version, latestSupportedVersion, zeroVersion)) return false
+        if (!semver.gt(version, maxNodepoolVersion)) return false
+        return semver.lte(version, currentCPVersion)
+      } catch {
+        return false
+      }
+    })
+
+    // Include current CP version as option for NP updates
+    try {
+      if (
+        currentCPVersion !== '0.0.0' &&
+        !npUpdates.includes(currentCPVersion) &&
+        semver.gt(currentCPVersion, maxNodepoolVersion)
+      ) {
+        npUpdates.push(currentCPVersion)
+      }
+    } catch {
+      // Skip if invalid version
+    }
+
+    const npUpdatesSorted = sortVersionsDescending(npUpdates)
+
+    if (cpUpdates.length === 0 && npUpdatesSorted.length === 0) {
       setControlPlaneCheckboxDisabled(true)
       setControlPlaneChecked(false)
       checkNodepoolErrors(props.controlPlane.distribution?.ocp?.version)
@@ -273,11 +311,7 @@ export function HypershiftUpgradeModal(props: {
     // Initialize version: prefer control plane updates, fallback to nodepool updates
     if (!controlPlaneNewVersion) {
       const initialVersion =
-        controlPlaneUpdateKeys.length > 0
-          ? controlPlaneUpdateKeys[0]
-          : nodepoolUpdateKeys.length > 0
-            ? nodepoolUpdateKeys[0]
-            : undefined
+        cpUpdates.length > 0 ? cpUpdates[0] : npUpdatesSorted.length > 0 ? npUpdatesSorted[0] : undefined
 
       if (initialVersion) {
         setControlPlaneNewVersion(initialVersion)
@@ -287,15 +321,14 @@ export function HypershiftUpgradeModal(props: {
     }
 
     // Disable control plane if no updates available for it
-    if (controlPlaneUpdateKeys.length === 0) {
+    if (cpUpdates.length === 0) {
       setControlPlaneCheckboxDisabled(true)
       setControlPlaneChecked(false)
     }
 
     let initialNodepoolVer: string | undefined
     let isOverallNodepoolVersionSet = false
-    const availableUpdateVersion =
-      controlPlaneUpdateKeys[0] || nodepoolUpdateKeys[0] || props.controlPlane.distribution?.ocp?.version
+    const availableUpdateVersion = cpUpdates[0] || npUpdatesSorted[0] || props.controlPlane.distribution?.ocp?.version
     if (Object.keys(nodepoolsChecked).length === 0) {
       const npsChecked: any = {}
       const npsDisabled: any = {}
@@ -528,8 +561,21 @@ export function HypershiftUpgradeModal(props: {
     }
     if (!controlPlaneChecked) {
       // Set the version to the first available upgrade when checkbox is enabled
-      if (controlPlaneUpdateKeys.length > 0) {
-        const firstVersion = controlPlaneUpdateKeys[0]
+      // Calculate CP updates (versions > CP version) directly from availableUpdates
+      const currentCPVersion = props.controlPlane.distribution?.ocp?.version || '0.0.0'
+      const cpUpdates = sortVersionsDescending(
+        Object.keys(props.availableUpdates).filter((version) => {
+          try {
+            if (!isWithinSupportedVersion(version, latestSupportedVersion, zeroVersion)) return false
+            return semver.gt(version, currentCPVersion)
+          } catch {
+            return false
+          }
+        })
+      )
+
+      if (cpUpdates.length > 0) {
+        const firstVersion = cpUpdates[0]
         setControlPlaneNewVersion(firstVersion)
         checkNodepoolErrors(firstVersion)
         checkNodepoolsDisabled(firstVersion)
@@ -701,10 +747,9 @@ export function HypershiftUpgradeModal(props: {
                     {props.controlPlane.distribution?.ocp?.version}
                   </Td>
                   <Td dataLabel={columnNames.newVersion}>
-                    {/* All version dropdowns (control plane and nodepools) are synchronized.
-                        They all update the same state (controlPlaneNewVersion) since all
-                        selected components upgrade to the same version per ClusterCurator API. */}
-                    {controlPlaneChecked ? (
+                    {/* Single version dropdown that filters based on what's checked.
+                        All selected components upgrade to the same version per ClusterCurator API. */}
+                    {controlPlaneChecked || countTrue(nodepoolsChecked) > 0 ? (
                       <>
                         <AcmSelect
                           id="controlplane-version-dropdown"
@@ -731,20 +776,8 @@ export function HypershiftUpgradeModal(props: {
                           value={controlPlaneNewVersion || ''}
                           label=""
                           maxHeight={'10em'}
-                          isDisabled={(() => {
-                            // Disable if selected version is less than current CP version (nodepool-only upgrade)
-                            try {
-                              return !!(
-                                controlPlaneNewVersion &&
-                                props.controlPlane.distribution?.ocp?.version &&
-                                semver.lt(controlPlaneNewVersion, props.controlPlane.distribution.ocp.version)
-                              )
-                            } catch {
-                              return false
-                            }
-                          })()}
                         >
-                          {controlPlaneUpdateKeys.map((version) => (
+                          {availableUpdateKeys.map((version) => (
                             <SelectOption key={`${version}`} value={version}>
                               {version}
                             </SelectOption>
@@ -808,51 +841,8 @@ export function HypershiftUpgradeModal(props: {
                         <span>{overallNodepoolVersion}</span>
                       </Td>
                       <Td dataLabel={columnNames.newVersion}>
-                        {countTrue(nodepoolsChecked) > 0 ? (
-                          <AcmSelect
-                            id="nodepoolgroup-version-dropdown"
-                            onChange={(version) => {
-                              // Handle clearing the dropdown (undefined or empty string)
-                              if (!version) {
-                                setControlPlaneNewVersion(undefined)
-                                return
-                              }
-
-                              setControlPlaneNewVersion(version)
-                              checkNodepoolErrors(version)
-                              checkNodepoolsDisabled(version)
-
-                              // If selected version is less than current CP version, uncheck control plane
-                              const currentCPVersion = props.controlPlane.distribution?.ocp?.version || '0.0.0'
-                              try {
-                                if (currentCPVersion !== '0.0.0' && semver.lt(version, currentCPVersion)) {
-                                  setControlPlaneChecked(false)
-                                }
-                              } catch {
-                                // Skip if invalid version
-                              }
-
-                              props.nodepools?.forEach((np) => {
-                                if (isTwoVersionsGreater(version, np.status?.version)) {
-                                  nodepoolsChecked[np.metadata.name || ''] = true
-                                }
-                              })
-                              setNodepoolsChecked({ ...nodepoolsChecked })
-                              if (countTrue(nodepoolsChecked) === props.nodepools?.length) {
-                                setNodepoolGroupChecked(true)
-                              }
-                            }}
-                            value={controlPlaneNewVersion || ''}
-                            label=""
-                            maxHeight={'10em'}
-                            isDisabled={false}
-                          >
-                            {nodepoolUpdateKeys.map((version) => (
-                              <SelectOption key={`${version}-nodepoolgroup`} value={version}>
-                                {version}
-                              </SelectOption>
-                            ))}
-                          </AcmSelect>
+                        {countTrue(nodepoolsChecked) > 0 && controlPlaneNewVersion ? (
+                          <span>{controlPlaneNewVersion}</span>
                         ) : (
                           <span>-</span>
                         )}
