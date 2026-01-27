@@ -45,6 +45,11 @@ import {
 } from './status-conditions'
 import keyBy from 'lodash/keyBy'
 import { Dictionary } from 'lodash'
+import {
+  overrideManagedClusterInfo,
+  overrideHostedCluster,
+  overrideNodePools,
+} from '../../routes/Infrastructure/Clusters/ManagedClusters/components/rbrunopi-hosted-ii.dev-override'
 
 export enum ClusterStatus {
   'pending' = 'pending',
@@ -512,6 +517,11 @@ export function getCluster({
   nodePools: NodePoolK8sResource[]
   discoveredCluster?: DiscoveredCluster
 }): Cluster {
+  // Apply dev-mode overrides for rbrunopi-hosted-ii cluster
+  managedClusterInfo = overrideManagedClusterInfo(managedClusterInfo)
+  hostedCluster = overrideHostedCluster(hostedCluster)
+  nodePools = overrideNodePools(nodePools)
+
   const { status, statusMessage } = getClusterStatus(
     clusterDeployment,
     managedClusterInfo,

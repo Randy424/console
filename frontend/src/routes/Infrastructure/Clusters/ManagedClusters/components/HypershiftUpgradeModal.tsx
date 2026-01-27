@@ -34,6 +34,7 @@ import {
 } from '../../../../../ui-components'
 import { getNodepoolAgents } from '../utils/nodepool'
 import { ReleaseNotesLink } from './ReleaseNotesLink'
+import { interceptCuratorCreation, logUpgradeSummary, TEST_MODE } from './HypershiftUpgradeModal.test.utils'
 
 export function HypershiftUpgradeModal(props: {
   close: () => void
@@ -583,6 +584,16 @@ export function HypershiftUpgradeModal(props: {
       },
     } as ClusterCurator
 
+    // TEST MODE: Intercept and log instead of creating curator
+    if (TEST_MODE) {
+      console.log('\n🧪 TEST MODE ENABLED - Intercepting curator creation')
+      logUpgradeSummary(patchSpec)
+      const intercepted = interceptCuratorCreation(clusterCurator, 'patch', patchSpec)
+      if (intercepted) {
+        return intercepted
+      }
+    }
+
     const patchCuratorResult = patchResource(clusterCurator, patchSpec)
     let createCuratorResult: IRequestResult<ClusterCurator> | undefined = undefined
 
@@ -594,6 +605,14 @@ export function HypershiftUpgradeModal(props: {
           })
           .catch((err: ResourceError) => {
             if (err.code === ResourceErrorCode.NotFound) {
+              // TEST MODE: Intercept creation as well
+              if (TEST_MODE) {
+                const intercepted = interceptCuratorCreation({ ...clusterCurator, ...patchSpec }, 'create')
+                if (intercepted) {
+                  return resolve(intercepted.promise as any)
+                }
+              }
+
               // Create ClusterCurator if it doesn't exist
               createCuratorResult = createResource({ ...clusterCurator, ...patchSpec })
               createCuratorResult.promise.then((data) => resolve(data)).catch((err) => reject(err))
