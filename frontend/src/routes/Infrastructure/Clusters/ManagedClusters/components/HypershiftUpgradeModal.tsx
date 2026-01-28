@@ -514,6 +514,25 @@ export function HypershiftUpgradeModal(props: {
   const isMinorMajorUpgrade = controlPlaneNewVersion && isMinorOrMajorUpgrade(currentVersion, controlPlaneNewVersion)
   const showUpgradeAlert = upgradeableCondition?.status === 'False' && isMinorMajorUpgrade
 
+  // ========== TESTING DEBUG LOGGING ==========
+  // IMPORTANT: This logging is for TESTING ONLY - DO NOT merge to production
+  console.log('[DEBUG] HypershiftUpgradeModal - Upgrade risk status:', {
+    clusterName: props.controlPlane.name,
+    currentVersion,
+    controlPlaneNewVersion,
+    upgradeableCondition: upgradeableCondition
+      ? {
+          type: upgradeableCondition.type,
+          status: upgradeableCondition.status,
+          reason: upgradeableCondition.reason,
+          message: upgradeableCondition.message,
+        }
+      : undefined,
+    isMinorMajorUpgrade,
+    showUpgradeAlert,
+  })
+  // ========== TESTING DEBUG LOGGING END ==========
+
   return (
     <AcmModal variant={ModalVariant.large} title={t('Upgrade version')} isOpen={true} onClose={props.close}>
       <AcmForm style={{ gap: 0 }}>

@@ -457,6 +457,88 @@ export function mapClusters({
   const clusterManagementAddOns = keyBy(allClusterManagementAddOns, 'metadata.name')
   const discoveredClustersMap = keyBy(discoveredClusters, 'spec.displayName')
 
+  // ========== TESTING SPOOFING START ==========
+  // Development spoofing: Add Upgradeable=False condition to test clusters
+  // IMPORTANT: This code is for TESTING ONLY - DO NOT merge to production
+  console.log('[DEBUG] Available cluster names:', Object.keys(managedClusterInfosMap))
+
+  const applySpoofing = (clusterName: string) => {
+    if (!managedClusterInfosMap[clusterName]) return
+
+    console.log(`[DEBUG] Applying Upgradeable=False spoofing to ${clusterName}`)
+    const mci = managedClusterInfosMap[clusterName]
+    const upgradeableCondition: V1CustomResourceDefinitionCondition = {
+      type: 'Upgradeable',
+      status: 'False',
+      lastTransitionTime: new Date().toISOString(),
+      reason: 'AdminAckRequired',
+      message:
+        'Kubernetes 1.25 and therefore OpenShift 4.12 remove several APIs which require admin consideration. Please see the knowledge article https://access.redhat.com/articles/6955381 for details and instructions.',
+    }
+
+    // Add or replace the Upgradeable condition
+    if (mci.status?.conditions) {
+      const existingIndex = mci.status.conditions.findIndex((c) => c.type === 'Upgradeable')
+      if (existingIndex >= 0) {
+        mci.status.conditions[existingIndex] = upgradeableCondition
+      } else {
+        mci.status.conditions.push(upgradeableCondition)
+      }
+      console.log(`[DEBUG] ${clusterName}: Condition added. Total conditions:`, mci.status.conditions.length)
+    } else if (mci.status) {
+      mci.status.conditions = [upgradeableCondition]
+      console.log(`[DEBUG] ${clusterName}: Created new conditions array`)
+    }
+
+    // Add fake available updates for testing (patch, minor, major)
+    const currentVersion = mci.status?.distributionInfo?.ocp?.version || '4.13.10'
+    const currentMajor = parseInt(currentVersion.split('.')[0])
+    const currentMinor = parseInt(currentVersion.split('.')[1])
+    const currentPatch = parseInt(currentVersion.split('.')[2] || '0')
+
+    const fakeUpdates = [
+      // Patch upgrade (same minor version)
+      {
+        version: `${currentMajor}.${currentMinor}.${currentPatch + 10}`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor}.${currentMinor}.${currentPatch + 10}-x86_64`,
+      },
+      // Minor upgrade
+      {
+        version: `${currentMajor}.${currentMinor + 1}.0`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor}.${currentMinor + 1}.0-x86_64`,
+      },
+      {
+        version: `${currentMajor}.${currentMinor + 1}.5`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor}.${currentMinor + 1}.5-x86_64`,
+      },
+      // Another minor upgrade
+      {
+        version: `${currentMajor}.${currentMinor + 2}.0`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor}.${currentMinor + 2}.0-x86_64`,
+      },
+      // Major upgrade
+      {
+        version: `${currentMajor + 1}.0.0`,
+        image: `quay.io/openshift-release-dev/ocp-release:${currentMajor + 1}.0.0-x86_64`,
+      },
+    ]
+
+    if (mci.status?.distributionInfo?.ocp) {
+      mci.status.distributionInfo.ocp.versionAvailableUpdates = fakeUpdates
+      console.log(
+        `[DEBUG] ${clusterName}: Added fake available updates:`,
+        fakeUpdates.map((u) => u.version)
+      )
+    }
+  }
+
+  // Apply spoofing to specific test clusters
+  // Add your cluster names here to test with spoofed Upgradeable=False condition
+  applySpoofing('rbrunopi-hosted-ii')
+  applySpoofing('virt-acm')
+  // Note: Not applying to 'virt-managed' - it will only show Insights risks (if any), not CVO risk
+  // ========== TESTING SPOOFING END ==========
+
   return uniqueClusterNames.map((cluster) => {
     const clusterDeployment = clusterDeploymentsMap[cluster!]
     const managedCluster = managedClusterMap[cluster!]

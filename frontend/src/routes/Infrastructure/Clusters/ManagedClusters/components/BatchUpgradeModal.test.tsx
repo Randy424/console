@@ -645,7 +645,7 @@ describe('BatchUpgradeModal', () => {
         ]
       )
 
-      const { getByText, queryByText } = render(
+      const { queryByText } = render(
         <RecoilRoot>
           <MemoryRouter>
             <BatchUpgradeModal clusters={[mockClusterWithOperatorRisk]} open={true} close={() => {}} />

@@ -161,10 +161,64 @@ export function BatchUpgradeModal(props: {
           return acc
         }, [])
 
-        setUpgradeRiskPredictions(reducedUpgradeRiskPredictions)
+        // ========== TESTING SPOOFING START ==========
+        // Development spoofing: Add fake Insights predictions for test clusters
+        // IMPORTANT: This code is for TESTING ONLY - DO NOT merge to production
+        console.log('[DEBUG] BatchUpgradeModal - Starting Insights spoofing')
+        console.log('[DEBUG] clusters count:', clusters?.length)
+        console.log('[DEBUG] Existing predictions:', reducedUpgradeRiskPredictions)
+
+        const testClusterNames = ['rbrunopi-hosted-ii', 'virt-acm', 'virt-managed']
+        const spoofedPredictions = [...reducedUpgradeRiskPredictions]
+
+        clusters?.forEach((cluster) => {
+          console.log(`[DEBUG] Checking cluster: ${cluster.name}, clusterID: ${cluster.labels?.clusterID}`)
+          if (testClusterNames.includes(cluster.name || '')) {
+            const clusterID = cluster.labels?.clusterID
+            if (clusterID) {
+              const existingIndex = spoofedPredictions.findIndex((p) => p.cluster_id === clusterID)
+              console.log(
+                `[DEBUG] Existing prediction for ${cluster.name}:`,
+                existingIndex >= 0 ? spoofedPredictions[existingIndex] : 'none'
+              )
+
+              // Add fake Insights alerts to test combined risk display
+              const fakePrediction = {
+                cluster_id: clusterID,
+                cluster_name: cluster.name,
+                upgrade_risks_predictors: {
+                  alerts: [
+                    { name: 'FakeInsightAlert1', severity: 'warning', summary: 'Test alert 1 from Insights' },
+                    { name: 'FakeInsightAlert2', severity: 'info', summary: 'Test alert 2 from Insights' },
+                    { name: 'FakeInsightAlert3', severity: 'critical', summary: 'Test alert 3 from Insights' },
+                  ],
+                },
+              }
+
+              if (existingIndex >= 0) {
+                // Replace existing prediction
+                spoofedPredictions[existingIndex] = fakePrediction
+                console.log(`[DEBUG] Replaced prediction for ${cluster.name} with fake data`)
+              } else {
+                // Add new prediction
+                spoofedPredictions.push(fakePrediction)
+                console.log(`[DEBUG] Added fake Insights predictions for ${cluster.name} (${clusterID})`)
+              }
+            } else {
+              console.log(`[DEBUG] Skipping ${cluster.name} - no clusterID label`)
+            }
+          }
+        })
+
+        console.log('[DEBUG] Final spoofed predictions:', spoofedPredictions)
+        setUpgradeRiskPredictions(spoofedPredictions)
+        // ========== TESTING SPOOFING END ==========
+
         setUpgradeRiskPredictionsLoading(false)
       })
     }
+    // Note: upgradeableClusters is intentionally not in the dependency array as it's derived from clusters
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [managedClusterIds, open])
 
   return (
