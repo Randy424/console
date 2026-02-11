@@ -401,6 +401,11 @@ describe('add credentials page', () => {
     const apiTokenOption = screen.getByRole('option', { name: 'API token' })
     fireEvent.click(apiTokenOption)
 
+    // ACM-29906: selected auth method must appear in the combobox (value lookup uses id, display uses value)
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('API token')).toBeInTheDocument()
+    })
+
     // rhocm credentials
     await typeByTestId('ocmAPIToken', providerConnection.stringData?.ocmAPIToken!)
     await clickByText('Next')
@@ -443,8 +448,13 @@ describe('add credentials page', () => {
       .click()
 
     // Select the "Service Account" option
-    const serviceAccountOption = screen.getByText('Service account')
+    const serviceAccountOption = screen.getByRole('option', { name: 'Service account' })
     fireEvent.click(serviceAccountOption)
+
+    // ACM-29906: selected auth method must appear in the combobox (value lookup uses id, display uses value)
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Service account')).toBeInTheDocument()
+    })
 
     await clickByText('Next')
 
@@ -462,6 +472,29 @@ describe('add credentials page', () => {
     expect(providerConnection.stringData?.auth_method).toBe('service-account')
     expect(providerConnection.stringData?.client_id).toBe('serviceAccountClientId')
     expect(providerConnection.stringData?.client_secret).toBe('serviceAccountClientSecret')
+  })
+
+  it('displays selected authentication method in combobox after selection', async () => {
+    render(<Component credentialsType={Provider.redhatcloud} />)
+
+    await typeByTestId('credentialsName', 'test-ocm-credential')
+    await selectByText('Select a namespace for the credential', mockNamespaces[0].metadata.name!)
+    await clickByText('Next')
+
+    const combobox = screen.getByRole('combobox', { name: 'Authentication method' })
+    fireEvent.click(combobox)
+    fireEvent.click(screen.getByRole('option', { name: 'API token' }))
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('API token')).toBeInTheDocument()
+    })
+
+    // Switch to Service account and confirm it displays
+    fireEvent.click(combobox)
+    fireEvent.click(screen.getByRole('option', { name: 'Service account' }))
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Service account')).toBeInTheDocument()
+    })
   })
 
   it('should throw error for requiredValidationMessage', async () => {
