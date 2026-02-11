@@ -134,19 +134,14 @@ export function AcmSelectBase(props: AcmSelectBaseProps) {
         children?: any
         disabled: boolean
       }[] = []
-  let selections = props.value ?? props.selections
+  const selections = props.value ?? props.selections
   if (useFilter) {
     const children = Children.toArray(props.children)
     if (Array.isArray(props?.options)) {
-      initialFilteredOptions = props?.options?.map(({ id, value, text }) => {
-        if (text && value && value === selections) {
-          selections = text
-        }
-        return {
-          value: id ?? value,
-          children: text ?? value,
-        }
-      })
+      initialFilteredOptions = props?.options?.map(({ id, value, text }) => ({
+        value: id ?? value,
+        children: text ?? value,
+      }))
     } else if (children.length > 0) {
       initialFilteredOptions = children.map((child) => {
         const props = (child as React.ReactElement).props
