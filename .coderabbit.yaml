@@ -88,7 +88,7 @@ reviews:
   # this is not necessarily a bad thing, but because we dont control the websearch results, outcomes may vary in quality.
   path_instructions:
     # Frontend TypeScript/React files
-    - path: "frontend/src/**/*.{ts,tsx}"
+    - path: 'frontend/src/**/*.{ts,tsx}'
       instructions: |
         - Ensure all user-facing strings use useTranslation() or <Trans /> from src/lib/acm-i18next.
         - Check for proper error boundaries and error handling
@@ -96,7 +96,7 @@ reviews:
         - Flag any security-sensitive operations (dangerouslySetInnerHTML, innerHTML)
 
     # Backend Node.js ESM files
-    - path: "backend/src/**/*.ts"
+    - path: 'backend/src/**/*.ts'
       instructions: |
         - Check for proper error handling and logging
         - Ensure sensitive data (tokens, passwords) are not logged
@@ -105,7 +105,7 @@ reviews:
         - Ensure proper authentication/authorization checks
 
     # Test files
-    - path: "**/*.test.{ts,tsx}"
+    - path: '**/*.test.{ts,tsx}'
       instructions: |
         - Verify test coverage is meaningful, not just for metrics
         - Check that tests actually test the described behavior
@@ -114,14 +114,14 @@ reviews:
         - Before claiming what the code under test does or allows, confirm it from the actual source (e.g. config, implementation); do not infer behavior from test names or comments alone
 
     # README and documentation (limit scope to avoid content critique and wrong suggestions)
-    - path: "**/README.md"
+    - path: '**/README.md'
       instructions: |
         - Limit feedback to markdown structure, formatting, and clarity of instructions (e.g. broken links, list formatting)
         - Do not critique documentation content, prose style, or suggest substantive changes to what is documented
         - Do not suggest "interesting things to try" or speculative improvements to the docs
 
     # Other markdown docs (same constraints as README)
-    - path: "**/*.md"
+    - path: '**/*.md'
       instructions: |
         - Prefer formatting and structure feedback only; do not critique content or suggest substantive doc changes
 
@@ -147,7 +147,6 @@ reviews:
     # Useful to focus reviews on main integration branches
     base_branches:
       - main
-      - release-.*
 
     # drafts: Whether to review draft PRs
     # Default: false
@@ -164,13 +163,13 @@ reviews:
   # Helps reduce noise by skipping generated files, dependencies, and build artifacts
   # These patterns align with .gitignore to exclude build artifacts and generated files
   path_filters:
-    - "!**/node_modules/**" # Exclude npm dependencies
-    - "!**/build/**" # Exclude build output directories
-    - "!**/coverage/**" # Exclude test coverage reports
-    - "!**/dist/**" # Exclude distribution bundles
-    - "!**/certs/**" # Exclude SSL certificates
-    - "!**/*.snap" # Exclude Jest snapshot files
-    - "!frontend/public/locales/**" # Exclude i18n translation files
+    - '!**/node_modules/**' # Exclude npm dependencies
+    - '!**/build/**' # Exclude build output directories
+    - '!**/coverage/**' # Exclude test coverage reports
+    - '!**/dist/**' # Exclude distribution bundles
+    - '!**/certs/**' # Exclude SSL certificates
+    - '!**/*.snap' # Exclude Jest snapshot files
+    - '!frontend/public/locales/**' # Exclude i18n translation files
 
   # ============================================================================
   # TOOL INTEGRATIONS
