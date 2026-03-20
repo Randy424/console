@@ -61,9 +61,10 @@ describe('Policy Details Results', () => {
     await waitForText('Enabled')
     await waitForText('inform')
 
-    // verify placement table
+    // verify placement field
     await waitForText('policy-set-with-1-placement')
-    await waitForText('No violations:')
+    // verify cluster violations field with new format
+    await waitForText(/No violations on \d+ cluster/)
   })
 
   test.each([
@@ -152,6 +153,7 @@ describe('Policy Details Results', () => {
     // wait page load
     await waitForText('policy-set-with-1-placement-policy')
 
-    await waitForText('Pending:')
+    // verify pending status with new format
+    await waitForText(/Pending on \d+ cluster/)
   })
 })
