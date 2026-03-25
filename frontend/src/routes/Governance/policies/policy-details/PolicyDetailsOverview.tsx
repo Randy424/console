@@ -375,21 +375,23 @@ export default function PolicyDetailsOverview() {
           <>
             {allPlacements.map((placement, index) => {
               // Build search params for details page
-              let searchString = `cluster=${hubClusterName}`
-              searchString = `${searchString}&kind=${placement.kind}`
-              searchString = `${searchString}&apiversion=${placement.apiVersion}`
+              const params = new URLSearchParams({
+                cluster: hubClusterName,
+                kind: placement.kind,
+                apiversion: placement.apiVersion,
+                name: placement.metadata.name,
+                _hubClusterResource: 'true',
+              })
               if (placement.metadata.namespace) {
-                searchString = `${searchString}&namespace=${placement.metadata.namespace}`
+                params.set('namespace', placement.metadata.namespace)
               }
-              searchString = `${searchString}&name=${placement.metadata.name}`
-              searchString = `${searchString}&_hubClusterResource=true`
 
               return (
                 <span key={placement.metadata.uid}>
                   <Link
                     to={{
                       pathname: NavigationPath.resources,
-                      search: `?${encodeURIComponent(searchString)}`,
+                      search: `?${params.toString()}`,
                     }}
                   >
                     {placement.metadata.name}
