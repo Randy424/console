@@ -1,5 +1,15 @@
 /* Copyright Contributors to the Open Cluster Management project */
-import { Alert, Button, ButtonVariant, Icon, PageSection, Stack, Title } from '@patternfly/react-core'
+import {
+  Alert,
+  Button,
+  ButtonVariant,
+  Icon,
+  Label,
+  LabelGroup,
+  PageSection,
+  Stack,
+  Title,
+} from '@patternfly/react-core'
 import { CheckCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon } from '@patternfly/react-icons'
 import { ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import { generatePath, Link } from 'react-router-dom-v5-compat'
@@ -63,7 +73,7 @@ export default function PolicyDetailsOverview() {
   const policyAutomations = useRecoilValue(policyAutomationState)
   const settings = useRecoilValue(settingsState)
   const policies = usePropagatedPolicies(policy)
-  const { clusterRiskScore } = useGovernanceData([policy])
+  const { clusterRisks } = useGovernanceData([policy])
   const policyAutomationMatch = policyAutomations.find(
     (pa: PolicyAutomation) => pa.spec.policyRef === policy.metadata.name
   )
@@ -284,15 +294,16 @@ export default function PolicyDetailsOverview() {
         key: t('Remediation'),
         value: getPolicyRemediation(policy, policies),
       },
+      // Add cluster violations to left column when feature flag is disabled (old UI)
+      ...(settings.placementDetailsEnhancements !== 'enabled'
+        ? [
+            {
+              key: t('Cluster violations'),
+              value: <ClusterPolicyViolationIcons risks={clusterRisks} />,
+            },
+          ]
+        : []),
     ]
-
-    // Add cluster violations to left column when feature flag is disabled (old UI)
-    if (settings.placementDetailsEnhancements !== 'enabled') {
-      leftItems.push({
-        key: t('Cluster violations'),
-        value: <ClusterPolicyViolationIcons risks={clusterRiskScore} />,
-      })
-    }
 
     const rightItems = [
       {
@@ -364,60 +375,61 @@ export default function PolicyDetailsOverview() {
           </AcmButton>
         ),
       },
-    ]
+      // Add new placement and violations fields when feature flag is enabled
+      ...(settings.placementDetailsEnhancements === 'enabled'
+        ? (() => {
+            // Prepare placement information for display
+            const allPlacements = [...placementMatches, ...placementRuleMatches]
+            const placementValue =
+              allPlacements.length > 0 ? (
+                <>
+                  {allPlacements.map((placement, index) => {
+                    // Build search params for details page
+                    const params = new URLSearchParams({
+                      cluster: hubClusterName,
+                      kind: placement.kind,
+                      apiversion: placement.apiVersion,
+                      name: placement.metadata.name ?? '',
+                      _hubClusterResource: 'true',
+                    })
+                    if (placement.metadata.namespace) {
+                      params.set('namespace', placement.metadata.namespace)
+                    }
 
-    // Add new placement and violations fields when feature flag is enabled
-    if (settings.placementDetailsEnhancements === 'enabled') {
-      // Prepare placement information for display
-      const allPlacements = [...placementMatches, ...placementRuleMatches]
-      const placementValue =
-        allPlacements.length > 0 ? (
-          <>
-            {allPlacements.map((placement, index) => {
-              // Build search params for details page
-              const params = new URLSearchParams({
-                cluster: hubClusterName,
-                kind: placement.kind,
-                apiversion: placement.apiVersion,
-                name: placement.metadata.name,
-                _hubClusterResource: 'true',
-              })
-              if (placement.metadata.namespace) {
-                params.set('namespace', placement.metadata.namespace)
-              }
-
-              return (
-                <span key={placement.metadata.uid}>
-                  <Link
-                    to={{
-                      pathname: NavigationPath.resources,
-                      search: `?${params.toString()}`,
-                    }}
-                  >
-                    {placement.metadata.name}
-                  </Link>
-                  {index < allPlacements.length - 1 && ', '}
-                </span>
+                    return (
+                      <span key={placement.metadata.uid ?? `${placement.metadata.name}-${index}`}>
+                        <Link
+                          to={{
+                            pathname: NavigationPath.resources,
+                            search: `?${params.toString()}`,
+                          }}
+                        >
+                          {placement.metadata.name}
+                        </Link>
+                        {index < allPlacements.length - 1 && ', '}
+                      </span>
+                    )
+                  })}
+                </>
+              ) : (
+                '-'
               )
-            })}
-          </>
-        ) : (
-          '-'
-        )
 
-      const violationsValue = renderPolicyViolations(expandedViolationStatuses, toggleViolationExpanded)
+            const violationsValue = renderPolicyViolations(expandedViolationStatuses, toggleViolationExpanded)
 
-      rightItems.push(
-        {
-          key: t('Placement'),
-          value: placementValue,
-        },
-        {
-          key: t('Cluster violations'),
-          value: violationsValue,
-        }
-      )
-    }
+            return [
+              {
+                key: t('Placement'),
+                value: placementValue,
+              },
+              {
+                key: t('Cluster violations'),
+                value: violationsValue,
+              },
+            ]
+          })()
+        : []),
+    ]
     return { leftItems, rightItems }
   }, [
     policy,
@@ -432,7 +444,7 @@ export default function PolicyDetailsOverview() {
     expandedViolationStatuses,
     toggleViolationExpanded,
     hubClusterName,
-    clusterRiskScore,
+    clusterRisks,
     settings.placementDetailsEnhancements,
     t,
   ])
@@ -488,20 +500,133 @@ export default function PolicyDetailsOverview() {
               },
               {
                 header: t('Violations'),
-                cell: (placement: TableData) => {
-                  if (placement.kind === 'Placement') {
-                    const decisions = (placement.status as PlacementDecisionStatus)?.decisions ?? []
-                    const clusterNames = decisions.map((decision) => decision.clusterName)
-                    return <ClusterPolicyViolationIcons risks={clusterRiskScore} clusterNames={clusterNames} />
-                  } else {
-                    const decisions = (placement.status as PlacementRuleStatus)?.decisions ?? []
-                    const clusterNames = decisions.map((decision) => decision.clusterName)
-                    return <ClusterPolicyViolationIcons risks={clusterRiskScore} clusterNames={clusterNames} />
+                cell: (item: TableData) => {
+                  // Gather full cluster list from placementPolicy status
+                  const fullClusterList = item.status.decisions ?? []
+                  // Gather status list from policy status
+                  const rawStatusList: {
+                    clustername: string
+                    compliant?: string
+                  }[] = item.policy.status?.status ?? []
+                  // Build lists of clusters, organized by status keys
+                  const clusterList: Record<string, Set<string>> = {}
+                  fullClusterList.forEach((clusterObj) => {
+                    const statusObject = rawStatusList.filter((status) => status.clustername === clusterObj.clusterName)
+                    // Log error if more than one status is returned since each cluster name should be unique
+                    if (statusObject.length > 1) {
+                      console.error(`Expected one cluster but got ${statusObject.length}:`, statusObject)
+                    } else if (statusObject.length === 0) {
+                      // Push a new cluster object if there is no status found
+                      statusObject.push({
+                        clustername: clusterObj.clusterName,
+                        compliant: 'nostatus',
+                      })
+                    }
+                    let compliant = statusObject[0]?.compliant ?? 'nostatus'
+                    compliant = compliant.toLowerCase()
+                    const clusterName = statusObject[0].clustername
+                    // Add cluster to its associated status list in the clusterList object
+                    if (Object.prototype.hasOwnProperty.call(clusterList, compliant)) {
+                      // Each cluster name should be unique, so if one is already present, log an error
+                      if (clusterList[compliant].has(clusterName)) {
+                        console.error(`Unexpected duplicate cluster in '${compliant}' cluster list: ${clusterName}`)
+                      } else {
+                        clusterList[compliant].add(clusterName)
+                      }
+                    } else {
+                      clusterList[compliant] = new Set([clusterName])
+                    }
+                  })
+                  // Push lists of clusters along with status icon, heading, and overflow badge
+                  const statusList = []
+                  for (const status of Object.keys(clusterList)) {
+                    let statusMsg = t(' No status: ')
+                    let icon = <ExclamationTriangleIcon color="var(--pf-t--global--color--status--warning--100)" />
+                    switch (status) {
+                      case 'noncompliant':
+                        statusMsg = t(' Violations: ')
+                        icon = (
+                          <Icon status="danger">
+                            <ExclamationCircleIcon />
+                          </Icon>
+                        )
+                        break
+                      case 'compliant':
+                        statusMsg = t(' No violations: ')
+                        icon = (
+                          <Icon status="success">
+                            <CheckCircleIcon />
+                          </Icon>
+                        )
+                        break
+                      case 'pending':
+                        statusMsg = t(' Pending: ')
+                        icon = (
+                          <Icon status="warning">
+                            <ExclamationTriangleIcon />
+                          </Icon>
+                        )
+                        break
+                    }
+                    statusList.push(
+                      <div key={`${status}-status-container`}>
+                        <span key={`${status}-status-heading`}>
+                          <span>
+                            <span>{icon}</span>
+                            <span>{statusMsg}</span>
+                          </span>
+                        </span>
+                        <span key={`${status}-status-list`}>
+                          <LabelGroup
+                            collapsedText={t('show.more', { count: clusterList[status].size - 2 })}
+                            expandedText={t('Show less')}
+                            numLabels={2}
+                          >
+                            {Array.from(clusterList[status]).map((cluster: string) => {
+                              if (status !== 'nostatus') {
+                                return (
+                                  <Label key={`${cluster}-link`} color="blue">
+                                    <Link
+                                      to={{
+                                        pathname: generatePath(NavigationPath.policyDetailsResults, {
+                                          namespace: policy.metadata.namespace!,
+                                          name: policy.metadata.name!,
+                                        }),
+                                        search: `?search=${cluster}`,
+                                      }}
+                                    >
+                                      {cluster}
+                                    </Link>
+                                  </Label>
+                                )
+                              }
+                              return (
+                                <Label key={`${cluster}-link`} color="grey">
+                                  {cluster}
+                                </Label>
+                              )
+                            })}
+                          </LabelGroup>
+                        </span>
+                      </div>
+                    )
                   }
+                  // If there are no clusters, return a hyphen
+                  if (statusList.length === 0) {
+                    return (
+                      <div>
+                        <ExclamationTriangleIcon color="var(--pf-t--global--color--status--warning--100)" />{' '}
+                        {t('No status')}
+                      </div>
+                    )
+                  }
+                  return statusList
                 },
               },
             ]}
-            keyFn={(placement: TableData) => placement.metadata.uid!}
+            keyFn={(placement: TableData) =>
+              placement.metadata.uid ?? `${placement.metadata.namespace}-${placement.metadata.name}-${placement.kind}`
+            }
           />
         </>
       )}
