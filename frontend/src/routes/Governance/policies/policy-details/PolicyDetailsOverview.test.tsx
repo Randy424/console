@@ -8,6 +8,7 @@ import {
   placementsState,
   policiesState,
   policySetsState,
+  settingsState,
 } from '../../../../atoms'
 import { nockIgnoreApiPaths, nockIgnoreRBAC } from '../../../../lib/nock-util'
 import { waitForText } from '../../../../lib/test-util'
@@ -41,6 +42,7 @@ describe('Policy Details Results', () => {
           snapshot.set(placementBindingsState, mockPlacementBindings)
           snapshot.set(placementDecisionsState, mockPlacementDecision)
           snapshot.set(policiesState, [mockPolicy[1]])
+          snapshot.set(settingsState, { placementDetailsEnhancements: 'enabled' })
         }}
       >
         <MemoryRouter>
@@ -84,6 +86,7 @@ describe('Policy Details Results', () => {
             snapshot.set(placementBindingsState, mockPlacementBindings)
             snapshot.set(placementDecisionsState, mockPlacementDecision)
             snapshot.set(policiesState, propagatedPolicies)
+            snapshot.set(settingsState, { placementDetailsEnhancements: 'enabled' })
           }}
         >
           <MemoryRouter>
@@ -110,6 +113,7 @@ describe('Policy Details Results', () => {
           snapshot.set(policySetsState, [mockPolicySets[0]])
           snapshot.set(placementBindingsState, mockPlacementBindings)
           snapshot.set(placementDecisionsState, mockPlacementDecision)
+          snapshot.set(settingsState, { placementDetailsEnhancements: 'enabled' })
         }}
       >
         <MemoryRouter>
@@ -138,6 +142,7 @@ describe('Policy Details Results', () => {
           snapshot.set(policySetsState, [mockPolicySets[0]])
           snapshot.set(placementBindingsState, mockPlacementBindings)
           snapshot.set(placementDecisionsState, mockPlacementDecision)
+          snapshot.set(settingsState, { placementDetailsEnhancements: 'enabled' })
         }}
       >
         <MemoryRouter>

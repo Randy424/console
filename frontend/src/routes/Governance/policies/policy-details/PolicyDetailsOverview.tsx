@@ -1,5 +1,5 @@
 /* Copyright Contributors to the Open Cluster Management project */
-import { Button, ButtonVariant, Icon, PageSection, Stack } from '@patternfly/react-core'
+import { Alert, Button, ButtonVariant, Icon, PageSection, Stack, Title } from '@patternfly/react-core'
 import { CheckCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon } from '@patternfly/react-icons'
 import { ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import { generatePath, Link } from 'react-router-dom-v5-compat'
@@ -20,7 +20,7 @@ import {
 } from '../../../../resources'
 import { Metadata } from '../../../../resources/metadata'
 import { useRecoilValue, useSharedAtoms } from '../../../../shared-recoil'
-import { AcmButton, AcmDescriptionList, AcmDrawerContext } from '../../../../ui-components'
+import { AcmButton, AcmDescriptionList, AcmDrawerContext, AcmTable } from '../../../../ui-components'
 import { usePropagatedPolicies } from '../../common/useCustom'
 import {
   getPlacementDecisionsForPlacements,
@@ -29,6 +29,8 @@ import {
   getPolicyRemediation,
 } from '../../common/util'
 import { AutomationDetailsSidebar } from '../../components/AutomationDetailsSidebar'
+import { ClusterPolicyViolationIcons } from '../../components/ClusterPolicyViolations'
+import { useGovernanceData } from '../../useGovernanceData'
 import { usePolicyDetailsContext } from './PolicyDetailsPage'
 import { useLocalHubName } from '../../../../hooks/use-local-hub'
 
@@ -51,6 +53,7 @@ export default function PolicyDetailsOverview() {
     placementsState,
     policyAutomationState,
     policySetsState,
+    settingsState,
   } = useSharedAtoms()
   const placements = useRecoilValue(placementsState)
   const policySets = useRecoilValue(policySetsState)
@@ -58,7 +61,9 @@ export default function PolicyDetailsOverview() {
   const placementRules = useRecoilValue(placementRulesState)
   const placementDecisions = useRecoilValue(placementDecisionsState)
   const policyAutomations = useRecoilValue(policyAutomationState)
+  const settings = useRecoilValue(settingsState)
   const policies = usePropagatedPolicies(policy)
+  const { clusterRiskScore } = useGovernanceData([policy])
   const policyAutomationMatch = policyAutomations.find(
     (pa: PolicyAutomation) => pa.spec.policyRef === policy.metadata.name
   )
@@ -281,42 +286,13 @@ export default function PolicyDetailsOverview() {
       },
     ]
 
-    // Prepare placement information for display
-    const allPlacements = [...placementMatches, ...placementRuleMatches]
-    const placementValue =
-      allPlacements.length > 0 ? (
-        <>
-          {allPlacements.map((placement, index) => {
-            // Build search params for details page
-            let searchString = `cluster=${hubClusterName}`
-            searchString = `${searchString}&kind=${placement.kind}`
-            searchString = `${searchString}&apiversion=${placement.apiVersion}`
-            if (placement.metadata.namespace) {
-              searchString = `${searchString}&namespace=${placement.metadata.namespace}`
-            }
-            searchString = `${searchString}&name=${placement.metadata.name}`
-            searchString = `${searchString}&_hubClusterResource=true`
-
-            return (
-              <span key={placement.metadata.uid}>
-                <Link
-                  to={{
-                    pathname: NavigationPath.resources,
-                    search: `?${encodeURIComponent(searchString)}`,
-                  }}
-                >
-                  {placement.metadata.name}
-                </Link>
-                {index < allPlacements.length - 1 && ', '}
-              </span>
-            )
-          })}
-        </>
-      ) : (
-        '-'
-      )
-
-    const violationsValue = renderPolicyViolations(expandedViolationStatuses, toggleViolationExpanded)
+    // Add cluster violations to left column when feature flag is disabled (old UI)
+    if (settings.placementDetailsEnhancements !== 'enabled') {
+      leftItems.push({
+        key: t('Cluster violations'),
+        value: <ClusterPolicyViolationIcons risks={clusterRiskScore} />,
+      })
+    }
 
     const rightItems = [
       {
@@ -388,15 +364,58 @@ export default function PolicyDetailsOverview() {
           </AcmButton>
         ),
       },
-      {
-        key: t('Placement'),
-        value: placementValue,
-      },
-      {
-        key: t('Cluster violations'),
-        value: violationsValue,
-      },
     ]
+
+    // Add new placement and violations fields when feature flag is enabled
+    if (settings.placementDetailsEnhancements === 'enabled') {
+      // Prepare placement information for display
+      const allPlacements = [...placementMatches, ...placementRuleMatches]
+      const placementValue =
+        allPlacements.length > 0 ? (
+          <>
+            {allPlacements.map((placement, index) => {
+              // Build search params for details page
+              let searchString = `cluster=${hubClusterName}`
+              searchString = `${searchString}&kind=${placement.kind}`
+              searchString = `${searchString}&apiversion=${placement.apiVersion}`
+              if (placement.metadata.namespace) {
+                searchString = `${searchString}&namespace=${placement.metadata.namespace}`
+              }
+              searchString = `${searchString}&name=${placement.metadata.name}`
+              searchString = `${searchString}&_hubClusterResource=true`
+
+              return (
+                <span key={placement.metadata.uid}>
+                  <Link
+                    to={{
+                      pathname: NavigationPath.resources,
+                      search: `?${encodeURIComponent(searchString)}`,
+                    }}
+                  >
+                    {placement.metadata.name}
+                  </Link>
+                  {index < allPlacements.length - 1 && ', '}
+                </span>
+              )
+            })}
+          </>
+        ) : (
+          '-'
+        )
+
+      const violationsValue = renderPolicyViolations(expandedViolationStatuses, toggleViolationExpanded)
+
+      rightItems.push(
+        {
+          key: t('Placement'),
+          value: placementValue,
+        },
+        {
+          key: t('Cluster violations'),
+          value: violationsValue,
+        }
+      )
+    }
     return { leftItems, rightItems }
   }, [
     policy,
@@ -411,9 +430,10 @@ export default function PolicyDetailsOverview() {
     expandedViolationStatuses,
     toggleViolationExpanded,
     hubClusterName,
+    clusterRiskScore,
+    settings.placementDetailsEnhancements,
     t,
   ])
-
 
   return (
     <PageSection hasBodyWrapper={false}>
@@ -421,6 +441,68 @@ export default function PolicyDetailsOverview() {
       <div id="violation.details">
         <AcmDescriptionList title={t('Policy details')} leftItems={leftItems} rightItems={rightItems} />
       </div>
+      {settings.placementDetailsEnhancements !== 'enabled' && (
+        <>
+          <Title headingLevel="h4">{t('Placement')}</Title>
+          <AcmTable<TableData>
+            items={[...placementMatches, ...placementRuleMatches]}
+            emptyState={
+              <Alert title={t('No placements')} variant={'info'} isInline>
+                <Stack>
+                  <div>{t('There are no placements for this policy.')}</div>
+                </Stack>
+              </Alert>
+            }
+            columns={[
+              {
+                header: t('Name'),
+                cell: (placement: TableData) => placement.metadata.name ?? '-',
+                sort: (a: TableData, b: TableData) => {
+                  const aName = a.metadata.name ?? ''
+                  const bName = b.metadata.name ?? ''
+                  return aName.localeCompare(bName)
+                },
+              },
+              {
+                header: t('Kind'),
+                cell: (placement: TableData) => placement.kind ?? '-',
+                sort: (a: TableData, b: TableData) => {
+                  const aKind = a.kind ?? ''
+                  const bKind = b.kind ?? ''
+                  return aKind.localeCompare(bKind)
+                },
+              },
+              {
+                header: t('Clusters'),
+                cell: (placement: TableData) => {
+                  if (placement.kind === 'Placement') {
+                    const decisions = (placement.status as PlacementDecisionStatus)?.decisions
+                    return decisions?.length ?? 0
+                  } else {
+                    const decisions = (placement.status as PlacementRuleStatus)?.decisions
+                    return decisions?.length ?? 0
+                  }
+                },
+              },
+              {
+                header: t('Violations'),
+                cell: (placement: TableData) => {
+                  if (placement.kind === 'Placement') {
+                    const decisions = (placement.status as PlacementDecisionStatus)?.decisions ?? []
+                    const clusterNames = decisions.map((decision) => decision.clusterName)
+                    return <ClusterPolicyViolationIcons risks={clusterRiskScore} clusterNames={clusterNames} />
+                  } else {
+                    const decisions = (placement.status as PlacementRuleStatus)?.decisions ?? []
+                    const clusterNames = decisions.map((decision) => decision.clusterName)
+                    return <ClusterPolicyViolationIcons risks={clusterRiskScore} clusterNames={clusterNames} />
+                  }
+                },
+              },
+            ]}
+            keyFn={(placement: TableData) => placement.metadata.uid!}
+          />
+        </>
+      )}
     </PageSection>
   )
 }
