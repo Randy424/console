@@ -10,19 +10,27 @@ import {
   WizMultiSelect,
   WizNumberInput,
   WizTextInput,
+  WizSingleSelect,
 } from '@patternfly-labs/react-form-wizard'
-import { Alert, Button } from '@patternfly/react-core'
+import { Alert, Button, Content, ContentVariants, ExpandableSection, Label } from '@patternfly/react-core'
 import { ExternalLinkAltIcon } from '@patternfly/react-icons'
 import get from 'get-value'
-import { Fragment, ReactNode, useMemo } from 'react'
+import { Fragment, ReactNode, useMemo, useState } from 'react'
 import set from 'set-value'
 import { useTranslation } from '../../lib/acm-i18next'
 import { useValidation } from '../../hooks/useValidation'
 import { IClusterSetBinding } from '../common/resources/IClusterSetBinding'
-import { IPlacement, PlacementKind, PlacementType, Predicate } from '../common/resources/IPlacement'
+import { IPlacement, PlacementKind, PlacementType, Predicate, Toleration } from '../common/resources/IPlacement'
 import { IResource } from '../common/resources/IResource'
 import { useLabelValuesMap } from '../common/useLabelValuesMap'
 import { MatchExpression, MatchExpressionCollapsed, MatchExpressionSummary } from './MatchExpression'
+
+function TolerationCollapsed() {
+  const toleration = useItem() as Toleration
+  const key = toleration?.key ?? ''
+  const operator = toleration?.operator?.toLowerCase() ?? 'exists'
+  return <Label>{`${key} ${operator}`}</Label>
+}
 
 export function Placements(props: {
   clusterSets: IResource[]
@@ -85,10 +93,13 @@ export function Placement(props: {
   createClusterSetCallback?: () => void
   alertTitle?: string
   alertContent?: ReactNode
+  useFeatureFlag?: boolean
 }) {
   const placement = useItem() as IPlacement
+  const editMode = useEditMode()
   const isClusterSet = placement.spec?.clusterSets?.length
   const { update } = useData()
+  const [isTolerationsExpanded, setIsTolerationsExpanded] = useState(false)
 
   const { t } = useTranslation()
   const { validateKubernetesResourceName } = useValidation()
@@ -111,9 +122,17 @@ export function Placement(props: {
       )}
 
       {!isClusterSet && !props.namespaceClusterSetNames.length && props.alertTitle ? (
-        <Alert variant="warning" title={props.alertTitle}>
-          {props.alertContent}
-        </Alert>
+        props.useFeatureFlag ? (
+          <div style={{ marginBottom: '1rem' }}>
+            <p className="pf-v6-c-form__helper-text pf-m-warning">
+              {props.alertTitle} {props.alertContent}
+            </p>
+          </div>
+        ) : (
+          <Alert variant="warning" title={props.alertTitle}>
+            {props.alertContent}
+          </Alert>
+        )
       ) : null}
 
       {/* <TextInput label="Placement name" path="metadata.name" required labelHelp="Name needs to be unique to the namespace." /> */}
@@ -139,6 +158,59 @@ export function Placement(props: {
       />
 
       <PlacementPredicate rootPath="spec.predicates.0." clusters={props.clusters} />
+
+      <ExpandableSection
+        toggleText={t('Tolerations')}
+        onToggle={(_event, isExpanded) => setIsTolerationsExpanded(isExpanded)}
+        isExpanded={isTolerationsExpanded}
+      >
+        <Content component={ContentVariants.p} style={{ marginBottom: '1rem' }}>
+          {t(
+            'Allows your application to be placed on clusters with specific taints. Example: To deploy on GPU clusters, add a toleration with key=gpu, operator=Equal, value=nvidia, effect=NoSchedule'
+          )}
+        </Content>
+        <WizArrayInput
+          path="spec.tolerations"
+          placeholder={t('Add toleration')}
+          collapsedContent={<TolerationCollapsed />}
+          newValue={{ key: '', operator: 'Exists' }}
+          defaultCollapsed={editMode !== EditMode.Create}
+          collapsedPlaceholder={t('Expand to edit')}
+        >
+          <WizTextInput id="toleration-key" path="key" label={t('Key')} placeholder={t('Enter the key')} required />
+          <WizSingleSelect
+            id="toleration-operator"
+            path="operator"
+            label={t('Operator')}
+            placeholder={t('Select the operator')}
+            options={['Exists', 'Equal']}
+            required
+          />
+          <WizTextInput
+            id="toleration-value"
+            path="value"
+            label={t('Value')}
+            placeholder={t('Enter the value')}
+            hidden={(toleration) => toleration?.operator !== 'Equal'}
+          />
+          <WizSingleSelect
+            id="toleration-effect"
+            path="effect"
+            label={t('Effect')}
+            placeholder={t('Select the effect')}
+            options={['NoSelect', 'PreferNoSelect', 'NoSelectIfNew', '']}
+            helperText={t('Leave empty for all effects')}
+          />
+          <WizNumberInput
+            id="toleration-seconds"
+            path="tolerationSeconds"
+            label={t('Toleration seconds')}
+            placeholder={t('Enter toleration seconds')}
+            helperText={t('TolerationSeconds represents the period of time the toleration tolerates the taint.')}
+          />
+        </WizArrayInput>
+      </ExpandableSection>
+
       <WizCheckbox
         id="limit-clusters-checkbox"
         label={t('Set a limit on the number of clusters selected')}
@@ -146,10 +218,8 @@ export function Placement(props: {
         pathValueToInputValue={(value) => !!value || value === 0}
         onValueChange={(value) => {
           if (value) {
-            // Set default value to 1 when checkbox is enabled
             set(placement, 'spec.numberOfClusters', 1, { preservePaths: false })
           } else {
-            // Set to undefined when checkbox is disabled
             set(placement, 'spec.numberOfClusters', undefined, { preservePaths: false })
           }
           update()

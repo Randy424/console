@@ -1,5 +1,5 @@
 /* Copyright Contributors to the Open Cluster Management project */
-import { Button, ToggleGroup, ToggleGroupItem } from '@patternfly/react-core'
+import { Alert, Button, ButtonVariant, Label, LabelGroup, ToggleGroup, ToggleGroupItem } from '@patternfly/react-core'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   WizDetailsHidden,
@@ -35,6 +35,9 @@ import { PlacementRule } from './PlacementRule'
 import { useTranslation } from '../../lib/acm-i18next'
 import { PlacementRuleApiVersion } from '../../resources'
 import { NavigationPath } from '../../NavigationPath'
+import { useMatchedClusters } from './useMatchedClusters'
+import { MatchedClustersModal } from './MatchedClustersModal'
+import { useRecoilValue, useSharedAtoms } from '../../shared-recoil'
 
 export function PlacementSection(props: {
   bindingSubjectKind: string
@@ -54,6 +57,9 @@ export function PlacementSection(props: {
   const resources = useItem() as IResource[]
   const editMode = useEditMode()
   const displayMode = useDisplayMode()
+  const { settingsState } = useSharedAtoms()
+  const settings = useRecoilValue(settingsState)
+  const [isMatchedClustersModalOpen, setIsMatchedClustersModalOpen] = useState(false)
 
   const [placementCount, setPlacementCount] = useState(0)
   const [placementRuleCount, setPlacementRuleCount] = useState(0)
@@ -173,6 +179,13 @@ export function PlacementSection(props: {
     }
   }, [displayMode, setHasInputs])
 
+  // Calculate matched clusters for the current placement
+  const currentPlacement = useMemo(() => {
+    return resources?.find((resource) => resource.kind === PlacementKind) as IPlacement | undefined
+  }, [resources])
+
+  const { matched, notMatched, matchedCount, totalClusters } = useMatchedClusters(currentPlacement, props.clusters)
+
   if (isAdvanced) {
     return (
       <Fragment>
@@ -258,6 +271,7 @@ export function PlacementSection(props: {
                   {t('Add cluster set')}
                 </Button>
               }
+              useFeatureFlag={settings.placementDetailsEnhancements === 'enabled'}
             />
           </WizItemSelector>
         </Fragment>
@@ -303,6 +317,98 @@ export function PlacementSection(props: {
           )}
         </WizItemSelector>
       )}
+
+      {settings.placementDetailsEnhancements === 'enabled' &&
+        placementCount === 1 &&
+        currentPlacement &&
+        totalClusters > 0 &&
+        displayMode !== DisplayMode.Details && (
+          <div style={{ marginTop: '1rem' }}>
+            <Button
+              variant={ButtonVariant.link}
+              isInline
+              onClick={() => setIsMatchedClustersModalOpen(true)}
+              style={{ padding: 0 }}
+            >
+              {t('{{count}} clusters matched by placement', { count: matchedCount })}
+            </Button>
+          </div>
+        )}
+
+      {/* Review step content */}
+      {settings.placementDetailsEnhancements === 'enabled' &&
+        displayMode === DisplayMode.Details &&
+        placementCount === 1 &&
+        currentPlacement && (
+          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Placement info alert */}
+            {totalClusters > 0 && (
+              <Alert
+                variant="info"
+                isInline
+                title={t('{{count}} of {{total}} clusters matched by placement', {
+                  count: matchedCount,
+                  total: totalClusters,
+                })}
+              />
+            )}
+
+            {/* Label expressions and tolerations */}
+            {(currentPlacement.spec?.predicates?.[0]?.requiredClusterSelector?.labelSelector?.matchExpressions
+              ?.length ||
+              currentPlacement.spec?.tolerations?.length) && (
+              <div>
+                <h4 style={{ marginBottom: '0.5rem' }}>{t('Label expressions and tolerations')}</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {/* Label expressions */}
+                  {currentPlacement.spec?.predicates?.[0]?.requiredClusterSelector?.labelSelector?.matchExpressions
+                    ?.length && (
+                    <div>
+                      <strong>{t('Label expressions')}:</strong>
+                      <LabelGroup style={{ marginTop: '0.25rem' }}>
+                        {currentPlacement.spec.predicates[0].requiredClusterSelector.labelSelector.matchExpressions.map(
+                          (expr, idx) => (
+                            <Fragment key={idx}>
+                              <Label>{`${expr.key} ${expr.operator}`}</Label>
+                              {expr.values && expr.values.length > 0 && (
+                                <Label>{expr.values.join(', ')}</Label>
+                              )}
+                            </Fragment>
+                          )
+                        )}
+                      </LabelGroup>
+                    </div>
+                  )}
+
+                  {/* Tolerations */}
+                  {currentPlacement.spec?.tolerations?.length && (
+                    <div>
+                      <strong>{t('Tolerations')}:</strong>
+                      <LabelGroup style={{ marginTop: '0.25rem' }}>
+                        {currentPlacement.spec.tolerations.map((toleration, idx) => (
+                          <Fragment key={idx}>
+                            <Label>{toleration.key}</Label>
+                            <Label>{toleration.operator || 'Exists'}</Label>
+                            {toleration.value && <Label>{toleration.value}</Label>}
+                            {toleration.effect && <Label>{toleration.effect}</Label>}
+                            {toleration.tolerationSeconds && <Label>{`${toleration.tolerationSeconds}s`}</Label>}
+                          </Fragment>
+                        ))}
+                      </LabelGroup>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      <MatchedClustersModal
+        isOpen={isMatchedClustersModalOpen}
+        onClose={() => setIsMatchedClustersModalOpen(false)}
+        matchedClusters={matched}
+        notMatchedClusters={notMatched}
+      />
     </Section>
   )
 }
