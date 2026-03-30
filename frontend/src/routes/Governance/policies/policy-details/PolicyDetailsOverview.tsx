@@ -3,14 +3,14 @@ import {
   Alert,
   Button,
   ButtonVariant,
+  Content,
+  ContentVariants,
   Icon,
-  Label,
   LabelGroup,
   PageSection,
   Stack,
-  Title,
 } from '@patternfly/react-core'
-import { CheckCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon } from '@patternfly/react-icons'
+import { BellIcon, CheckCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon } from '@patternfly/react-icons'
 import { ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import { generatePath, Link } from 'react-router-dom-v5-compat'
 import { useTranslation } from '../../../../lib/acm-i18next'
@@ -42,7 +42,7 @@ import { AutomationDetailsSidebar } from '../../components/AutomationDetailsSide
 import { ClusterPolicyViolationIcons } from '../../components/ClusterPolicyViolations'
 import { useGovernanceData } from '../../useGovernanceData'
 import { usePolicyDetailsContext } from './PolicyDetailsPage'
-import { useLocalHubName } from '../../../../hooks/use-local-hub'
+import { PlacementLinkList } from '../../../Infrastructure/Clusters/Placements/utils'
 
 interface TableData {
   apiVersion: string
@@ -73,7 +73,14 @@ export default function PolicyDetailsOverview() {
   const policyAutomations = useRecoilValue(policyAutomationState)
   const settings = useRecoilValue(settingsState)
   const policies = usePropagatedPolicies(policy)
-  const { clusterRisks } = useGovernanceData([policy])
+  const govData = useGovernanceData([policy])
+  const clusterRiskScore =
+    govData.clusterRisks.critical +
+    govData.clusterRisks.high +
+    govData.clusterRisks.medium +
+    govData.clusterRisks.low +
+    govData.clusterRisks.unknown +
+    govData.clusterRisks.synced
   const policyAutomationMatch = policyAutomations.find(
     (pa: PolicyAutomation) => pa.spec.policyRef === policy.metadata.name
   )
@@ -81,7 +88,6 @@ export default function PolicyDetailsOverview() {
   const [expandedViolationStatuses, setExpandedViolationStatuses] = useState<Set<string>>(new Set())
   const canCreatePolicyAutomation = useIsAnyNamespaceAuthorized(rbacCreate(PolicyAutomationDefinition))
   const canUpdatePolicyAutomation = useIsAnyNamespaceAuthorized(rbacUpdate(PolicyAutomationDefinition))
-  const hubClusterName = useLocalHubName()
 
   const toggleViolationExpanded = useCallback((key: string) => {
     setExpandedViolationStatuses((prev) => {
@@ -187,11 +193,11 @@ export default function PolicyDetailsOverview() {
         const clustersToShow = isExpanded ? clusterArray : clusterArray.slice(0, maxClustersToShow)
         const remainingCount = totalClusters - maxClustersToShow
 
-        let statusMsg = t('No status on {{count}} clusters', { count: totalClusters })
+        let statusMsg = t('No status on {{count}} cluster', { count: totalClusters })
         let icon = <ExclamationTriangleIcon color="var(--pf-t--global--color--status--warning--100)" />
         switch (status) {
           case 'noncompliant':
-            statusMsg = t('Violations on {{count}} clusters', { count: totalClusters })
+            statusMsg = t('Violations on {{count}} cluster', { count: totalClusters })
             icon = (
               <Icon status="danger">
                 <ExclamationCircleIcon />
@@ -199,7 +205,7 @@ export default function PolicyDetailsOverview() {
             )
             break
           case 'compliant':
-            statusMsg = t('No violations on {{count}} clusters', { count: totalClusters })
+            statusMsg = t('No violations on {{count}} cluster', { count: totalClusters })
             icon = (
               <Icon status="success">
                 <CheckCircleIcon />
@@ -207,7 +213,7 @@ export default function PolicyDetailsOverview() {
             )
             break
           case 'pending':
-            statusMsg = t('Pending on {{count}} clusters', { count: totalClusters })
+            statusMsg = t('Pending on {{count}} cluster', { count: totalClusters })
             icon = (
               <Icon status="warning">
                 <ExclamationTriangleIcon />
@@ -245,14 +251,14 @@ export default function PolicyDetailsOverview() {
                 </span>
               )
             })}
-            {!isExpanded && remainingCount > 0 && (
+            {remainingCount > 0 && (
               <Button
                 variant="link"
                 isInline
                 onClick={() => toggleExpanded(statusKey)}
                 style={{ marginLeft: '0.25rem', padding: 0 }}
               >
-                +{remainingCount} more
+                {isExpanded ? t('Show less') : t('show.more', { count: remainingCount })}
               </Button>
             )}
           </div>
@@ -294,12 +300,26 @@ export default function PolicyDetailsOverview() {
         key: t('Remediation'),
         value: getPolicyRemediation(policy, policies),
       },
-      // Add cluster violations to left column when feature flag is disabled (old UI)
-      ...(settings.placementDetailsEnhancements !== 'enabled'
+      ...(settings.enhancedPlacement !== 'enabled'
         ? [
             {
               key: t('Cluster violations'),
-              value: <ClusterPolicyViolationIcons risks={clusterRisks} />,
+              value:
+                clusterRiskScore > 0 ? (
+                  <ClusterPolicyViolationIcons risks={govData.clusterRisks} />
+                ) : (
+                  <div>
+                    <ExclamationTriangleIcon color="var(--pf-t--global--color--status--warning--100)" /> {'No status'}
+                  </div>
+                ),
+            },
+          ]
+        : []),
+      ...(settings.enhancedPlacement === 'enabled'
+        ? [
+            {
+              key: t('Cluster violations'),
+              value: renderPolicyViolations(expandedViolationStatuses, toggleViolationExpanded),
             },
           ]
         : []),
@@ -375,56 +395,25 @@ export default function PolicyDetailsOverview() {
           </AcmButton>
         ),
       },
-      // Add new placement and violations fields when feature flag is enabled
-      ...(settings.placementDetailsEnhancements === 'enabled'
+      ...(settings.enhancedPlacement === 'enabled'
         ? (() => {
-            // Prepare placement information for display
-            const allPlacements = [...placementMatches, ...placementRuleMatches]
-            const placementValue =
-              allPlacements.length > 0 ? (
-                <>
-                  {allPlacements.map((placement, index) => {
-                    // Build search params for details page
-                    const params = new URLSearchParams({
-                      cluster: hubClusterName,
-                      kind: placement.kind,
-                      apiversion: placement.apiVersion,
-                      name: placement.metadata.name ?? '',
-                      _hubClusterResource: 'true',
-                    })
-                    if (placement.metadata.namespace) {
-                      params.set('namespace', placement.metadata.namespace)
-                    }
-
-                    return (
-                      <span key={placement.metadata.uid ?? `${placement.metadata.name}-${index}`}>
-                        <Link
-                          to={{
-                            pathname: NavigationPath.resources,
-                            search: `?${params.toString()}`,
-                          }}
-                        >
-                          {placement.metadata.name}
-                        </Link>
-                        {index < allPlacements.length - 1 && ', '}
-                      </span>
-                    )
-                  })}
-                </>
-              ) : (
-                '-'
-              )
-
-            const violationsValue = renderPolicyViolations(expandedViolationStatuses, toggleViolationExpanded)
-
+            const placementResources = placementMatches.map(
+              (p) => ({ kind: p.kind, apiVersion: p.apiVersion, metadata: p.metadata }) as Placement
+            )
             return [
               {
                 key: t('Placement'),
-                value: placementValue,
-              },
-              {
-                key: t('Cluster violations'),
-                value: violationsValue,
+                value:
+                  placementResources.length > 0 ? (
+                    <PlacementLinkList placementsForCluster={placementResources} />
+                  ) : (
+                    <div>
+                      <Icon status="custom">
+                        <BellIcon />
+                      </Icon>{' '}
+                      {t('No placement selectors found')}
+                    </div>
+                  ),
               },
             ]
           })()
@@ -432,6 +421,8 @@ export default function PolicyDetailsOverview() {
     ]
     return { leftItems, rightItems }
   }, [
+    clusterRiskScore,
+    govData.clusterRisks,
     policy,
     policyAutomationMatch,
     setDrawerContext,
@@ -439,196 +430,200 @@ export default function PolicyDetailsOverview() {
     canUpdatePolicyAutomation,
     policies,
     placementMatches,
-    placementRuleMatches,
     renderPolicyViolations,
     expandedViolationStatuses,
     toggleViolationExpanded,
-    hubClusterName,
-    clusterRisks,
-    settings.placementDetailsEnhancements,
+    settings.enhancedPlacement,
     t,
   ])
+
+  const placementCols = useMemo(
+    () => [
+      {
+        header: t('Name'),
+        cell: 'metadata.name',
+        sort: 'metadata.name',
+      },
+      {
+        header: t('Kind'),
+        cell: 'kind',
+        sort: 'kind',
+      },
+      {
+        header: t('Clusters'),
+        cell: (item: TableData) => {
+          const decisions = item.status.decisions ?? undefined
+          if (decisions) {
+            return decisions.map((decision: { clusterName: string }) => decision.clusterName).length
+          }
+          return 0
+        },
+      },
+      {
+        header: t('Violations'),
+        cell: (item: TableData) => {
+          // Gather full cluster list from placementPolicy status
+          const fullClusterList = item.status.decisions ?? []
+          // Gather status list from policy status
+          const rawStatusList: {
+            clustername: string
+            compliant?: string
+          }[] = item.policy.status?.status ?? []
+          // Build lists of clusters, organized by status keys
+          const clusterList: Record<string, Set<string>> = {}
+          fullClusterList.forEach((clusterObj) => {
+            const statusObject = rawStatusList.filter((status) => status.clustername === clusterObj.clusterName)
+            // Log error if more than one status is returned since each cluster name should be unique
+            if (statusObject.length > 1) {
+              console.error(`Expected one cluster but got ${statusObject.length}:`, statusObject)
+            } else if (statusObject.length === 0) {
+              // Push a new cluster object if there is no status found
+              statusObject.push({
+                clustername: clusterObj.clusterName,
+                compliant: 'nostatus',
+              })
+            }
+            let compliant = statusObject[0]?.compliant ?? 'nostatus'
+            compliant = compliant.toLowerCase()
+            const clusterName = statusObject[0].clustername
+            // Add cluster to its associated status list in the clusterList object
+            if (Object.prototype.hasOwnProperty.call(clusterList, compliant)) {
+              // Each cluster name should be unique, so if one is already present, log an error
+              if (clusterList[compliant].has(clusterName)) {
+                console.error(`Unexpected duplicate cluster in '${compliant}' cluster list: ${clusterName}`)
+              } else {
+                clusterList[compliant].add(clusterName)
+              }
+            } else {
+              clusterList[compliant] = new Set([clusterName])
+            }
+          })
+          // Push lists of clusters along with status icon, heading, and overflow badge
+          const statusList = []
+          for (const status of Object.keys(clusterList)) {
+            let statusMsg = t(' No status: ')
+            let icon = <ExclamationTriangleIcon color="var(--pf-t--global--color--status--warning--100)" />
+            switch (status) {
+              case 'noncompliant':
+                statusMsg = t(' Violations: ')
+                icon = (
+                  <Icon status="danger">
+                    <ExclamationCircleIcon />
+                  </Icon>
+                )
+                break
+              case 'compliant':
+                statusMsg = t(' No violations: ')
+                icon = (
+                  <Icon status="success">
+                    <CheckCircleIcon />
+                  </Icon>
+                )
+                break
+              case 'pending':
+                statusMsg = ' Pending: '
+                icon = (
+                  <Icon status="warning">
+                    <ExclamationTriangleIcon />
+                  </Icon>
+                )
+                break
+            }
+            statusList.push(
+              <div key={`${status}-status-container`}>
+                <span key={`${status}-status-heading`}>
+                  <span>
+                    <span>{icon}</span>
+                    <span>{statusMsg}</span>
+                  </span>
+                </span>
+                <span key={`${status}-status-list`}>
+                  <LabelGroup
+                    collapsedText={t('show.more', { count: clusterList[status].size - 2 })}
+                    expandedText={t('Show less')}
+                    numLabels={2}
+                  >
+                    {Array.from(clusterList[status]).map((cluster: string, index) => {
+                      if (status !== 'nostatus') {
+                        return (
+                          <span key={`${cluster}-link`}>
+                            <Link
+                              to={{
+                                pathname: generatePath(NavigationPath.policyDetailsResults, {
+                                  namespace: policy.metadata.namespace!,
+                                  name: policy.metadata.name!,
+                                }),
+                                search: `?search=${cluster}`,
+                              }}
+                            >
+                              {cluster}
+                              {index < clusterList[status].size - 1 && ', '}
+                            </Link>
+                          </span>
+                        )
+                      }
+                      return (
+                        <span key={`${cluster}-link`}>
+                          {cluster}
+                          {index < clusterList[status].size - 1 && ', '}
+                        </span>
+                      )
+                    })}
+                  </LabelGroup>
+                </span>
+              </div>
+            )
+          }
+          // If there are no clusters, return a hyphen
+          if (statusList.length === 0) {
+            return (
+              <div>
+                <ExclamationTriangleIcon color="var(--pf-t--global--color--status--warning--100)" /> {t('No status')}
+              </div>
+            )
+          }
+          return statusList
+        },
+      },
+    ],
+    [policy.metadata.name, policy.metadata.namespace, t]
+  )
 
   return (
     <PageSection hasBodyWrapper={false}>
       {modal !== undefined && modal}
-      <div id="violation.details">
-        <AcmDescriptionList title={t('Policy details')} leftItems={leftItems} rightItems={rightItems} />
-      </div>
-      {settings.placementDetailsEnhancements !== 'enabled' && (
-        <>
-          <Title headingLevel="h4">{t('Placement')}</Title>
-          <AcmTable<TableData>
-            items={[...placementMatches, ...placementRuleMatches]}
-            emptyState={
-              <Alert title={t('No placements')} variant={'info'} isInline>
-                <Stack>
-                  <div>{t('There are no placements for this policy.')}</div>
-                </Stack>
-              </Alert>
-            }
-            columns={[
-              {
-                header: t('Name'),
-                cell: (placement: TableData) => placement.metadata.name ?? '-',
-                sort: (a: TableData, b: TableData) => {
-                  const aName = a.metadata.name ?? ''
-                  const bName = b.metadata.name ?? ''
-                  return aName.localeCompare(bName)
-                },
-              },
-              {
-                header: t('Kind'),
-                cell: (placement: TableData) => placement.kind ?? '-',
-                sort: (a: TableData, b: TableData) => {
-                  const aKind = a.kind ?? ''
-                  const bKind = b.kind ?? ''
-                  return aKind.localeCompare(bKind)
-                },
-              },
-              {
-                header: t('Clusters'),
-                cell: (placement: TableData) => {
-                  if (placement.kind === 'Placement') {
-                    const decisions = (placement.status as PlacementDecisionStatus)?.decisions
-                    return decisions?.length ?? 0
-                  } else {
-                    const decisions = (placement.status as PlacementRuleStatus)?.decisions
-                    return decisions?.length ?? 0
-                  }
-                },
-              },
-              {
-                header: t('Violations'),
-                cell: (item: TableData) => {
-                  // Gather full cluster list from placementPolicy status
-                  const fullClusterList = item.status.decisions ?? []
-                  // Gather status list from policy status
-                  const rawStatusList: {
-                    clustername: string
-                    compliant?: string
-                  }[] = item.policy.status?.status ?? []
-                  // Build lists of clusters, organized by status keys
-                  const clusterList: Record<string, Set<string>> = {}
-                  fullClusterList.forEach((clusterObj) => {
-                    const statusObject = rawStatusList.filter((status) => status.clustername === clusterObj.clusterName)
-                    // Log error if more than one status is returned since each cluster name should be unique
-                    if (statusObject.length > 1) {
-                      console.error(`Expected one cluster but got ${statusObject.length}:`, statusObject)
-                    } else if (statusObject.length === 0) {
-                      // Push a new cluster object if there is no status found
-                      statusObject.push({
-                        clustername: clusterObj.clusterName,
-                        compliant: 'nostatus',
-                      })
-                    }
-                    let compliant = statusObject[0]?.compliant ?? 'nostatus'
-                    compliant = compliant.toLowerCase()
-                    const clusterName = statusObject[0].clustername
-                    // Add cluster to its associated status list in the clusterList object
-                    if (Object.prototype.hasOwnProperty.call(clusterList, compliant)) {
-                      // Each cluster name should be unique, so if one is already present, log an error
-                      if (clusterList[compliant].has(clusterName)) {
-                        console.error(`Unexpected duplicate cluster in '${compliant}' cluster list: ${clusterName}`)
-                      } else {
-                        clusterList[compliant].add(clusterName)
-                      }
-                    } else {
-                      clusterList[compliant] = new Set([clusterName])
-                    }
-                  })
-                  // Push lists of clusters along with status icon, heading, and overflow badge
-                  const statusList = []
-                  for (const status of Object.keys(clusterList)) {
-                    let statusMsg = t(' No status: ')
-                    let icon = <ExclamationTriangleIcon color="var(--pf-t--global--color--status--warning--100)" />
-                    switch (status) {
-                      case 'noncompliant':
-                        statusMsg = t(' Violations: ')
-                        icon = (
-                          <Icon status="danger">
-                            <ExclamationCircleIcon />
-                          </Icon>
-                        )
-                        break
-                      case 'compliant':
-                        statusMsg = t(' No violations: ')
-                        icon = (
-                          <Icon status="success">
-                            <CheckCircleIcon />
-                          </Icon>
-                        )
-                        break
-                      case 'pending':
-                        statusMsg = t(' Pending: ')
-                        icon = (
-                          <Icon status="warning">
-                            <ExclamationTriangleIcon />
-                          </Icon>
-                        )
-                        break
-                    }
-                    statusList.push(
-                      <div key={`${status}-status-container`}>
-                        <span key={`${status}-status-heading`}>
-                          <span>
-                            <span>{icon}</span>
-                            <span>{statusMsg}</span>
-                          </span>
-                        </span>
-                        <span key={`${status}-status-list`}>
-                          <LabelGroup
-                            collapsedText={t('show.more', { count: clusterList[status].size - 2 })}
-                            expandedText={t('Show less')}
-                            numLabels={2}
-                          >
-                            {Array.from(clusterList[status]).map((cluster: string) => {
-                              if (status !== 'nostatus') {
-                                return (
-                                  <Label key={`${cluster}-link`} color="blue">
-                                    <Link
-                                      to={{
-                                        pathname: generatePath(NavigationPath.policyDetailsResults, {
-                                          namespace: policy.metadata.namespace!,
-                                          name: policy.metadata.name!,
-                                        }),
-                                        search: `?search=${cluster}`,
-                                      }}
-                                    >
-                                      {cluster}
-                                    </Link>
-                                  </Label>
-                                )
-                              }
-                              return (
-                                <Label key={`${cluster}-link`} color="grey">
-                                  {cluster}
-                                </Label>
-                              )
-                            })}
-                          </LabelGroup>
-                        </span>
-                      </div>
-                    )
-                  }
-                  // If there are no clusters, return a hyphen
-                  if (statusList.length === 0) {
-                    return (
-                      <div>
-                        <ExclamationTriangleIcon color="var(--pf-t--global--color--status--warning--100)" />{' '}
-                        {t('No status')}
-                      </div>
-                    )
-                  }
-                  return statusList
-                },
-              },
-            ]}
-            keyFn={(placement: TableData) =>
-              placement.metadata.uid ?? `${placement.metadata.namespace}-${placement.metadata.name}-${placement.kind}`
-            }
-          />
-        </>
+      {settings.enhancedPlacement === 'enabled' ? (
+        <div id="violation.details">
+          <AcmDescriptionList title={t('Policy details')} leftItems={leftItems} rightItems={rightItems} />
+        </div>
+      ) : (
+        <Stack hasGutter>
+          <div id="violation.details">
+            <AcmDescriptionList title={t('Policy details')} leftItems={leftItems} rightItems={rightItems} />
+          </div>
+          <div>
+            <Content
+              component={ContentVariants.h5}
+              style={{
+                fontWeight: '700',
+              }}
+            >
+              {t('Placement')}
+            </Content>
+            {placementMatches.length > 0 || placementRuleMatches.length > 0 ? (
+              <AcmTable<TableData>
+                key="cluster-placement-list"
+                items={[...placementMatches, ...placementRuleMatches]}
+                emptyState={undefined} // only shown when there are placement matches
+                columns={placementCols}
+                keyFn={(item) => item.metadata.uid!.toString()}
+                autoHidePagination={true}
+              />
+            ) : (
+              <Alert title={t('No placement selectors found')} isInline />
+            )}
+          </div>
+        </Stack>
       )}
     </PageSection>
   )

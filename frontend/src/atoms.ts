@@ -177,7 +177,6 @@ export interface Settings {
   awsPrivateWizardStep?: 'enabled' | 'disabled'
   enhancedPlacement?: 'enabled' | 'disabled'
   globalSearchFeatureFlag?: 'enabled' | 'disabled'
-  placementDetailsEnhancements?: 'enabled' | 'disabled'
 
   APP_ARGO_SEARCH_RESULT_LIMIT?: string
   APP_OCP_SEARCH_RESULT_LIMIT?: string
