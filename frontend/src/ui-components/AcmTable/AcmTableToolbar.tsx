@@ -339,6 +339,13 @@ const AcmTableToolbarBase = <T,>(props: AcmTableToolbarProps<T>, ref: Ref<Toolba
   const search = props.search ?? storedSearch ?? stateSearch
   const setSearch = props.setSearch ?? stateSetSearch
 
+  useEffect(() => {
+    if (initialSearch) {
+      setStoredSearch(initialSearch)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSearch])
+
   const searchPlaceholder = props.searchPlaceholder ?? t('Search')
   const hasSearch = useMemo(() => columns.some((column) => column.search), [columns])
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false)

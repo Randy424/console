@@ -251,6 +251,7 @@ describe('Export from policy details results table', () => {
 
 describe('Search prefill from URL query string', () => {
   beforeEach(async () => {
+    localStorage.clear()
     nockIgnoreRBAC()
     nockIgnoreApiPaths()
   })

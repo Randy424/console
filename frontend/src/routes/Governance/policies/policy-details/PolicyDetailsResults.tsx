@@ -2,7 +2,7 @@
 import { Icon, PageSection, Title, Tooltip } from '@patternfly/react-core'
 import { CheckCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon } from '@patternfly/react-icons'
 import { AcmEmptyState, AcmTable, AcmTableStateProvider, compareStrings } from '../../../../ui-components'
-import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { ReactNode, useMemo } from 'react'
 import { Link, generatePath, useLocation } from 'react-router-dom-v5-compat'
 import { useRecoilValue, useSharedAtoms } from '../../../../shared-recoil'
 import { useTranslation } from '../../../../lib/acm-i18next'
@@ -87,13 +87,6 @@ export default function PolicyDetailsResults() {
   const { t } = useTranslation()
   const location = useLocation()
   const filterPresets = transformBrowserUrlToFilterPresets(location.search)
-  const [search, setSearch] = useState(filterPresets.initialSearch)
-
-  useEffect(() => {
-    setSearch(filterPresets.initialSearch)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search])
-
   const { policy } = usePolicyDetailsContext()
   const { policiesState } = useSharedAtoms()
   const policies = useRecoilValue(policiesState)
@@ -344,8 +337,7 @@ export default function PolicyDetailsResults() {
                 }
               : filterPresets.initialSort
           }
-          search={search}
-          setSearch={setSearch}
+          initialSearch={filterPresets.initialSearch}
           searchPlaceholder={t('Find clusters')}
           fuseThreshold={0}
         />

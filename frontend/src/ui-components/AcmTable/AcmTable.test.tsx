@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { AcmDropdown } from '../AcmDropdown/AcmDropdown'
 import { AcmEmptyState } from '../AcmEmptyState'
 import { AcmTable } from './AcmTable'
-import { AcmTableStateProvider } from './AcmTableStateProvider'
+import { AcmTableStateProvider, setItemWithExpiration } from './AcmTableStateProvider'
 import { AcmTableProps, ExportableIRow, ITableAdvancedFilter } from './AcmTableTypes'
 
 import { MemoryRouter, Route, Routes } from 'react-router-dom-v5-compat'
@@ -824,6 +824,74 @@ describe('AcmTable', () => {
 
     // verify pagination changes on both tables
     await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(200))
+  })
+  test('initialSearch is used when no cached search exists in localStorage', async () => {
+    const storageKey = 'initial-search-no-cache-test'
+
+    const { getByPlaceholderText } = render(
+      <MemoryRouter>
+        <Routes>
+          <Route
+            path="/*"
+            element={
+              <AcmTableStateProvider localStorageKey={storageKey}>
+                <Table useRouter={false} initialSearch="url-query" />
+              </AcmTableStateProvider>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(getByPlaceholderText(placeholderString)).toHaveValue('url-query')
+    })
+  })
+  test('initialSearch takes precedence over cached search in localStorage', async () => {
+    const storageKey = 'initial-beats-cached-test'
+    setItemWithExpiration(`${storageKey}-search`, 'cached-query')
+
+    const { getByPlaceholderText } = render(
+      <MemoryRouter>
+        <Routes>
+          <Route
+            path="/*"
+            element={
+              <AcmTableStateProvider localStorageKey={storageKey}>
+                <Table useRouter={false} initialSearch="url-query" />
+              </AcmTableStateProvider>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(getByPlaceholderText(placeholderString)).toHaveValue('url-query')
+    })
+  })
+  test('cached search from localStorage is used when no initialSearch is provided', async () => {
+    const storageKey = 'cached-search-test'
+    setItemWithExpiration(`${storageKey}-search`, 'cached-query')
+
+    const { getByPlaceholderText } = render(
+      <MemoryRouter>
+        <Routes>
+          <Route
+            path="/*"
+            element={
+              <AcmTableStateProvider localStorageKey={storageKey}>
+                <Table useRouter={false} />
+              </AcmTableStateProvider>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(getByPlaceholderText(placeholderString)).toHaveValue('cached-query')
+    })
   })
   test('has zero accessibility defects', async () => {
     const { container } = render(<Table />)

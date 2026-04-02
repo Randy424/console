@@ -63,12 +63,15 @@ const AcmTableStateContext: React.Context<{
 export function AcmTableStateProvider(props: { children: ReactNode; localStorageKey?: string }) {
   const location = useLocation()
   const { localStorageKey = `${location.pathname.split('/').pop() || 'default'}-table-state` } = props
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState<string | undefined>(undefined)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(DEFAULT_ITEMS_PER_PAGE)
   const [sort, setSort] = useState<ISortBy>(DEFAULT_SORT)
   useEffect(() => {
-    setSearch(getItemWithExpiration(`${localStorageKey}-search`) || '')
+    const cachedSearch = getItemWithExpiration(`${localStorageKey}-search`)
+    if (cachedSearch) {
+      setSearch(cachedSearch)
+    }
     setPage(Number.parseInt(getItemWithExpiration(`${localStorageKey}-page`) || '0', 10) || 1)
     setPerPage(Number.parseInt(localStorage.getItem(`${localStorageKey}-perPage`) || '0', 10) || DEFAULT_ITEMS_PER_PAGE)
     setSort(

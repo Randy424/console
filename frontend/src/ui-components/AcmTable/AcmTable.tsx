@@ -193,8 +193,8 @@ export function AcmTable<T>(props: AcmTableProps<T>) {
   const sort = props.sort || storedSort || stateSort
   const setSort = props.setSort || setStoredSort || stateSetSort
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'test') {
-      setInternalSearch(storedSearch || '')
+    if (process.env.NODE_ENV !== 'test' && storedSearch !== undefined) {
+      setInternalSearch(storedSearch)
     }
   }, [storedSearch])
 
