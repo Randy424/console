@@ -312,12 +312,18 @@ elif [ -n "$RH_OFFLINE_TOKEN" ]; then
                     jq -r '[.body[] | select(.product_name | contains("Ansible"))][0].pool_id // empty')
 
                 if [ -n "$POOL_ID" ]; then
-                    curl "${CURL_OPTS[@]}" -X POST \
+                    ATTACH_RESPONSE=$(curl "${CURL_OPTS[@]}" -X POST \
                         -H "Authorization: Bearer ${ACCESS_TOKEN}" \
                         -H "Content-Type: application/json" \
                         -d "{\"pool_id\":\"${POOL_ID}\",\"quantity\":1}" \
-                        "${RHSM_API}/allocations/${ALLOCATION_UUID}/subscriptions" > /dev/null
-                    log_info "Subscription attached"
+                        "${RHSM_API}/allocations/${ALLOCATION_UUID}/subscriptions" \
+                        -w "\nHTTP_CODE:%{http_code}")
+                    ATTACH_HTTP=$(echo "$ATTACH_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+                    if [ "$ATTACH_HTTP" = "200" ] || [ "$ATTACH_HTTP" = "201" ]; then
+                        log_info "Subscription attached"
+                    else
+                        log_warn "Subscription attach returned HTTP $ATTACH_HTTP"
+                    fi
                 else
                     log_warn "No AAP subscription pool found"
                 fi
