@@ -19,6 +19,15 @@ AAP_MODE=${AAP_MODE:-"platform"}  # "platform" (AnsibleAutomationPlatform) or "c
 ENABLE_HUB=${ENABLE_HUB:-"false"}
 ENABLE_EDA=${ENABLE_EDA:-"false"}
 
+# Validate AAP_MODE
+case "$AAP_MODE" in
+    platform|controller) ;;
+    *)
+        echo "ERROR: Invalid AAP_MODE: $AAP_MODE. Expected 'platform' or 'controller'."
+        exit 1
+        ;;
+esac
+
 # Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -263,7 +272,9 @@ if [ -z "$ROUTE_URL" ]; then
 fi
 
 # --- Subscription management ---
-if [ -n "$RH_OFFLINE_TOKEN" ]; then
+if [ -z "$ROUTE_URL" ]; then
+    log_warn "Route is unavailable; skipping automated subscription setup"
+elif [ -n "$RH_OFFLINE_TOKEN" ]; then
     log_info "Configuring subscription using offline token..."
 
     RHSM_API="https://api.access.redhat.com/management/v1"
