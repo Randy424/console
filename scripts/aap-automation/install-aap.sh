@@ -11,6 +11,11 @@ PLATFORM_NAME=${PLATFORM_NAME:-"aap-platform"}
 OPERATOR_CHANNEL=${OPERATOR_CHANNEL:-"stable-2.5-cluster-scoped"}
 OPERATOR_SOURCE=${OPERATOR_SOURCE:-"redhat-operators"}
 RH_OFFLINE_TOKEN=${RH_OFFLINE_TOKEN:-""}
+AAP_MODE=${AAP_MODE:-"platform"}  # "platform" (AnsibleAutomationPlatform) or "controller" (AutomationController)
+# Optional platform-mode components (ignored in controller mode):
+#   Hub  = private repo for Ansible collections and execution environments
+#   EDA  = event-driven automation (trigger playbooks from webhooks, alerts, etc.)
+# Both require significant extra cluster resources; only enable if needed.
 ENABLE_HUB=${ENABLE_HUB:-"false"}
 ENABLE_EDA=${ENABLE_EDA:-"false"}
 
@@ -25,9 +30,19 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Check prerequisites
-if ! command -v oc &> /dev/null; then
-    log_error "oc CLI not found. Please install the OpenShift CLI."
-    exit 1
+for cmd in oc curl jq base64; do
+    if ! command -v "$cmd" &> /dev/null; then
+        log_error "$cmd not found. Please install $cmd."
+        exit 1
+    fi
+done
+
+# Curl options: TLS verification enabled by default; set CURL_INSECURE=true to
+# skip verification (e.g., for self-signed certs on internal AAP routes).
+CURL_OPTS=(-s)
+if [ "${CURL_INSECURE:-false}" = "true" ]; then
+    CURL_OPTS+=(-k)
+    log_warn "CURL_INSECURE=true: TLS certificate verification is disabled"
 fi
 
 if ! oc whoami &> /dev/null; then
@@ -40,14 +55,24 @@ check_aap_status() {
     if ! oc get namespace "$AAP_NAMESPACE" &> /dev/null; then
         echo "not_installed"; return
     fi
-    if ! oc get ansibleautomationplatform "$PLATFORM_NAME" -n "$AAP_NAMESPACE" &> /dev/null; then
-        echo "namespace_only"; return
+    if [ "$AAP_MODE" = "controller" ]; then
+        if ! oc get automationcontroller "$PLATFORM_NAME" -n "$AAP_NAMESPACE" &> /dev/null; then
+            echo "namespace_only"; return
+        fi
+        CR_STATUS=$(oc get automationcontroller "$PLATFORM_NAME" -n "$AAP_NAMESPACE" \
+            -o jsonpath='{.status.conditions[?(@.type=="Running")].status}' 2>/dev/null || echo "Unknown")
+        PODS_RUNNING=$(oc get pods -n "$AAP_NAMESPACE" -l app.kubernetes.io/managed-by=automationcontroller-operator \
+            --no-headers 2>/dev/null | awk '$3=="Running"{c++} END{print c+0}')
+    else
+        if ! oc get ansibleautomationplatform "$PLATFORM_NAME" -n "$AAP_NAMESPACE" &> /dev/null; then
+            echo "namespace_only"; return
+        fi
+        CR_STATUS=$(oc get ansibleautomationplatform "$PLATFORM_NAME" -n "$AAP_NAMESPACE" \
+            -o jsonpath='{.status.conditions[?(@.type=="Running")].status}' 2>/dev/null || echo "Unknown")
+        PODS_RUNNING=$(oc get pods -n "$AAP_NAMESPACE" -l app.kubernetes.io/name=aap-platform,app.kubernetes.io/component=gateway \
+            --no-headers 2>/dev/null | awk '$3=="Running"{c++} END{print c+0}')
     fi
-    PLATFORM_STATUS=$(oc get ansibleautomationplatform "$PLATFORM_NAME" -n "$AAP_NAMESPACE" \
-        -o jsonpath='{.status.conditions[?(@.type=="Running")].status}' 2>/dev/null || echo "Unknown")
-    GATEWAY_RUNNING=$(oc get pods -n "$AAP_NAMESPACE" -l app.kubernetes.io/component=aap-gateway \
-        --no-headers 2>/dev/null | grep -c "Running" || echo "0")
-    if [ "$PLATFORM_STATUS" = "True" ] || [ "$GATEWAY_RUNNING" -gt "0" ]; then
+    if [ "$CR_STATUS" = "True" ] || [ "$PODS_RUNNING" -gt "0" ]; then
         echo "healthy"
     else
         echo "unhealthy"
@@ -141,10 +166,22 @@ fi
 CSV_VERSION=$(oc get csv -n $AAP_NAMESPACE -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | grep -o 'aap-operator[^ ]*' | head -1 || echo "unknown")
 log_info "AAP Operator CSV: $CSV_VERSION"
 
-# Create AnsibleAutomationPlatform CR
-log_info "Creating AnsibleAutomationPlatform: $PLATFORM_NAME"
+# Create CR based on mode
+if [ "$AAP_MODE" = "controller" ]; then
+    log_info "Creating AutomationController (legacy mode): $PLATFORM_NAME"
+    cat <<EOF | oc apply -f -
+apiVersion: automationcontroller.ansible.com/v1beta1
+kind: AutomationController
+metadata:
+  name: $PLATFORM_NAME
+  namespace: $AAP_NAMESPACE
+spec:
+  replicas: 1
+EOF
+else
+    log_info "Creating AnsibleAutomationPlatform (platform mode): $PLATFORM_NAME"
 
-PLATFORM_SPEC="apiVersion: aap.ansible.com/v1alpha1
+    PLATFORM_SPEC="apiVersion: aap.ansible.com/v1alpha1
 kind: AnsibleAutomationPlatform
 metadata:
   name: $PLATFORM_NAME
@@ -153,46 +190,55 @@ spec:
   controller:
     replicas: 1"
 
-if [ "$ENABLE_HUB" = "true" ]; then
-    PLATFORM_SPEC="$PLATFORM_SPEC
+    if [ "$ENABLE_HUB" = "true" ]; then
+        PLATFORM_SPEC="$PLATFORM_SPEC
   hub:
     replicas: 1"
-fi
+    fi
 
-if [ "$ENABLE_EDA" = "true" ]; then
-    PLATFORM_SPEC="$PLATFORM_SPEC
+    if [ "$ENABLE_EDA" = "true" ]; then
+        PLATFORM_SPEC="$PLATFORM_SPEC
   eda:
     replicas: 1"
+    fi
+
+    echo "$PLATFORM_SPEC" | oc apply -f -
 fi
 
-echo "$PLATFORM_SPEC" | oc apply -f -
-
-# Wait for platform to be ready
-log_info "Waiting for AnsibleAutomationPlatform to be ready..."
-log_info "This may take several minutes as multiple components are deployed..."
+# Wait for CR to be ready
+log_info "Waiting for AAP to be ready (mode: $AAP_MODE)..."
+log_info "This may take several minutes as components are deployed..."
 TIMEOUT=900
 ELAPSED=0
 
 while [ $ELAPSED -lt $TIMEOUT ]; do
-    PLATFORM_STATUS=$(oc get ansibleautomationplatform $PLATFORM_NAME -n $AAP_NAMESPACE \
-        -o jsonpath='{.status.conditions[?(@.type=="Running")].status}' 2>/dev/null || echo "Unknown")
-    if [ "$PLATFORM_STATUS" = "True" ]; then
-        log_info "AnsibleAutomationPlatform is ready"
+    if [ "$AAP_MODE" = "controller" ]; then
+        CR_STATUS=$(oc get automationcontroller $PLATFORM_NAME -n $AAP_NAMESPACE \
+            -o jsonpath='{.status.conditions[?(@.type=="Running")].status}' 2>/dev/null || echo "Unknown")
+    else
+        CR_STATUS=$(oc get ansibleautomationplatform $PLATFORM_NAME -n $AAP_NAMESPACE \
+            -o jsonpath='{.status.conditions[?(@.type=="Running")].status}' 2>/dev/null || echo "Unknown")
+    fi
+    if [ "$CR_STATUS" = "True" ]; then
+        log_info "AAP is ready"
         break
     fi
     sleep $INTERVAL
     ELAPSED=$((ELAPSED + INTERVAL))
-    log_info "Waiting for platform... ($ELAPSED/$TIMEOUT seconds) - Status: $PLATFORM_STATUS"
+    log_info "Waiting... ($ELAPSED/$TIMEOUT seconds) - Status: $CR_STATUS"
 done
 
 if [ $ELAPSED -ge $TIMEOUT ]; then
-    log_warn "Timeout waiting for full platform deployment"
-    GATEWAY_PODS=$(oc get pods -n $AAP_NAMESPACE -l app.kubernetes.io/name=aap-platform,app.kubernetes.io/component=gateway --no-headers 2>/dev/null | grep -c "Running" || echo "0")
-    if [ "$GATEWAY_PODS" -gt "0" ]; then
-        log_info "Gateway is running, platform may be partially ready"
+    log_warn "Timeout waiting for deployment"
+    if [ "$AAP_MODE" = "controller" ]; then
+        RUNNING_PODS=$(oc get pods -n $AAP_NAMESPACE -l app.kubernetes.io/managed-by=automationcontroller-operator --no-headers 2>/dev/null | awk '$3=="Running"{c++} END{print c+0}')
     else
-        log_error "Platform deployment failed"
-        log_info "Check status with: oc get ansibleautomationplatform $PLATFORM_NAME -n $AAP_NAMESPACE -o yaml"
+        RUNNING_PODS=$(oc get pods -n $AAP_NAMESPACE -l app.kubernetes.io/name=aap-platform,app.kubernetes.io/component=gateway --no-headers 2>/dev/null | awk '$3=="Running"{c++} END{print c+0}')
+    fi
+    if [ "$RUNNING_PODS" -gt "0" ]; then
+        log_info "Pods are running, deployment may be partially ready"
+    else
+        log_error "Deployment failed"
         exit 1
     fi
 fi
@@ -222,12 +268,13 @@ if [ -n "$RH_OFFLINE_TOKEN" ]; then
 
     RHSM_API="https://api.access.redhat.com/management/v1"
     ALLOCATION_NAME="AAP-Automation-$(date +%Y%m%d)"
-    MANIFEST_FILE="/tmp/manifest-${ALLOCATION_NAME}.zip"
+    MANIFEST_FILE=$(mktemp /tmp/manifest-XXXXXX.zip)
+    trap 'rm -f "$MANIFEST_FILE"' EXIT
     AAP_URL="https://${ROUTE_URL}"
 
     # Exchange offline token for access token
     log_info "Obtaining access token from Red Hat SSO..."
-    ACCESS_TOKEN=$(curl -sk -X POST \
+    ACCESS_TOKEN=$(curl "${CURL_OPTS[@]}" -X POST \
         "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token" \
         -d "grant_type=refresh_token" \
         -d "client_id=rhsm-api" \
@@ -236,25 +283,25 @@ if [ -n "$RH_OFFLINE_TOKEN" ]; then
     if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
         log_warn "Failed to obtain access token - skipping subscription setup"
     else
-        # Check for existing allocation or create new one
-        ALLOCATION_UUID=$(curl -sk -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-            "${RHSM_API}/allocations" | jq -r '.body[0].uuid // empty')
+        # Check for existing allocation by name, or create new one
+        ALLOCATION_UUID=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            "${RHSM_API}/allocations" | jq -r --arg name "$ALLOCATION_NAME" '[.body[] | select(.name == $name)][0].uuid // empty')
 
         if [ -z "$ALLOCATION_UUID" ]; then
             log_info "Creating new subscription allocation: $ALLOCATION_NAME"
-            ALLOCATION_UUID=$(curl -sk -X POST \
+            ALLOCATION_UUID=$(curl "${CURL_OPTS[@]}" -X POST \
                 -H "Authorization: Bearer ${ACCESS_TOKEN}" \
                 -H "Content-Type: application/json" \
                 -d "{\"name\":\"${ALLOCATION_NAME}\",\"type\":\"Satellite\",\"version\":\"6.11\"}" \
                 "${RHSM_API}/allocations" | jq -r '.body.uuid // empty')
 
             if [ -n "$ALLOCATION_UUID" ]; then
-                POOL_ID=$(curl -sk -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+                POOL_ID=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
                     "${RHSM_API}/allocations/${ALLOCATION_UUID}/subscriptions/available" | \
                     jq -r '[.body[] | select(.product_name | contains("Ansible"))][0].pool_id // empty')
 
                 if [ -n "$POOL_ID" ]; then
-                    curl -sk -X POST \
+                    curl "${CURL_OPTS[@]}" -X POST \
                         -H "Authorization: Bearer ${ACCESS_TOKEN}" \
                         -H "Content-Type: application/json" \
                         -d "{\"pool_id\":\"${POOL_ID}\",\"quantity\":1}" \
@@ -270,13 +317,13 @@ if [ -n "$RH_OFFLINE_TOKEN" ]; then
 
         if [ -n "$ALLOCATION_UUID" ]; then
             log_info "Downloading subscription manifest..."
-            curl -sk -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
                 "${RHSM_API}/allocations/${ALLOCATION_UUID}/export" \
                 -o "${MANIFEST_FILE}"
 
             if [ -f "$MANIFEST_FILE" ] && [ -s "$MANIFEST_FILE" ]; then
                 log_info "Uploading manifest to AAP..."
-                UPLOAD_RESPONSE=$(curl -sk -X POST \
+                UPLOAD_RESPONSE=$(curl "${CURL_OPTS[@]}" -X POST \
                     -u "admin:${ADMIN_PASSWORD}" \
                     -F "manifest=@${MANIFEST_FILE}" \
                     "${AAP_URL}/api/controller/v2/config/subscriptions/" \
@@ -288,7 +335,6 @@ if [ -n "$RH_OFFLINE_TOKEN" ]; then
                 else
                     log_warn "Manifest upload returned HTTP $HTTP_CODE"
                 fi
-                rm -f "$MANIFEST_FILE"
             else
                 log_warn "Failed to download manifest"
             fi
@@ -305,19 +351,24 @@ log_info "AAP Installation Complete!"
 log_info "=================================================="
 echo ""
 log_info "Namespace:        $AAP_NAMESPACE"
+log_info "Mode:             $AAP_MODE"
 log_info "Platform Name:    $PLATFORM_NAME"
 log_info "URL:              https://${ROUTE_URL}"
 log_info "Username:         admin"
-log_info "Password:         $ADMIN_PASSWORD"
+log_info "Password:         (retrieve via command below)"
 echo ""
 log_info "Deployed Components:"
-log_info "  - Gateway (UI)"
-log_info "  - Controller (Automation Engine)"
-if [ "$ENABLE_HUB" = "true" ]; then
-    log_info "  - Automation Hub (Content Management)"
-fi
-if [ "$ENABLE_EDA" = "true" ]; then
-    log_info "  - Event-Driven Ansible"
+if [ "$AAP_MODE" = "controller" ]; then
+    log_info "  - Controller (Standalone)"
+else
+    log_info "  - Gateway (UI)"
+    log_info "  - Controller (Automation Engine)"
+    if [ "$ENABLE_HUB" = "true" ]; then
+        log_info "  - Automation Hub (Content Management)"
+    fi
+    if [ "$ENABLE_EDA" = "true" ]; then
+        log_info "  - Event-Driven Ansible"
+    fi
 fi
 echo ""
 log_info "To retrieve the password later, run:"
