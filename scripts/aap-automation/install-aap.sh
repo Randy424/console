@@ -334,9 +334,14 @@ elif [ -n "$RH_OFFLINE_TOKEN" ]; then
 
         if [ -n "$ALLOCATION_UUID" ]; then
             log_info "Downloading subscription manifest..."
-            curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            DOWNLOAD_HTTP=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
                 "${RHSM_API}/allocations/${ALLOCATION_UUID}/export" \
-                -o "${MANIFEST_FILE}"
+                -o "${MANIFEST_FILE}" -w "%{http_code}")
+
+            if [ "$DOWNLOAD_HTTP" != "200" ]; then
+                log_warn "Manifest download returned HTTP $DOWNLOAD_HTTP"
+                rm -f "$MANIFEST_FILE"
+            fi
 
             if [ -f "$MANIFEST_FILE" ] && [ -s "$MANIFEST_FILE" ]; then
                 log_info "Uploading manifest to AAP..."
