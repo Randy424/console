@@ -1,0 +1,79 @@
+/* Copyright Contributors to the Open Cluster Management project */
+import type { Http2ServerRequest, Http2ServerResponse, OutgoingHttpHeaders } from 'node:http2'
+import { constants } from 'node:http2'
+import type { RequestOptions } from 'node:https'
+import { Agent, request } from 'node:https'
+import { URL } from 'node:url'
+import { getServiceAgent } from '../lib/agent'
+import { logger } from '../lib/logger'
+import { respondInternalServerError, unauthorized } from '../lib/respond'
+import { getToken } from '../lib/token'
+
+const proxyHeaders = [constants.HTTP2_HEADER_ACCEPT, constants.HTTP2_HEADER_CONTENT_TYPE]
+
+const defaultServiceHost = 'cluster-manager-placement.open-cluster-management-hub.svc.cluster.local'
+const defaultPlacementDebugUrl = `https://${defaultServiceHost}:9443/debug/placements/`
+
+let devAgent: Agent | undefined
+function getDevAgent(): Agent {
+  if (!devAgent) {
+    devAgent = new Agent({ rejectUnauthorized: false, keepAlive: true })
+  }
+  return devAgent
+}
+
+function collectBody(req: Http2ServerRequest): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = []
+    req.on('data', (chunk: Buffer) => chunks.push(chunk))
+    req.on('end', () => resolve(Buffer.concat(chunks)))
+    req.on('error', reject)
+  })
+}
+
+export async function placementDebug(req: Http2ServerRequest, res: Http2ServerResponse): Promise<void> {
+  const body = await collectBody(req)
+
+  const token = getToken(req)
+  if (!token) return unauthorized(req, res)
+
+  const headers: OutgoingHttpHeaders = {
+    authorization: `Bearer ${token}`,
+    'content-type': 'application/json',
+    'content-length': body.length,
+  }
+  for (const header of proxyHeaders) {
+    if (req.headers[header]) headers[header] = req.headers[header]
+  }
+
+  const overrideUrl = process.env.PLACEMENT_DEBUG_URL
+  const url = new URL(overrideUrl || defaultPlacementDebugUrl)
+  headers.host = defaultServiceHost
+
+  const options: RequestOptions = {
+    protocol: url.protocol,
+    hostname: url.hostname,
+    port: url.port,
+    path: url.pathname,
+    method: 'POST',
+    headers,
+    agent: overrideUrl ? getDevAgent() : getServiceAgent(),
+    servername: defaultServiceHost,
+  }
+
+  const upstream = request(options, (response) => {
+    if (!response) return respondInternalServerError(req, res)
+    res.writeHead(response.statusCode ?? 500, {
+      'content-type': 'application/json',
+    })
+    response.pipe(res as unknown as NodeJS.WritableStream)
+  })
+
+  upstream.on('error', (err) => {
+    logger.error({ msg: 'placement debug upstream error', error: err.message })
+    if (!res.headersSent) respondInternalServerError(req, res)
+  })
+
+  upstream.write(body)
+  upstream.end()
+}
