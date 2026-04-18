@@ -6,10 +6,16 @@ import { Agent, request } from 'node:https'
 import { URL } from 'node:url'
 import { getServiceAgent } from '../lib/agent'
 import { logger } from '../lib/logger'
-import { respondInternalServerError, unauthorized } from '../lib/respond'
-import { getToken } from '../lib/token'
+import { respondInternalServerError } from '../lib/respond'
+import { getAuthenticatedToken } from '../lib/token'
 
-const proxyHeaders = [constants.HTTP2_HEADER_ACCEPT, constants.HTTP2_HEADER_CONTENT_TYPE]
+const proxyHeaders = [
+  constants.HTTP2_HEADER_ACCEPT,
+  constants.HTTP2_HEADER_ACCEPT_ENCODING,
+  constants.HTTP2_HEADER_CONTENT_ENCODING,
+  constants.HTTP2_HEADER_CONTENT_LENGTH,
+  constants.HTTP2_HEADER_CONTENT_TYPE,
+]
 
 const defaultServiceHost = 'cluster-manager-placement.open-cluster-management-hub.svc.cluster.local'
 const defaultPlacementDebugUrl = `https://${defaultServiceHost}:9443/debug/placements/`
@@ -43,8 +49,8 @@ function collectBody(req: Http2ServerRequest): Promise<Buffer> {
 }
 
 export async function placementDebug(req: Http2ServerRequest, res: Http2ServerResponse): Promise<void> {
-  const token = getToken(req)
-  if (!token) return unauthorized(req, res)
+  const token = await getAuthenticatedToken(req, res)
+  if (!token) return
 
   let body: Buffer
   try {

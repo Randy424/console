@@ -91,7 +91,7 @@ export function usePlacementDebug(placement: IPlacement | undefined, enabled = t
       return
     }
 
-    setState((prev) => ({ ...prev, loading: true, matchedCount: undefined }))
+    setState({ ...EMPTY_STATE, loading: true })
     debouncedFetch(placement)
 
     return () => {

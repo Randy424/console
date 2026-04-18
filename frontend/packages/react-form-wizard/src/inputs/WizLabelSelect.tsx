@@ -135,10 +135,14 @@ export function WizLabelSelect(props: WizLabelSelectProps) {
       >
         <Label
           variant="outline"
-          onClose={(ev) => {
-            ev.stopPropagation()
-            setValue(undefined)
-          }}
+          onClose={
+            disabled || readonly
+              ? undefined
+              : (ev) => {
+                  ev.stopPropagation()
+                  setValue(undefined)
+                }
+          }
         >
           {displayLabel}
         </Label>

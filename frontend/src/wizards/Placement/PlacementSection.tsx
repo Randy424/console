@@ -156,10 +156,8 @@ export function PlacementSection(props: {
     return resources?.find((resource) => resource.kind === PlacementKind) as IPlacement | undefined
   }, [resources])
 
-  const { matched, notMatched, matchedCount, totalClusters } = usePlacementDebug(
-    currentPlacement,
-    settings.enhancedPlacement === 'enabled'
-  )
+  const debugState = usePlacementDebug(currentPlacement, settings.enhancedPlacement === 'enabled')
+  const { matched, notMatched, matchedCount, totalClusters, error } = debugState
 
   const setFooterContent = useSetFooterContent()
   const openMatchedModal = useCallback(() => setIsMatchedClustersModalOpen(true), [])
@@ -209,6 +207,7 @@ export function PlacementSection(props: {
             clusterSetBindings={props.existingClusterSetBindings}
             bindingKind={props.bindingSubjectKind}
             clusters={props.clusters}
+            useFeatureFlag={settings.enhancedPlacement === 'enabled'}
           />
         ) : null}
         <PlacementBindings
@@ -271,6 +270,7 @@ export function PlacementSection(props: {
                 </Button>
               }
               useFeatureFlag={settings.enhancedPlacement === 'enabled'}
+              placementDebugState={debugState}
             />
           </WizItemSelector>
         </Fragment>
@@ -294,15 +294,25 @@ export function PlacementSection(props: {
         currentPlacement && (
           <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {/* Placement info alert */}
-            {matchedCount !== undefined && totalClusters > 0 && (
-              <Alert
-                variant="info"
-                isInline
-                title={t('{{count}} of {{total}} clusters matched by placement', {
-                  count: matchedCount,
-                  total: totalClusters,
-                })}
-              />
+            {error ? (
+              <Alert variant="danger" isInline title={t('Unable to determine cluster matches.')} />
+            ) : (
+              matchedCount !== undefined && (
+                <Alert
+                  variant={matchedCount > 0 ? 'info' : 'warning'}
+                  isInline
+                  title={
+                    matchedCount > 0
+                      ? t('{{count}} of {{total}} clusters matched by placement', {
+                          count: matchedCount,
+                          total: totalClusters,
+                        })
+                      : t(
+                          'No clusters match the current placement criteria. To identify available clusters, check your label expressions, tolerations, or limits.'
+                        )
+                  }
+                />
+              )
             )}
 
             {/* Label expressions and tolerations */}
@@ -341,7 +351,9 @@ export function PlacementSection(props: {
                             <Label>{toleration.operator || t('Exists')}</Label>
                             {toleration.value && <Label>{toleration.value}</Label>}
                             {toleration.effect && <Label>{toleration.effect}</Label>}
-                            {toleration.tolerationSeconds && <Label>{`${toleration.tolerationSeconds}s`}</Label>}
+                            {toleration.tolerationSeconds != null && (
+                              <Label>{`${toleration.tolerationSeconds}s`}</Label>
+                            )}
                           </Fragment>
                         ))}
                       </LabelGroup>
