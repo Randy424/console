@@ -1,5 +1,6 @@
 /* Copyright Contributors to the Open Cluster Management project */
 import { Flex, Label } from '@patternfly/react-core'
+import { Fragment } from 'react'
 import set from 'set-value'
 import {
   ItemContext,
@@ -8,6 +9,8 @@ import {
   WizMultiSelect,
   WizStringsInput,
   WizTextInput,
+  DisplayMode,
+  useDisplayMode,
 } from '@patternfly-labs/react-form-wizard'
 import { IExpression } from '../common/resources/IMatchExpression'
 import { useTranslation } from '../../lib/acm-i18next'
@@ -121,7 +124,10 @@ export function MatchExpressionSummary(props: { expression: IExpression }) {
       break
   }
 
+  const displayMode = useDisplayMode()
+
   if (!expression?.key) {
+    if (displayMode === DisplayMode.Details) return <Fragment />
     return <div>{t('Expand to enter expression')}</div>
   }
 

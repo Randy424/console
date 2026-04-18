@@ -1,21 +1,25 @@
 /* Copyright Contributors to the Open Cluster Management project */
 import {
+  DisplayMode,
   EditMode,
   useData,
+  useDisplayMode,
   useEditMode,
   useItem,
+  useSetFooterContent,
   WizArrayInput,
   WizCheckbox,
+  WizCustomWrapper,
   WizKeyValue,
+  WizLabelSelect,
   WizMultiSelect,
   WizNumberInput,
   WizTextInput,
-  WizLabelSelect,
 } from '@patternfly-labs/react-form-wizard'
-import { Button, Divider, ExpandableSection, Label } from '@patternfly/react-core'
+import { Alert, Button, ButtonVariant, Divider, ExpandableSection, Label, Tooltip } from '@patternfly/react-core'
 import { ExternalLinkAltIcon } from '@patternfly/react-icons'
 import get from 'get-value'
-import { Fragment, ReactNode, useMemo, useState } from 'react'
+import { Fragment, ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import set from 'set-value'
 import { useTranslation } from '../../lib/acm-i18next'
 import { useValidation } from '../../hooks/useValidation'
@@ -24,6 +28,8 @@ import { IPlacement, PlacementKind, PlacementType, Predicate, Toleration } from 
 import { IResource } from '../common/resources/IResource'
 import { useLabelValuesMap } from '../common/useLabelValuesMap'
 import { MatchExpression, MatchExpressionCollapsed, MatchExpressionSummary } from './MatchExpression'
+import { MatchedClustersModal } from './MatchedClustersModal'
+import { PlacementDebugState, usePlacementDebug } from './usePlacementDebug'
 
 function TolerationCollapsed() {
   const toleration = useItem() as Toleration
@@ -40,6 +46,7 @@ export function Placements(props: {
   clusters: IResource[]
   createClusterSetCallback?: () => void
   alertTitle?: string
+  showPlacementPreview?: boolean
 }) {
   const editMode = useEditMode()
   const resources = useItem() as IResource[]
@@ -82,6 +89,7 @@ export function Placements(props: {
         clusters={props.clusters}
         createClusterSetCallback={props.createClusterSetCallback}
         alertTitle={props.alertTitle}
+        showPlacementPreview={props.showPlacementPreview}
       />
     </WizArrayInput>
   )
@@ -94,17 +102,82 @@ export function Placement(props: {
   createClusterSetCallback?: () => void
   alertTitle?: string
   alertContent?: ReactNode
+  showPlacementPreview?: boolean
+  placementDebugState?: PlacementDebugState
 }) {
   const placement = useItem() as IPlacement
   const editMode = useEditMode()
+  const displayMode = useDisplayMode()
   const { update } = useData()
+  const [isMatchedClustersModalOpen, setIsMatchedClustersModalOpen] = useState(false)
   const [isTolerationsExpanded, setIsTolerationsExpanded] = useState(true)
+  const featureEnabled = props.showPlacementPreview === true
+  const ownsDebugUI = featureEnabled && !props.placementDebugState
+  const ownDebugState = usePlacementDebug(placement, ownsDebugUI)
+  const { matched, notMatched, totalClusters, matchedCount, error } = props.placementDebugState ?? ownDebugState
 
   const { t } = useTranslation()
   const { validateKubernetesResourceName } = useValidation()
 
+  const matchedLabel =
+    matchedCount === undefined
+      ? '-'
+      : t('{{matched}} of {{total}} clusters', { matched: matchedCount, total: totalClusters })
+
+  const setFooterContent = useSetFooterContent()
+  const openMatchedModal = useCallback(() => setIsMatchedClustersModalOpen(true), [])
+
+  useEffect(() => {
+    if (!ownsDebugUI) return
+    if (displayMode === DisplayMode.Step) {
+      setFooterContent(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '1rem' }}>
+          <span>{t('Matched by Placement')}:</span>{' '}
+          {error ? (
+            <Tooltip content={error.message || t('An unknown error occurred.')}>
+              <Alert variant="warning" isInline isPlain title={t('Unable to determine cluster matches.')} />
+            </Tooltip>
+          ) : (
+            <Button variant={ButtonVariant.link} isInline onClick={openMatchedModal} style={{ padding: 0 }}>
+              {matchedLabel}
+            </Button>
+          )}
+        </div>
+      )
+    } else {
+      setFooterContent(undefined)
+    }
+    return () => setFooterContent(undefined)
+  }, [ownsDebugUI, displayMode, matchedLabel, error, setFooterContent, openMatchedModal, t])
+
   return (
     <Fragment>
+      {featureEnabled && (
+        <WizCustomWrapper
+          path="placement-matched-clusters"
+          label={t('Matched by Placement')}
+          value={
+            error
+              ? t('Unable to determine cluster matches.')
+              : matchedCount === undefined
+                ? '-'
+                : matchedCount > 0
+                  ? t('{{matched}} of {{total}} clusters matched by placement', {
+                      matched: matchedCount,
+                      total: totalClusters,
+                    })
+                  : t(
+                      'No clusters match the current placement criteria. To identify available clusters, check your label expressions, tolerations, or limits.'
+                    )
+          }
+          nonEditable
+          alertVariant={
+            error ? 'warning' : matchedCount === undefined ? undefined : matchedCount > 0 ? 'info' : 'warning'
+          }
+        >
+          <Fragment />
+        </WizCustomWrapper>
+      )}
       {!props.hideName && (
         <WizTextInput
           id="name"
@@ -236,6 +309,16 @@ export function Placement(props: {
         label={t('Number of clusters')}
         path="spec.numberOfClusters"
       />
+
+      {ownsDebugUI && (
+        <MatchedClustersModal
+          isOpen={isMatchedClustersModalOpen}
+          onClose={() => setIsMatchedClustersModalOpen(false)}
+          matchedClusters={matched}
+          notMatchedClusters={notMatched}
+          totalClusters={totalClusters}
+        />
+      )}
     </Fragment>
   )
 }
