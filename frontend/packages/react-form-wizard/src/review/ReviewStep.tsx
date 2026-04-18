@@ -1,5 +1,6 @@
 /* Copyright Contributors to the Open Cluster Management project */
 import {
+  Alert,
   Badge,
   DescriptionList,
   DescriptionListDescription,
@@ -876,7 +877,7 @@ function renderReviewInputRows(nodes: readonly WizardInputDomNode[], ctx: Review
         const yamlVisible = ctx.showYaml !== false
         return (
           <DescriptionListGroup key={inputNode.path} style={{ marginLeft: ctx.inputGroupMarginLeft }}>
-            {onReviewEdit != null ? (
+            {onReviewEdit != null && !inputNode.nonEditable ? (
               <ReviewPenHoverZone
                 ariaLabel="Edit"
                 descriptionListTerm={termContent}
@@ -913,8 +914,24 @@ function renderReviewNodeSequence(
   while (i < nodes.length) {
     const n = nodes[i]!
     if (isReviewInputNode(n)) {
+      // Alert-variant inputs render as standalone Alerts, not description-list rows
+      if (n.alertVariant) {
+        const title = typeof n.value === 'string' ? n.value : formatReviewValue(n.value)
+        out.push(
+          <Alert
+            key={`alert-${n.path}`}
+            variant={n.alertVariant}
+            title={title}
+            isInline
+            style={{ marginLeft: ctx.inputGroupMarginLeft }}
+          />
+        )
+        precedingDlGroup = false
+        i++
+        continue
+      }
       const run: WizardInputDomNode[] = []
-      while (i < nodes.length && isReviewInputNode(nodes[i]!)) {
+      while (i < nodes.length && isReviewInputNode(nodes[i]!) && !(nodes[i] as WizardInputDomNode).alertVariant) {
         run.push(nodes[i] as WizardInputDomNode)
         i++
       }
