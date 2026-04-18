@@ -1,5 +1,5 @@
 /* Copyright Contributors to the Open Cluster Management project */
-import { Button, Modal, ModalBody, ModalHeader, ModalVariant, SearchInput, Tooltip } from '@patternfly/react-core'
+import { Modal, ModalBody, ModalHeader, ModalVariant, SearchInput, Tooltip } from '@patternfly/react-core'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { useState, useMemo } from 'react'
 import { useTranslation } from '../../lib/acm-i18next'
@@ -47,12 +47,7 @@ export function MatchedClustersModal(props: MatchedClustersModalProps) {
       <ModalHeader title={title} />
       <ModalBody>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <p>
-            {t('Showing clusters that match your defined labels, tolerations, and limits.')}{' '}
-            <Button variant="link" isInline>
-              {t('Learn more')}
-            </Button>
-          </p>
+          <p>{t('Showing clusters that match your defined labels, tolerations, and limits.')}</p>
 
           <SearchInput
             placeholder={t('Find by name')}

@@ -156,7 +156,10 @@ export function PlacementSection(props: {
     return resources?.find((resource) => resource.kind === PlacementKind) as IPlacement | undefined
   }, [resources])
 
-  const { matched, notMatched, matchedCount, totalClusters } = usePlacementDebug(currentPlacement)
+  const { matched, notMatched, matchedCount, totalClusters } = usePlacementDebug(
+    currentPlacement,
+    settings.enhancedPlacement === 'enabled'
+  )
 
   const setFooterContent = useSetFooterContent()
   const openMatchedModal = useCallback(() => setIsMatchedClustersModalOpen(true), [])
@@ -335,7 +338,7 @@ export function PlacementSection(props: {
                         {currentPlacement.spec.tolerations.map((toleration, idx) => (
                           <Fragment key={idx}>
                             <Label>{toleration.key}</Label>
-                            <Label>{toleration.operator || 'Exists'}</Label>
+                            <Label>{toleration.operator || t('Exists')}</Label>
                             {toleration.value && <Label>{toleration.value}</Label>}
                             {toleration.effect && <Label>{toleration.effect}</Label>}
                             {toleration.tolerationSeconds && <Label>{`${toleration.tolerationSeconds}s`}</Label>}

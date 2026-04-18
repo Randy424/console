@@ -345,7 +345,10 @@ function ReviewCollapsedValueBadge(props: {
   showYaml?: boolean
 }) {
   const { content, error, inputNode, onReviewEdit, showYaml } = props
-  const editable = onReviewEdit != null && inputNode != null
+  const editable =
+    onReviewEdit != null &&
+    inputNode != null &&
+    !('nonEditable' in inputNode && inputNode.nonEditable)
   const yamlVisible = showYaml !== false
   const activateEdit = () => {
     if (inputNode != null && onReviewEdit != null) {

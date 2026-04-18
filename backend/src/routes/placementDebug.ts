@@ -22,20 +22,40 @@ function getDevAgent(): Agent {
   return devAgent
 }
 
+const MAX_BODY_SIZE = 1024 * 1024 // 1MB
+
 function collectBody(req: Http2ServerRequest): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => chunks.push(chunk))
+    let size = 0
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length
+      if (size > MAX_BODY_SIZE) {
+        req.destroy()
+        reject(new Error('Request body too large'))
+        return
+      }
+      chunks.push(chunk)
+    })
     req.on('end', () => resolve(Buffer.concat(chunks)))
     req.on('error', reject)
   })
 }
 
 export async function placementDebug(req: Http2ServerRequest, res: Http2ServerResponse): Promise<void> {
-  const body = await collectBody(req)
-
   const token = getToken(req)
   if (!token) return unauthorized(req, res)
+
+  let body: Buffer
+  try {
+    body = await collectBody(req)
+  } catch (err) {
+    if (!res.headersSent) {
+      res.writeHead(413, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Request body too large' }))
+    }
+    return
+  }
 
   const headers: OutgoingHttpHeaders = {
     authorization: `Bearer ${token}`,
