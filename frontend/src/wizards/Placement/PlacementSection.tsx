@@ -356,7 +356,19 @@ export function PlacementSelector(props: {
                   apiVersion: PlacementApiVersion,
                   kind: PlacementKind,
                   metadata: { name: placementName, namespace },
-                  spec: props.defaultPlacementSpec ?? {},
+                  spec: {
+                    tolerations: [
+                      {
+                        key: 'cluster.open-cluster-management.io/unreachable',
+                        operator: 'Exists',
+                      },
+                      {
+                        key: 'cluster.open-cluster-management.io/unavailable',
+                        operator: 'Exists',
+                      },
+                    ],
+                    ...props.defaultPlacementSpec,
+                  },
                 } as IResource)
               }
 
