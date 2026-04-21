@@ -23,6 +23,14 @@ const EMPTY_STATE: PlacementDebugState = {
   error: undefined,
 }
 
+let cachedSpecKey: string | undefined
+let cachedState: PlacementDebugState | undefined
+
+export function clearPlacementDebugCache() {
+  cachedSpecKey = undefined
+  cachedState = undefined
+}
+
 function mapDebugResult(result: PlacementDebugResult): PlacementDebugState {
   if (result.error) {
     return { ...EMPTY_STATE, error: new Error(result.error) }
@@ -58,15 +66,18 @@ function mapDebugResult(result: PlacementDebugResult): PlacementDebugState {
 }
 
 export function usePlacementDebug(placement: IPlacement | undefined, enabled = true): PlacementDebugState {
-  const [state, setState] = useState<PlacementDebugState>(EMPTY_STATE)
-  const abortRef = useRef<(() => void) | undefined>(undefined)
-
-  // Serialize the full placement to detect in-place mutations from `set-value`.
-  // No namespace guard — the server validates; the hook re-fetches when namespace appears.
   const specKey = placement ? JSON.stringify({ metadata: placement.metadata, spec: placement.spec }) : undefined
 
+  const [state, setState] = useState<PlacementDebugState>(() => {
+    if (enabled && specKey && specKey === cachedSpecKey && cachedState) {
+      return cachedState
+    }
+    return EMPTY_STATE
+  })
+  const abortRef = useRef<(() => void) | undefined>(undefined)
+
   const debouncedFetchRef = useRef(
-    debounce((p: IPlacement) => {
+    debounce((p: IPlacement, fetchKey: string) => {
       abortRef.current?.()
       setState((prev) => ({ ...prev, loading: true, error: undefined }))
 
@@ -75,11 +86,17 @@ export function usePlacementDebug(placement: IPlacement | undefined, enabled = t
 
       promise
         .then((result) => {
-          setState(mapDebugResult(result))
+          const mapped = mapDebugResult(result)
+          cachedSpecKey = fetchKey
+          cachedState = mapped
+          setState(mapped)
         })
         .catch((err: unknown) => {
           if (isRequestAbortedError(err)) return
-          setState({ ...EMPTY_STATE, error: err instanceof Error ? err : new Error(String(err)) })
+          const errorState = { ...EMPTY_STATE, error: err instanceof Error ? err : new Error(String(err)) }
+          cachedSpecKey = fetchKey
+          cachedState = errorState
+          setState(errorState)
         })
     }, 500)
   )
@@ -91,8 +108,13 @@ export function usePlacementDebug(placement: IPlacement | undefined, enabled = t
       return
     }
 
+    if (specKey === cachedSpecKey && cachedState) {
+      setState(cachedState)
+      return
+    }
+
     setState({ ...EMPTY_STATE, loading: true })
-    debouncedFetch(placement)
+    debouncedFetch(placement, specKey)
 
     return () => {
       debouncedFetch.clear()

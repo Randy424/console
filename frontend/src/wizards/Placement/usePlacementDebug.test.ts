@@ -1,6 +1,6 @@
 /* Copyright Contributors to the Open Cluster Management project */
 import { renderHook, act } from '@testing-library/react-hooks'
-import { usePlacementDebug } from './usePlacementDebug'
+import { usePlacementDebug, clearPlacementDebugCache } from './usePlacementDebug'
 import { IPlacement } from '../common/resources/IPlacement'
 import { postPlacementDebug } from '../../resources/placement-debug'
 
@@ -33,6 +33,7 @@ describe('usePlacementDebug', () => {
   beforeEach(() => {
     jest.useFakeTimers()
     mockPostPlacementDebug.mockReset()
+    clearPlacementDebugCache()
   })
 
   afterEach(() => {

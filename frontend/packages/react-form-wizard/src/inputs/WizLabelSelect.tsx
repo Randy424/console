@@ -133,19 +133,7 @@ export function WizLabelSelect(props: WizLabelSelectProps) {
         isDisabled={disabled || readonly}
         status={validated === 'error' ? 'danger' : undefined}
       >
-        <Label
-          variant="outline"
-          onClose={
-            disabled || readonly
-              ? undefined
-              : (ev) => {
-                  ev.stopPropagation()
-                  setValue(undefined)
-                }
-          }
-        >
-          {displayLabel}
-        </Label>
+        <Label variant="outline">{displayLabel}</Label>
       </MenuToggle>
     ) : (
       <InputSelect

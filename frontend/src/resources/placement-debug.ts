@@ -3,7 +3,7 @@ import { IPlacement, PlacementApiVersion, PlacementKind } from '../wizards/commo
 import { IRequestResult, postRequest } from './utils/resource-request'
 import { getBackendUrl } from './utils/resource-request'
 
-export interface ClusterScore {
+interface ClusterScore {
   clusterName: string
   score: number
 }
