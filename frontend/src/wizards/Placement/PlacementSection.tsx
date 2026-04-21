@@ -167,7 +167,7 @@ export function PlacementSection(props: {
       settings.enhancedPlacement === 'enabled' &&
       placementCount === 1 &&
       currentPlacement &&
-      displayMode !== DisplayMode.Details
+      displayMode === DisplayMode.Step
     ) {
       const matchedLabel =
         matchedCount === undefined
@@ -289,7 +289,7 @@ export function PlacementSection(props: {
 
       {/* Review step content */}
       {settings.enhancedPlacement === 'enabled' &&
-        displayMode === DisplayMode.Details &&
+        displayMode !== DisplayMode.Step &&
         placementCount === 1 &&
         currentPlacement && (
           <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
