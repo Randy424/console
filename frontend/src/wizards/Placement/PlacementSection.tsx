@@ -176,7 +176,7 @@ export function PlacementSection(props: {
 
       setFooterContent(
         <div style={{ padding: '0.5rem 1rem' }}>
-          <span>{t('Matched by Placement:')}</span>{' '}
+          <span>{t('Matched by Placement')}:</span>{' '}
           <Button variant={ButtonVariant.link} isInline onClick={openMatchedModal} style={{ padding: 0 }}>
             {matchedLabel}
           </Button>
@@ -295,7 +295,9 @@ export function PlacementSection(props: {
           <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {/* Placement info alert */}
             {error ? (
-              <Alert variant="danger" isInline title={t('Unable to determine cluster matches.')} />
+              <Alert variant="danger" isInline title={t('Unable to determine cluster matches.')}>
+                {error.message && <p>{error.message}</p>}
+              </Alert>
             ) : (
               matchedCount !== undefined && (
                 <Alert

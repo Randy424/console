@@ -65,12 +65,12 @@ export async function placementDebug(req: Http2ServerRequest, res: Http2ServerRe
 
   const headers: OutgoingHttpHeaders = {
     authorization: `Bearer ${token}`,
-    'content-type': 'application/json',
-    'content-length': body.length,
   }
   for (const header of proxyHeaders) {
     if (req.headers[header]) headers[header] = req.headers[header]
   }
+  headers['content-type'] = 'application/json'
+  headers['content-length'] = body.length
 
   const overrideUrl = process.env.PLACEMENT_DEBUG_URL
   const url = new URL(overrideUrl || defaultPlacementDebugUrl)
