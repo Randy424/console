@@ -3,14 +3,20 @@ import { renderHook, act } from '@testing-library/react-hooks'
 import { usePlacementDebug, clearPlacementDebugCache } from './usePlacementDebug'
 import { IPlacement } from '../common/resources/IPlacement'
 import { postPlacementDebug } from '../../resources/placement-debug'
+import { ResourceError, ResourceErrorCode } from '../../resources/utils/resource-request'
 
 jest.mock('../../resources/placement-debug', () => ({
   postPlacementDebug: jest.fn(),
 }))
 
-jest.mock('../../resources/utils/resource-request', () => ({
-  isRequestAbortedError: jest.fn((err) => err?.name === 'AbortError'),
-}))
+jest.mock('../../resources/utils/resource-request', () => {
+  const actual = jest.requireActual('../../resources/utils/resource-request')
+  return {
+    isRequestAbortedError: jest.fn((err) => err?.name === 'AbortError'),
+    ResourceError: actual.ResourceError,
+    ResourceErrorCode: actual.ResourceErrorCode,
+  }
+})
 
 const mockPostPlacementDebug = postPlacementDebug as jest.Mock
 
@@ -162,6 +168,32 @@ describe('usePlacementDebug', () => {
     expect(result.current.notMatched).toEqual([])
     expect(result.current.matchedCount).toBeUndefined()
     expect(result.current.loading).toBe(false)
+  })
+
+  it('formats ResourceError with status code and reason', async () => {
+    const resourceError = new ResourceError(
+      ResourceErrorCode.InternalServerError,
+      'Internal Server Error',
+      'upstream service unavailable'
+    )
+    mockPostPlacementDebug.mockReturnValue({
+      promise: Promise.reject(resourceError),
+      abort: jest.fn(),
+    })
+
+    const { result } = renderHook(() => usePlacementDebug(mockPlacement, true))
+
+    act(() => {
+      jest.advanceTimersByTime(500)
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(result.current.error?.message).toBe('500 Internal Server Error: upstream service unavailable')
+    expect(result.current.matched).toEqual([])
+    expect(result.current.matchedCount).toBeUndefined()
   })
 
   it('clears stale state on re-fetch', async () => {

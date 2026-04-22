@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import debounce from 'debounce'
 import { IPlacement } from '../common/resources/IPlacement'
 import { postPlacementDebug, PlacementDebugResult } from '../../resources/placement-debug'
-import { isRequestAbortedError } from '../../resources/utils/resource-request'
+import { isRequestAbortedError, ResourceError } from '../../resources/utils/resource-request'
 
 export interface PlacementDebugState {
   matched: string[]
@@ -93,7 +93,15 @@ export function usePlacementDebug(placement: IPlacement | undefined, enabled = t
         })
         .catch((err: unknown) => {
           if (isRequestAbortedError(err)) return
-          const errorState = { ...EMPTY_STATE, error: err instanceof Error ? err : new Error(String(err)) }
+          let error: Error
+          if (err instanceof ResourceError) {
+            const parts = [`${err.code} ${err.message}`]
+            if (err.reason) parts.push(err.reason)
+            error = new Error(parts.join(': '))
+          } else {
+            error = err instanceof Error ? err : new Error(String(err))
+          }
+          const errorState = { ...EMPTY_STATE, error }
           cachedSpecKey = fetchKey
           cachedState = errorState
           setState(errorState)

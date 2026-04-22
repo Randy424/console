@@ -1,5 +1,14 @@
 /* Copyright Contributors to the Open Cluster Management project */
-import { Alert, Button, ButtonVariant, Label, LabelGroup, ToggleGroup, ToggleGroupItem } from '@patternfly/react-core'
+import {
+  Alert,
+  Button,
+  ButtonVariant,
+  Label,
+  LabelGroup,
+  ToggleGroup,
+  ToggleGroupItem,
+  Tooltip,
+} from '@patternfly/react-core'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   WizDetailsHidden,
@@ -169,19 +178,29 @@ export function PlacementSection(props: {
       currentPlacement &&
       displayMode === DisplayMode.Step
     ) {
-      const matchedLabel =
-        matchedCount === undefined
-          ? '-'
-          : t('{{matched}} of {{total}} clusters', { matched: matchedCount, total: totalClusters })
+      if (error) {
+        setFooterContent(
+          <div style={{ padding: '0.5rem 1rem' }}>
+            <Tooltip content={error.message || t('An unknown error occurred.')}>
+              <Alert variant="danger" isInline isPlain title={t('Unable to determine cluster matches.')} />
+            </Tooltip>
+          </div>
+        )
+      } else {
+        const matchedLabel =
+          matchedCount === undefined
+            ? '-'
+            : t('{{matched}} of {{total}} clusters', { matched: matchedCount, total: totalClusters })
 
-      setFooterContent(
-        <div style={{ padding: '0.5rem 1rem' }}>
-          <span>{t('Matched by Placement')}:</span>{' '}
-          <Button variant={ButtonVariant.link} isInline onClick={openMatchedModal} style={{ padding: 0 }}>
-            {matchedLabel}
-          </Button>
-        </div>
-      )
+        setFooterContent(
+          <div style={{ padding: '0.5rem 1rem' }}>
+            <span>{t('Matched by Placement')}:</span>{' '}
+            <Button variant={ButtonVariant.link} isInline onClick={openMatchedModal} style={{ padding: 0 }}>
+              {matchedLabel}
+            </Button>
+          </div>
+        )
+      }
     } else {
       setFooterContent(undefined)
     }
@@ -193,6 +212,7 @@ export function PlacementSection(props: {
     displayMode,
     matchedCount,
     totalClusters,
+    error,
     setFooterContent,
     openMatchedModal,
     t,
@@ -295,9 +315,9 @@ export function PlacementSection(props: {
           <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {/* Placement info alert */}
             {error ? (
-              <Alert variant="danger" isInline title={t('Unable to determine cluster matches.')}>
-                {error.message && <p>{error.message}</p>}
-              </Alert>
+              <Tooltip content={error.message || t('An unknown error occurred.')}>
+                <Alert variant="danger" isInline isPlain title={t('Unable to determine cluster matches.')} />
+              </Tooltip>
             ) : (
               matchedCount !== undefined && (
                 <Alert
