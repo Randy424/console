@@ -74,7 +74,7 @@ export async function placementDebug(req: Http2ServerRequest, res: Http2ServerRe
 
   const overrideUrl = process.env.PLACEMENT_DEBUG_URL
   const url = new URL(overrideUrl || defaultPlacementDebugUrl)
-  headers.host = defaultServiceHost
+  headers.host = overrideUrl ? url.host : defaultServiceHost
 
   const options: RequestOptions = {
     protocol: url.protocol,
@@ -84,7 +84,7 @@ export async function placementDebug(req: Http2ServerRequest, res: Http2ServerRe
     method: 'POST',
     headers,
     agent: overrideUrl ? getDevAgent() : getServiceAgent(),
-    servername: defaultServiceHost,
+    servername: overrideUrl ? url.hostname : defaultServiceHost,
   }
 
   const upstream = request(options, (response) => {
