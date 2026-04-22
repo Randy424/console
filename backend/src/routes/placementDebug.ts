@@ -2,7 +2,7 @@
 import type { Http2ServerRequest, Http2ServerResponse, OutgoingHttpHeaders } from 'node:http2'
 import { constants } from 'node:http2'
 import type { RequestOptions } from 'node:https'
-import { Agent, request } from 'node:https'
+import { request } from 'node:https'
 import { URL } from 'node:url'
 import { getServiceAgent } from '../lib/agent'
 import { logger } from '../lib/logger'
@@ -19,14 +19,6 @@ const proxyHeaders = [
 
 const defaultServiceHost = 'cluster-manager-placement.open-cluster-management-hub.svc.cluster.local'
 const defaultPlacementDebugUrl = `https://${defaultServiceHost}:9443/debug/placements/`
-
-let devAgent: Agent | undefined
-function getDevAgent(): Agent {
-  if (!devAgent) {
-    devAgent = new Agent({ rejectUnauthorized: false, keepAlive: true })
-  }
-  return devAgent
-}
 
 const MAX_BODY_SIZE = 1024 * 1024 // 1MB
 
@@ -72,9 +64,8 @@ export async function placementDebug(req: Http2ServerRequest, res: Http2ServerRe
   headers['content-type'] = 'application/json'
   headers['content-length'] = body.length
 
-  const overrideUrl = process.env.PLACEMENT_DEBUG_URL
-  const url = new URL(overrideUrl || defaultPlacementDebugUrl)
-  headers.host = overrideUrl ? url.host : defaultServiceHost
+  const url = new URL(process.env.PLACEMENT_DEBUG_URL || defaultPlacementDebugUrl)
+  headers.host = url.hostname
 
   const options: RequestOptions = {
     protocol: url.protocol,
@@ -83,8 +74,7 @@ export async function placementDebug(req: Http2ServerRequest, res: Http2ServerRe
     path: url.pathname,
     method: 'POST',
     headers,
-    agent: overrideUrl ? getDevAgent() : getServiceAgent(),
-    servername: overrideUrl ? url.hostname : defaultServiceHost,
+    agent: getServiceAgent(),
   }
 
   const upstream = request(options, (response) => {

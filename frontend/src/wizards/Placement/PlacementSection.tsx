@@ -223,7 +223,7 @@ export function PlacementSection(props: {
             clusterSetBindings={props.existingClusterSetBindings}
             bindingKind={props.bindingSubjectKind}
             clusters={props.clusters}
-            useFeatureFlag={settings.enhancedPlacement === 'enabled'}
+            showPlacementPreview={settings.enhancedPlacement === 'enabled'}
           />
         ) : null}
         <PlacementBindings
@@ -285,7 +285,7 @@ export function PlacementSection(props: {
                   {t('Add cluster set')}
                 </Button>
               }
-              useFeatureFlag={settings.enhancedPlacement === 'enabled'}
+              showPlacementPreview={settings.enhancedPlacement === 'enabled'}
               placementDebugState={debugState}
             />
           </WizItemSelector>
@@ -321,8 +321,8 @@ export function PlacementSection(props: {
                   isInline
                   title={
                     matchedCount > 0
-                      ? t('{{count}} of {{total}} clusters matched by placement', {
-                          count: matchedCount,
+                      ? t('{{matched}} of {{total}} clusters matched by placement', {
+                          matched: matchedCount,
                           total: totalClusters,
                         })
                       : t(

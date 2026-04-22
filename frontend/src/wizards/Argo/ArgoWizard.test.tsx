@@ -218,13 +218,11 @@ describe('ArgoWizard tests', () => {
     //                      placement page
     //=====================================================================
     await clickByText('New placement')
-    await clickByRole('button', { name: 'Action' })
+    await clickByRole('button', { name: 'Action' }, 0)
     await clickByRole('combobox', { name: 'Select the label' })
     await clickByRole('option', { name: /cloud/i })
 
-    await clickByRole('combobox', {
-      name: /select the operator/i,
-    })
+    await clickByText('equals any of')
     await clickByRole('option', { name: /does not equal any of/i })
 
     await clickByRole('combobox', {
@@ -331,13 +329,11 @@ describe('ArgoWizard tests', () => {
     //                      placement page
     //=====================================================================
     await clickByText('New placement')
-    await clickByRole('button', { name: 'Action' })
+    await clickByRole('button', { name: 'Action' }, 0)
     await clickByRole('combobox', { name: 'Select the label' })
     await clickByRole('option', { name: /cloud/i })
 
-    await clickByRole('combobox', {
-      name: /select the operator/i,
-    })
+    await clickByText('equals any of')
     await clickByRole('option', { name: /does not equal any of/i })
 
     await clickByRole('combobox', {

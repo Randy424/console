@@ -45,8 +45,8 @@ jest.mock('./MatchedClustersModal', () => ({
 }))
 
 jest.mock('./Placement', () => ({
-  Placement: (props: any) => <div id="placement-component" data-feature={props.useFeatureFlag} />,
-  Placements: (props: any) => <div id="placements-component" data-feature={props.useFeatureFlag} />,
+  Placement: (props: any) => <div id="placement-component" data-feature={props.showPlacementPreview} />,
+  Placements: (props: any) => <div id="placements-component" data-feature={props.showPlacementPreview} />,
 }))
 
 jest.mock('./PlacementBinding', () => ({
@@ -141,7 +141,7 @@ describe('PlacementSection', () => {
     expect(screen.getByTestId('placement-bindings')).toBeInTheDocument()
   })
 
-  it('passes useFeatureFlag when enhancedPlacement is enabled', () => {
+  it('passes showPlacementPreview when enhancedPlacement is enabled', () => {
     mockSettings = { enhancedPlacement: 'enabled' }
     mockResources = [
       {

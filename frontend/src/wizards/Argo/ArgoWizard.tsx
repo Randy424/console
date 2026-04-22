@@ -993,7 +993,7 @@ function ArgoWizardPlacementSection(props: {
                 {t('Add cluster set')}
               </Button>
             }
-            useFeatureFlag={settings.enhancedPlacement === 'enabled'}
+            showPlacementPreview={settings.enhancedPlacement === 'enabled'}
           />
         </WizItemSelector>
       ) : (

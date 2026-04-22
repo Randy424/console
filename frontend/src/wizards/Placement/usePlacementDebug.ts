@@ -128,6 +128,9 @@ export function usePlacementDebug(placement: IPlacement | undefined, enabled = t
       debouncedFetch.clear()
       abortRef.current?.()
     }
+    // placement is intentionally omitted — specKey is derived from it and
+    // serves as the sole cache/identity key. Including placement would cause
+    // spurious re-fetches on every render due to referential inequality.
   }, [specKey, enabled]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return state

@@ -72,6 +72,7 @@ jest.mock('@patternfly-labs/react-form-wizard', () => ({
     </div>
   ),
   WizKeyValue: ({ label }: any) => <div id={`key-value-${label}`} />,
+  WizLabelSelect: ({ label }: any) => <div id={`label-select-${label}`} />,
   WizMultiSelect: ({ label }: any) => <div id={`multi-select-${label}`} />,
   WizNumberInput: ({ label }: any) => <div id={`number-input-${label}`} />,
   WizTextInput: ({ label, id }: any) => <div id={`text-input-${id || label}`} />,
@@ -180,14 +181,14 @@ describe('Placement', () => {
     expect(screen.queryByText('No cluster sets available')).not.toBeInTheDocument()
   })
 
-  it('does not render feature flag UI when useFeatureFlag is false', () => {
+  it('does not render feature flag UI when showPlacementPreview is false', () => {
     render(<Placement namespaceClusterSetNames={[]} clusters={[]} />)
 
     expect(screen.queryByTestId('custom-wrapper-Matched by Placement')).not.toBeInTheDocument()
   })
 
-  it('renders WizCustomWrapper when useFeatureFlag is true', () => {
-    render(<Placement namespaceClusterSetNames={[]} clusters={[]} useFeatureFlag />)
+  it('renders WizCustomWrapper when showPlacementPreview is true', () => {
+    render(<Placement namespaceClusterSetNames={[]} clusters={[]} showPlacementPreview />)
 
     expect(screen.getByTestId('custom-wrapper-Matched by Placement')).toBeInTheDocument()
     expect(screen.getByTestId('custom-wrapper-value')).toHaveTextContent('-')
@@ -203,7 +204,9 @@ describe('Placement', () => {
       error: undefined,
     }
 
-    render(<Placement namespaceClusterSetNames={[]} clusters={[]} useFeatureFlag placementDebugState={debugState} />)
+    render(
+      <Placement namespaceClusterSetNames={[]} clusters={[]} showPlacementPreview placementDebugState={debugState} />
+    )
 
     expect(screen.getByTestId('custom-wrapper-value')).toHaveTextContent('2 of 3 clusters matched by placement')
   })
@@ -218,7 +221,9 @@ describe('Placement', () => {
       error: undefined,
     }
 
-    render(<Placement namespaceClusterSetNames={[]} clusters={[]} useFeatureFlag placementDebugState={debugState} />)
+    render(
+      <Placement namespaceClusterSetNames={[]} clusters={[]} showPlacementPreview placementDebugState={debugState} />
+    )
 
     expect(screen.getByTestId('custom-wrapper-value')).toHaveTextContent(
       'No clusters match the current placement criteria'
@@ -235,7 +240,9 @@ describe('Placement', () => {
       error: new Error('500 Internal Server Error'),
     }
 
-    render(<Placement namespaceClusterSetNames={[]} clusters={[]} useFeatureFlag placementDebugState={debugState} />)
+    render(
+      <Placement namespaceClusterSetNames={[]} clusters={[]} showPlacementPreview placementDebugState={debugState} />
+    )
 
     expect(screen.getByText('Unable to determine cluster matches.')).toBeInTheDocument()
   })
@@ -249,7 +256,7 @@ describe('Placement', () => {
   })
 
   it('sets footer content when owning debug UI', () => {
-    render(<Placement namespaceClusterSetNames={[]} clusters={[]} useFeatureFlag />)
+    render(<Placement namespaceClusterSetNames={[]} clusters={[]} showPlacementPreview />)
 
     expect(mockSetFooterContent).toHaveBeenCalled()
   })
@@ -283,7 +290,7 @@ describe('PlacementPredicate', () => {
     render(<PlacementPredicate clusters={[]} />)
 
     expect(screen.getByTestId('key-value-Label selectors')).toBeInTheDocument()
-    expect(screen.getByTestId('array-input-Label expressions')).toBeInTheDocument()
+    expect(screen.getByText('Label expressions')).toBeInTheDocument()
     expect(screen.getByTestId('array-input-Cluster claim expressions')).toBeInTheDocument()
   })
 })

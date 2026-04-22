@@ -106,6 +106,7 @@ export function Placement(props: {
   placementDebugState?: PlacementDebugState
 }) {
   const placement = useItem() as IPlacement
+  const isClusterSet = placement.spec?.clusterSets?.length
   const editMode = useEditMode()
   const displayMode = useDisplayMode()
   const { update } = useData()
@@ -192,6 +193,12 @@ export function Placement(props: {
           validation={validateKubernetesResourceName}
         />
       )}
+
+      {!isClusterSet && !props.namespaceClusterSetNames.length && props.alertTitle ? (
+        <Alert variant="warning" title={props.alertTitle}>
+          {props.alertContent}
+        </Alert>
+      ) : null}
 
       <WizMultiSelect
         label={t('Cluster sets')}
@@ -306,7 +313,7 @@ export function Placement(props: {
       />
       <WizNumberInput
         hidden={(placement) => placement.spec?.numberOfClusters === undefined}
-        label={t('Number of clusters')}
+        label={t('Limit the number of clusters selected')}
         path="spec.numberOfClusters"
       />
 
