@@ -196,6 +196,61 @@ describe('usePlacementDebug', () => {
     expect(result.current.matchedCount).toBeUndefined()
   })
 
+  it('returns cached state on initial render when cache matches', async () => {
+    mockPostPlacementDebug.mockReturnValue({
+      promise: Promise.resolve(mockResult),
+      abort: jest.fn(),
+    })
+
+    const { result: first, unmount } = renderHook(() => usePlacementDebug(mockPlacement, true))
+
+    act(() => {
+      jest.advanceTimersByTime(500)
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(first.current.matched).toEqual(['cluster1', 'cluster2'])
+    unmount()
+
+    const { result: second } = renderHook(() => usePlacementDebug(mockPlacement, true))
+
+    expect(second.current.matched).toEqual(['cluster1', 'cluster2'])
+    expect(second.current.matchedCount).toBe(2)
+    expect(second.current.loading).toBe(false)
+  })
+
+  it('uses cached state when placement spec has not changed', async () => {
+    mockPostPlacementDebug.mockReturnValue({
+      promise: Promise.resolve(mockResult),
+      abort: jest.fn(),
+    })
+
+    const { result, rerender } = renderHook(({ placement }) => usePlacementDebug(placement, true), {
+      initialProps: { placement: mockPlacement },
+    })
+
+    act(() => {
+      jest.advanceTimersByTime(500)
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(result.current.matched).toEqual(['cluster1', 'cluster2'])
+
+    const callCount = mockPostPlacementDebug.mock.calls.length
+
+    rerender({ placement: { ...mockPlacement } })
+
+    expect(result.current.matched).toEqual(['cluster1', 'cluster2'])
+    expect(result.current.loading).toBe(false)
+    expect(mockPostPlacementDebug).toHaveBeenCalledTimes(callCount)
+  })
+
   it('clears stale state on re-fetch', async () => {
     // First fetch resolves successfully
     mockPostPlacementDebug.mockReturnValue({
