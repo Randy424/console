@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react'
 import { PlacementSection, PlacementSelector } from './PlacementSection'
 import { PlacementKind } from '../common/resources/IPlacement'
 import { PlacementBindingKind } from '../common/resources/IPlacementBinding'
-import { PlacementRuleKind } from '../common/resources/IPlacementRule'
 
 let mockResources: any[] = []
 const mockUpdate = jest.fn()
@@ -45,11 +44,6 @@ jest.mock('./MatchedClustersModal', () => ({
   MatchedClustersModal: () => null,
 }))
 
-jest.mock('../../components/PlacementRuleDeprecationAlert', () => ({
-  __esModule: true,
-  default: () => <div id="deprecation-alert" />,
-}))
-
 jest.mock('./Placement', () => ({
   Placement: (props: any) => <div id="placement-component" data-feature={props.useFeatureFlag} />,
   Placements: (props: any) => <div id="placements-component" data-feature={props.useFeatureFlag} />,
@@ -59,16 +53,8 @@ jest.mock('./PlacementBinding', () => ({
   PlacementBindings: () => <div id="placement-bindings" />,
 }))
 
-jest.mock('./PlacementRule', () => ({
-  PlacementRule: () => <div id="placement-rule" />,
-}))
-
 jest.mock('../../NavigationPath', () => ({
   NavigationPath: { clusterSets: '/cluster-sets' },
-}))
-
-jest.mock('../../resources', () => ({
-  PlacementRuleApiVersion: 'apps.open-cluster-management.io/v1',
 }))
 
 jest.mock('@patternfly-labs/react-form-wizard', () => ({
@@ -92,7 +78,6 @@ const defaultProps = {
   bindingSubjectKind: 'Policy',
   bindingSubjectApiGroup: 'policy.open-cluster-management.io',
   existingPlacements: [],
-  existingPlacementRules: [],
   existingClusterSets: [],
   existingClusterSetBindings: [],
   clusters: [],
@@ -134,33 +119,6 @@ describe('PlacementSection', () => {
     render(<PlacementSection {...defaultProps} />)
 
     expect(screen.getByTestId('placement-component')).toBeInTheDocument()
-  })
-
-  it('renders PlacementRule component when one placement rule exists', () => {
-    mockResources = [
-      {
-        apiVersion: 'apps.open-cluster-management.io/v1',
-        kind: PlacementRuleKind,
-        metadata: { name: 'test-rule', namespace: 'default' },
-        spec: {},
-      },
-      {
-        apiVersion: 'cluster.open-cluster-management.io/v1beta1',
-        kind: PlacementBindingKind,
-        metadata: { name: 'test-binding', namespace: 'default' },
-        placementRef: {
-          apiGroup: 'apps.open-cluster-management.io',
-          kind: PlacementRuleKind,
-          name: 'test-rule',
-        },
-        subjects: [],
-      },
-    ]
-
-    render(<PlacementSection {...defaultProps} />)
-
-    expect(screen.getByTestId('placement-rule')).toBeInTheDocument()
-    expect(screen.getByTestId('deprecation-alert')).toBeInTheDocument()
   })
 
   it('renders advanced view when multiple placements exist', () => {
@@ -220,21 +178,6 @@ describe('PlacementSection', () => {
     expect(screen.getByTestId('single-select-Placement')).toBeInTheDocument()
   })
 
-  it('renders placement rule selector when binding references a placement rule', () => {
-    mockResources = [
-      {
-        kind: PlacementBindingKind,
-        metadata: { name: 'test-binding', namespace: 'default' },
-        placementRef: { apiGroup: 'apps.open-cluster-management.io', kind: PlacementRuleKind, name: 'test-rule' },
-        subjects: [],
-      },
-    ]
-
-    render(<PlacementSection {...defaultProps} />)
-
-    expect(screen.getByTestId('single-select-Placement rule')).toBeInTheDocument()
-  })
-
   it('auto-creates placement binding when single placement exists without binding', () => {
     mockResources = [
       {
@@ -250,24 +193,6 @@ describe('PlacementSection', () => {
     const binding = mockResources.find((r) => r.kind === PlacementBindingKind)
     expect(binding).toBeDefined()
     expect(binding.placementRef.kind).toBe(PlacementKind)
-  })
-
-  it('auto-creates placement binding when single placement rule exists without binding', () => {
-    mockResources = [
-      {
-        apiVersion: 'apps.open-cluster-management.io/v1',
-        kind: PlacementRuleKind,
-        metadata: { name: 'test-rule', namespace: 'default' },
-        spec: {},
-      },
-    ]
-
-    render(<PlacementSection {...defaultProps} />)
-
-    expect(mockUpdate).toHaveBeenCalled()
-    const binding = mockResources.find((r) => r.kind === PlacementBindingKind)
-    expect(binding).toBeDefined()
-    expect(binding.placementRef.kind).toBe(PlacementRuleKind)
   })
 
   it('hides placement selector in edit mode with existing resources', () => {
@@ -576,7 +501,6 @@ describe('PlacementSelector', () => {
     render(
       <PlacementSelector
         placementCount={0}
-        placementRuleCount={0}
         placementBindingCount={0}
         bindingSubjectKind="Policy"
         bindingSubjectApiGroup="policy.open-cluster-management.io"
@@ -591,7 +515,6 @@ describe('PlacementSelector', () => {
     render(
       <PlacementSelector
         placementCount={0}
-        placementRuleCount={0}
         placementBindingCount={0}
         bindingSubjectKind="Policy"
         bindingSubjectApiGroup="policy.open-cluster-management.io"
@@ -606,7 +529,6 @@ describe('PlacementSelector', () => {
     render(
       <PlacementSelector
         placementCount={0}
-        placementRuleCount={0}
         placementBindingCount={0}
         bindingSubjectKind="Policy"
         bindingSubjectApiGroup="policy.open-cluster-management.io"
@@ -623,7 +545,6 @@ describe('PlacementSelector', () => {
     render(
       <PlacementSelector
         placementCount={1}
-        placementRuleCount={0}
         placementBindingCount={1}
         bindingSubjectKind="Policy"
         bindingSubjectApiGroup="policy.open-cluster-management.io"
@@ -637,7 +558,6 @@ describe('PlacementSelector', () => {
     render(
       <PlacementSelector
         placementCount={0}
-        placementRuleCount={0}
         placementBindingCount={1}
         bindingSubjectKind="Policy"
         bindingSubjectApiGroup="policy.open-cluster-management.io"
