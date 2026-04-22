@@ -184,11 +184,11 @@ export function PlacementSection(props: {
           : t('{{matched}} of {{total}} clusters', { matched: matchedCount, total: totalClusters })
 
       setFooterContent(
-        <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+        <div style={{ padding: '0 1rem 1rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
           <span>{t('Matched by Placement')}:</span>{' '}
           {error ? (
             <Tooltip content={error.message || t('An unknown error occurred.')}>
-              <Alert variant="danger" isInline isPlain title={t('Unable to determine cluster matches.')} />
+              <Alert variant="warning" isInline isPlain title={t('Unable to determine cluster matches.')} />
             </Tooltip>
           ) : (
             <Button variant={ButtonVariant.link} isInline onClick={openMatchedModal} style={{ padding: 0 }}>
@@ -312,7 +312,7 @@ export function PlacementSection(props: {
             {/* Placement info alert */}
             {error ? (
               <Tooltip content={error.message || t('An unknown error occurred.')}>
-                <Alert variant="danger" isInline isPlain title={t('Unable to determine cluster matches.')} />
+                <Alert variant="warning" isInline isPlain title={t('Unable to determine cluster matches.')} />
               </Tooltip>
             ) : (
               matchedCount !== undefined && (

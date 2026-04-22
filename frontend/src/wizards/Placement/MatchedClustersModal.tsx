@@ -1,7 +1,7 @@
 /* Copyright Contributors to the Open Cluster Management project */
 import { Modal, ModalBody, ModalHeader, ModalVariant, SearchInput, Tooltip } from '@patternfly/react-core'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from '../../lib/acm-i18next'
 
 export interface MatchedClustersModalProps {
@@ -15,6 +15,10 @@ export interface MatchedClustersModalProps {
 export function MatchedClustersModal(props: MatchedClustersModalProps) {
   const { t } = useTranslation()
   const [searchTerm, setSearchTerm] = useState('')
+
+  useEffect(() => {
+    if (props.isOpen) setSearchTerm('')
+  }, [props.isOpen])
 
   const filteredMatched = useMemo(() => {
     if (!searchTerm) return props.matchedClusters
