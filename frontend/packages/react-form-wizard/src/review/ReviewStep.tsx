@@ -22,6 +22,7 @@ import { CheckIcon, ExclamationCircleIcon } from '@patternfly/react-icons'
 import {
   Fragment,
   type ComponentProps,
+  isValidElement,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -916,7 +917,8 @@ function renderReviewNodeSequence(
     if (isReviewInputNode(n)) {
       // Alert-variant inputs render as standalone Alerts, not description-list rows
       if (n.alertVariant) {
-        const title = typeof n.value === 'string' ? n.value : formatReviewValue(n.value)
+        const title =
+          typeof n.value === 'string' ? n.value : isValidElement(n.value) ? n.value : formatReviewValue(n.value)
         out.push(
           <Alert
             key={`alert-${n.path}`}

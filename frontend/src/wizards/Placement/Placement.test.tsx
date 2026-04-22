@@ -208,7 +208,7 @@ describe('Placement', () => {
       <Placement namespaceClusterSetNames={[]} clusters={[]} showPlacementPreview placementDebugState={debugState} />
     )
 
-    expect(screen.getByTestId('custom-wrapper-value')).toHaveTextContent('2 of 3 clusters matched by placement')
+    expect(screen.getByTestId('custom-wrapper-value')).toHaveTextContent('Matched by Placement: 2 of 3 clusters')
   })
 
   it('shows no-match message when matchedCount is 0', () => {

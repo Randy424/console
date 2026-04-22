@@ -16,7 +16,7 @@ import {
   WizNumberInput,
   WizTextInput,
 } from '@patternfly-labs/react-form-wizard'
-import { Alert, Button, ButtonVariant, Divider, ExpandableSection, Label, Tooltip } from '@patternfly/react-core'
+import { Alert, Button, ButtonVariant, Divider, ExpandableSection, Flex, Label, Tooltip } from '@patternfly/react-core'
 import { ExternalLinkAltIcon } from '@patternfly/react-icons'
 import get from 'get-value'
 import { Fragment, ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
@@ -28,6 +28,7 @@ import { IPlacement, PlacementKind, PlacementType, Predicate, Toleration } from 
 import { IResource } from '../common/resources/IResource'
 import { useLabelValuesMap } from '../common/useLabelValuesMap'
 import { MatchExpression, MatchExpressionCollapsed, MatchExpressionSummary } from './MatchExpression'
+import './MatchExpression.css'
 import { MatchedClustersModal } from './MatchedClustersModal'
 import { PlacementDebugState, usePlacementDebug } from './usePlacementDebug'
 
@@ -158,18 +159,29 @@ export function Placement(props: {
           path="placement-matched-clusters"
           label={t('Matched by Placement')}
           value={
-            error
-              ? t('Unable to determine cluster matches.')
-              : matchedCount === undefined
-                ? '-'
-                : matchedCount > 0
-                  ? t('{{matched}} of {{total}} clusters matched by placement', {
-                      matched: matchedCount,
-                      total: totalClusters,
-                    })
-                  : t(
-                      'No clusters match the current placement criteria. To identify available clusters, check your label expressions, tolerations, or limits.'
-                    )
+            error ? (
+              t('Unable to determine cluster matches.')
+            ) : matchedCount === undefined ? (
+              '-'
+            ) : matchedCount > 0 ? (
+              <span>
+                {t('Matched by Placement')}:{' '}
+                <Button
+                  variant={ButtonVariant.link}
+                  isInline
+                  onClick={() => setIsMatchedClustersModalOpen(true)}
+                  style={{ padding: 0 }}
+                >
+                  {totalClusters === 1
+                    ? t('{{matched}} of {{total}} cluster', { matched: matchedCount, total: totalClusters })
+                    : t('{{matched}} of {{total}} clusters', { matched: matchedCount, total: totalClusters })}
+                </Button>
+              </span>
+            ) : (
+              t(
+                'No clusters match the current placement criteria. To identify available clusters, check your label expressions, tolerations, or limits.'
+              )
+            )
           }
           nonEditable
           alertVariant={
@@ -250,43 +262,53 @@ export function Placement(props: {
           defaultCollapsed={editMode !== EditMode.Create}
           collapsedPlaceholder={t('Expand to edit')}
         >
-          <WizTextInput id="toleration-key" path="key" label={t('Key')} placeholder={t('Enter the key')} required />
-          <WizLabelSelect
-            id="toleration-operator"
-            path="operator"
-            label={t('Operator')}
-            placeholder={t('Select the operator')}
-            options={[
-              { label: t('Exists'), value: 'Exists' },
-              { label: t('Equal'), value: 'Equal' },
-            ]}
-            required
-          />
-          <WizTextInput
-            id="toleration-value"
-            path="value"
-            label={t('Value')}
-            placeholder={t('Enter the value')}
-            hidden={(toleration) => toleration?.operator !== 'Equal'}
-            validation={(value, item: any) => {
-              if (item?.operator === 'Equal' && !value) {
-                return t('Value is required when operator is Equal')
-              }
-              return undefined
-            }}
-          />
-          <WizLabelSelect
-            id="toleration-effect"
-            path="effect"
-            label={t('Effect')}
-            placeholder={t('Select the effect')}
-            options={[
-              { label: t('NoSelect'), value: 'NoSelect' },
-              { label: t('PreferNoSelect'), value: 'PreferNoSelect' },
-              { label: t('NoSelectIfNew'), value: 'NoSelectIfNew' },
-            ]}
-            helperText={t('Leave empty for all effects')}
-          />
+          <Flex style={{ rowGap: 16 }}>
+            <div className="match-expression-field" style={{ maxWidth: 200 }}>
+              <WizTextInput id="toleration-key" path="key" label={t('Key')} placeholder={t('Enter the key')} required />
+            </div>
+            <div className="match-expression-field" style={{ maxWidth: 200 }}>
+              <WizLabelSelect
+                id="toleration-operator"
+                path="operator"
+                label={t('Operator')}
+                placeholder={t('Select the operator')}
+                options={[
+                  { label: t('Exists'), value: 'Exists' },
+                  { label: t('Equal'), value: 'Equal' },
+                ]}
+                required
+              />
+            </div>
+            <div className="match-expression-field" style={{ maxWidth: 200 }}>
+              <WizTextInput
+                id="toleration-value"
+                path="value"
+                label={t('Value')}
+                placeholder={t('Enter the value')}
+                hidden={(toleration) => toleration?.operator !== 'Equal'}
+                validation={(value, item: any) => {
+                  if (item?.operator === 'Equal' && !value) {
+                    return t('Value is required when operator is Equal')
+                  }
+                  return undefined
+                }}
+              />
+            </div>
+            <div className="match-expression-field" style={{ maxWidth: 200 }}>
+              <WizLabelSelect
+                id="toleration-effect"
+                path="effect"
+                label={t('Effect')}
+                placeholder={t('Select the effect')}
+                options={[
+                  { label: t('NoSelect'), value: 'NoSelect' },
+                  { label: t('PreferNoSelect'), value: 'PreferNoSelect' },
+                  { label: t('NoSelectIfNew'), value: 'NoSelectIfNew' },
+                ]}
+                helperText={t('Leave empty for all effects')}
+              />
+            </div>
+          </Flex>
           <WizNumberInput
             id="toleration-seconds"
             path="tolerationSeconds"
@@ -317,7 +339,7 @@ export function Placement(props: {
         path="spec.numberOfClusters"
       />
 
-      {ownsDebugUI && (
+      {featureEnabled && (
         <MatchedClustersModal
           isOpen={isMatchedClustersModalOpen}
           onClose={() => setIsMatchedClustersModalOpen(false)}

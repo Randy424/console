@@ -33,12 +33,14 @@ export function MatchedClustersModal(props: MatchedClustersModalProps) {
   }, [props.notMatchedClusters, searchTerm])
 
   const hasLimit = props.notMatchedClusters.length > 0
+  const matchedLen = props.matchedClusters.length
   const title = hasLimit
-    ? t('{{matched}} of {{total}} clusters matched', {
-        matched: props.matchedClusters.length,
-        total: props.totalClusters,
-      })
-    : t('{{count}} clusters matched', { count: props.matchedClusters.length })
+    ? props.totalClusters === 1
+      ? t('{{matched}} of {{total}} cluster matched', { matched: matchedLen, total: props.totalClusters })
+      : t('{{matched}} of {{total}} clusters matched', { matched: matchedLen, total: props.totalClusters })
+    : matchedLen === 1
+      ? t('{{matched}} cluster matched', { matched: matchedLen })
+      : t('{{matched}} clusters matched', { matched: matchedLen })
 
   const rowStyle = {
     padding: '0.75rem 1rem',
