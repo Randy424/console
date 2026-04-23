@@ -12,7 +12,7 @@
   "{{action}} {{itemKind}}?": "{{action}} {{itemKind}}?",
   "{{count}} cluster cannot be edited ": "{{count}} cluster cannot be edited ",
   "{{count}} cluster cannot be edited _plural": "{{count}} clusters cannot be edited ",
-  "{{count}} clusters matched": "{{count}} clusters matched",
+  "{{count}} clusters matched": "{{count}} cluster matched",
   "{{count}} clusters matched_plural": "{{count}} clusters matched",
   "{{count}} clusters with unknown status": "{{count}} cluster with unknown status",
   "{{count}} clusters with unknown status_plural": "{{count}} clusters with unknown status",
