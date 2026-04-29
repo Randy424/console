@@ -93,7 +93,7 @@ log_info "Current AAP status: $AAP_STATUS"
 
 case "$AAP_STATUS" in
     "healthy")
-        ROUTE_URL=$(oc get route ${PLATFORM_NAME} -n $AAP_NAMESPACE -o jsonpath='{.spec.host}' 2>/dev/null || echo "N/A")
+        ROUTE_URL=$(oc get route "${PLATFORM_NAME}" -n "$AAP_NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null || echo "N/A")
         log_info "AAP is already installed and healthy at https://${ROUTE_URL}"
         exit 0
         ;;
@@ -117,7 +117,7 @@ log_info "Starting AAP installation on OpenShift cluster: $(oc whoami --show-ser
 
 # Create namespace
 log_info "Creating namespace: $AAP_NAMESPACE"
-oc create namespace $AAP_NAMESPACE --dry-run=client -o yaml | oc apply -f -
+oc create namespace "$AAP_NAMESPACE" --dry-run=client -o yaml | oc apply -f -
 
 # Install AAP Operator
 log_info "Installing AAP Operator via OperatorHub"
@@ -151,7 +151,9 @@ ELAPSED=0
 INTERVAL=10
 
 while [ $ELAPSED -lt $TIMEOUT ]; do
-    CSV_CHECK=$(oc get csv -n $AAP_NAMESPACE -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -c "Succeeded" || echo "0")
+    CSV_CHECK=$(oc get csv -n "$AAP_NAMESPACE" -o jsonpath='{.items[*].status.phase}' 2>/dev/null \
+        | tr ' ' '\n' | grep -c "Succeeded" || true)
+    CSV_CHECK=${CSV_CHECK:-0}
     if [ "$CSV_CHECK" -gt "0" ]; then
         log_info "AAP Operator is ready"
         break
@@ -163,7 +165,7 @@ done
 
 if [ $ELAPSED -ge $TIMEOUT ]; then
     log_warn "Timeout waiting for AAP Operator CSV, checking if operator is already installed..."
-    OPERATOR_PODS=$(oc get pods -n $AAP_NAMESPACE -l app.kubernetes.io/component=operator --no-headers 2>/dev/null | wc -l)
+    OPERATOR_PODS=$(oc get pods -n "$AAP_NAMESPACE" -l app.kubernetes.io/component=operator --no-headers 2>/dev/null | wc -l)
     if [ "$OPERATOR_PODS" -gt "0" ]; then
         log_info "Operator pods found, continuing with installation..."
     else
@@ -172,7 +174,7 @@ if [ $ELAPSED -ge $TIMEOUT ]; then
     fi
 fi
 
-CSV_VERSION=$(oc get csv -n $AAP_NAMESPACE -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | grep -o 'aap-operator[^ ]*' | head -1 || echo "unknown")
+CSV_VERSION=$(oc get csv -n "$AAP_NAMESPACE" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | grep -o 'aap-operator[^ ]*' | head -1 || echo "unknown")
 log_info "AAP Operator CSV: $CSV_VERSION"
 
 # Create CR based on mode
@@ -214,64 +216,59 @@ spec:
     echo "$PLATFORM_SPEC" | oc apply -f -
 fi
 
-# Wait for CR to be ready
-log_info "Waiting for AAP to be ready (mode: $AAP_MODE)..."
+# Wait for deployment to be ready (secret + route must exist before proceeding)
+log_info "Waiting for AAP deployment to be ready (mode: $AAP_MODE)..."
 log_info "This may take several minutes as components are deployed..."
 TIMEOUT=900
 ELAPSED=0
+INTERVAL=15
 
 while [ $ELAPSED -lt $TIMEOUT ]; do
-    if [ "$AAP_MODE" = "controller" ]; then
-        CR_STATUS=$(oc get automationcontroller $PLATFORM_NAME -n $AAP_NAMESPACE \
-            -o jsonpath='{.status.conditions[?(@.type=="Running")].status}' 2>/dev/null || echo "Unknown")
-    else
-        CR_STATUS=$(oc get ansibleautomationplatform $PLATFORM_NAME -n $AAP_NAMESPACE \
-            -o jsonpath='{.status.conditions[?(@.type=="Running")].status}' 2>/dev/null || echo "Unknown")
-    fi
-    if [ "$CR_STATUS" = "True" ]; then
-        log_info "AAP is ready"
+    ADMIN_SECRET=$(oc get secret "${PLATFORM_NAME}-admin-password" -n "$AAP_NAMESPACE" \
+        -o jsonpath='{.data.password}' 2>/dev/null || true)
+    ROUTE_HOST=$(oc get route "${PLATFORM_NAME}" -n "$AAP_NAMESPACE" \
+        -o jsonpath='{.spec.host}' 2>/dev/null || true)
+
+    if [ -n "$ADMIN_SECRET" ] && [ -n "$ROUTE_HOST" ]; then
+        log_info "AAP deployment is ready (secret + route available)"
         break
     fi
+
     sleep $INTERVAL
     ELAPSED=$((ELAPSED + INTERVAL))
-    log_info "Waiting... ($ELAPSED/$TIMEOUT seconds) - Status: $CR_STATUS"
+    HAS_SECRET="no"; [ -n "$ADMIN_SECRET" ] && HAS_SECRET="yes"
+    HAS_ROUTE="no"; [ -n "$ROUTE_HOST" ] && HAS_ROUTE="yes"
+    log_info "Waiting... (${ELAPSED}/${TIMEOUT}s) secret=${HAS_SECRET} route=${HAS_ROUTE}"
 done
 
 if [ $ELAPSED -ge $TIMEOUT ]; then
-    log_warn "Timeout waiting for deployment"
-    if [ "$AAP_MODE" = "controller" ]; then
-        RUNNING_PODS=$(oc get pods -n $AAP_NAMESPACE -l app.kubernetes.io/managed-by=automationcontroller-operator --no-headers 2>/dev/null | awk '$3=="Running"{c++} END{print c+0}')
-    else
-        RUNNING_PODS=$(oc get pods -n $AAP_NAMESPACE -l app.kubernetes.io/name=aap-platform,app.kubernetes.io/component=gateway --no-headers 2>/dev/null | awk '$3=="Running"{c++} END{print c+0}')
-    fi
-    if [ "$RUNNING_PODS" -gt "0" ]; then
-        log_info "Pods are running, deployment may be partially ready"
-    else
-        log_error "Deployment failed"
+    if [ -z "$ADMIN_SECRET" ]; then
+        log_error "Timeout: admin password secret not found"
         exit 1
+    fi
+    if [ -z "$ROUTE_HOST" ]; then
+        log_warn "Timeout: route not found, continuing without URL"
     fi
 fi
 
-# Get admin password
-log_info "Retrieving admin password from secret..."
-ADMIN_PASSWORD=$(oc get secret ${PLATFORM_NAME}-admin-password -n $AAP_NAMESPACE -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
+ADMIN_PASSWORD=$(echo "$ADMIN_SECRET" | base64 -d)
+ROUTE_URL="$ROUTE_HOST"
 
 if [ -z "$ADMIN_PASSWORD" ]; then
-    log_error "Failed to retrieve admin password"
+    log_error "Failed to decode admin password"
     exit 1
 fi
 
-# Get route URL
-log_info "Retrieving AAP Platform route..."
-ROUTE_URL=$(oc get route ${PLATFORM_NAME} -n $AAP_NAMESPACE -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
-
-if [ -z "$ROUTE_URL" ]; then
-    log_warn "Route not found yet. Waiting for route to be created..."
-    sleep 30
-    ROUTE_URL=$(oc get route ${PLATFORM_NAME} -n $AAP_NAMESPACE -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+# --- Determine API base URL ---
+AAP_URL="https://${ROUTE_URL}"
+if [ "$AAP_MODE" = "controller" ]; then
+    API_BASE="${AAP_URL}/api/v2"
+    API_PING_PATH="/api/v2/ping/"
+else
+    API_BASE="${AAP_URL}/api/controller/v2"
+    API_PING_PATH="/api/controller/v2/config/"
 fi
 
-# --- Subscription management ---
 if [ -z "$ROUTE_URL" ]; then
     log_warn "Route is unavailable; skipping automated subscription setup"
 elif [ -n "$RH_OFFLINE_TOKEN" ]; then
@@ -281,89 +278,163 @@ elif [ -n "$RH_OFFLINE_TOKEN" ]; then
     ALLOCATION_NAME="AAP-Automation-$(date +%Y%m%d)"
     MANIFEST_FILE=$(mktemp /tmp/manifest-XXXXXX.zip)
     trap 'rm -f "$MANIFEST_FILE"' EXIT
-    AAP_URL="https://${ROUTE_URL}"
 
-    # Exchange offline token for access token
-    log_info "Obtaining access token from Red Hat SSO..."
-    ACCESS_TOKEN=$(curl "${CURL_OPTS[@]}" -X POST \
-        "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token" \
-        -d "grant_type=refresh_token" \
-        -d "client_id=rhsm-api" \
-        -d "refresh_token=${RH_OFFLINE_TOKEN}" | jq -r '.access_token')
+    # Wait for API readiness before attempting subscription upload
+    log_info "Waiting for AAP API to accept requests..."
+    API_TIMEOUT=600
+    API_ELAPSED=0
+    while [ $API_ELAPSED -lt $API_TIMEOUT ]; do
+        API_STATUS=$(curl "${CURL_OPTS[@]}" -o /dev/null -w "%{http_code}" \
+            -u "admin:${ADMIN_PASSWORD}" "${AAP_URL}${API_PING_PATH}" 2>/dev/null)
+        if [ "$API_STATUS" = "200" ]; then
+            log_info "AAP API is ready"
+            break
+        fi
+        sleep 15
+        API_ELAPSED=$((API_ELAPSED + 15))
+        log_info "Waiting for API... (${API_ELAPSED}/${API_TIMEOUT}s) - HTTP ${API_STATUS}"
+    done
 
-    if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
-        log_warn "Failed to obtain access token - skipping subscription setup"
+    if [ "$API_STATUS" != "200" ]; then
+        log_warn "AAP API not responding (HTTP ${API_STATUS}) - skipping subscription setup"
     else
-        # Check for existing allocation by name, or create new one
-        ALLOCATION_UUID=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-            "${RHSM_API}/allocations" | jq -r --arg name "$ALLOCATION_NAME" '[.body[] | select(.name == $name)][0].uuid // empty')
+        # Exchange offline token for access token
+        log_info "Obtaining access token from Red Hat SSO..."
+        ACCESS_TOKEN=$(curl "${CURL_OPTS[@]}" -X POST \
+            "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token" \
+            -d "grant_type=refresh_token" \
+            -d "client_id=rhsm-api" \
+            -d "refresh_token=${RH_OFFLINE_TOKEN}" | jq -r '.access_token')
 
-        if [ -z "$ALLOCATION_UUID" ]; then
-            log_info "Creating new subscription allocation: $ALLOCATION_NAME"
-            ALLOCATION_UUID=$(curl "${CURL_OPTS[@]}" -X POST \
-                -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d "{\"name\":\"${ALLOCATION_NAME}\",\"type\":\"Satellite\",\"version\":\"6.11\"}" \
-                "${RHSM_API}/allocations" | jq -r '.body.uuid // empty')
+        if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
+            log_warn "Failed to obtain access token - skipping subscription setup"
+        else
+            # Check for existing allocation by name, or create new one
+            ALLOCATION_UUID=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+                "${RHSM_API}/allocations" | jq -r --arg name "$ALLOCATION_NAME" \
+                '[.body[] | select(.name == $name)][0].uuid // empty')
 
-            if [ -n "$ALLOCATION_UUID" ]; then
-                POOL_ID=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-                    "${RHSM_API}/allocations/${ALLOCATION_UUID}/subscriptions/available" | \
-                    jq -r '[.body[] | select(.product_name | contains("Ansible"))][0].pool_id // empty')
+            if [ -z "$ALLOCATION_UUID" ]; then
+                log_info "Creating new subscription allocation: $ALLOCATION_NAME"
+                ALLOCATION_UUID=$(curl "${CURL_OPTS[@]}" -X POST \
+                    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"name\":\"${ALLOCATION_NAME}\",\"type\":\"Satellite\",\"version\":\"6.11\"}" \
+                    "${RHSM_API}/allocations" | jq -r '.body.uuid // empty')
 
-                if [ -n "$POOL_ID" ]; then
-                    ATTACH_RESPONSE=$(curl "${CURL_OPTS[@]}" -X POST \
-                        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-                        -H "Content-Type: application/json" \
-                        -d "{\"pool_id\":\"${POOL_ID}\",\"quantity\":1}" \
-                        "${RHSM_API}/allocations/${ALLOCATION_UUID}/subscriptions" \
-                        -w "\nHTTP_CODE:%{http_code}")
-                    ATTACH_HTTP=$(echo "$ATTACH_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
-                    if [ "$ATTACH_HTTP" = "200" ] || [ "$ATTACH_HTTP" = "201" ]; then
-                        log_info "Subscription attached"
+                if [ -n "$ALLOCATION_UUID" ]; then
+                    POOL_ID=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+                        "${RHSM_API}/allocations/${ALLOCATION_UUID}/subscriptions/available" | \
+                        jq -r '[.body[] | select(.product_name | contains("Ansible"))][0].pool_id // empty')
+
+                    if [ -n "$POOL_ID" ]; then
+                        ATTACH_RESPONSE=$(curl "${CURL_OPTS[@]}" -X POST \
+                            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+                            -H "Content-Type: application/json" \
+                            -d "{\"pool_id\":\"${POOL_ID}\",\"quantity\":1}" \
+                            "${RHSM_API}/allocations/${ALLOCATION_UUID}/subscriptions" \
+                            -w "\nHTTP_CODE:%{http_code}")
+                        ATTACH_HTTP=$(echo "$ATTACH_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+                        if [ "$ATTACH_HTTP" = "200" ] || [ "$ATTACH_HTTP" = "201" ]; then
+                            log_info "Subscription attached"
+                        else
+                            log_warn "Subscription attach returned HTTP $ATTACH_HTTP"
+                        fi
                     else
-                        log_warn "Subscription attach returned HTTP $ATTACH_HTTP"
+                        log_warn "No AAP subscription pool found"
                     fi
                 else
-                    log_warn "No AAP subscription pool found"
+                    log_warn "Failed to create allocation - skipping subscription setup"
                 fi
-            else
-                log_warn "Failed to create allocation - skipping subscription setup"
-            fi
-        fi
-
-        if [ -n "$ALLOCATION_UUID" ]; then
-            log_info "Downloading subscription manifest..."
-            DOWNLOAD_HTTP=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-                "${RHSM_API}/allocations/${ALLOCATION_UUID}/export" \
-                -o "${MANIFEST_FILE}" -w "%{http_code}")
-
-            if [ "$DOWNLOAD_HTTP" != "200" ]; then
-                log_warn "Manifest download returned HTTP $DOWNLOAD_HTTP"
-                rm -f "$MANIFEST_FILE"
             fi
 
-            if [ -f "$MANIFEST_FILE" ] && [ -s "$MANIFEST_FILE" ]; then
-                log_info "Uploading manifest to AAP..."
-                UPLOAD_RESPONSE=$(curl "${CURL_OPTS[@]}" -X POST \
-                    -u "admin:${ADMIN_PASSWORD}" \
-                    -F "manifest=@${MANIFEST_FILE}" \
-                    "${AAP_URL}/api/controller/v2/config/subscriptions/" \
-                    -w "\nHTTP_CODE:%{http_code}")
+            if [ -n "$ALLOCATION_UUID" ]; then
+                log_info "Downloading subscription manifest..."
+                # Export API may be async — check for redirect href
+                EXPORT_RESPONSE=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+                    "${RHSM_API}/allocations/${ALLOCATION_UUID}/export")
+                EXPORT_HREF=$(echo "$EXPORT_RESPONSE" | jq -r '.body.href // empty' 2>/dev/null)
 
-                HTTP_CODE=$(echo "$UPLOAD_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
-                if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
-                    log_info "Subscription manifest uploaded successfully"
+                if [ -n "$EXPORT_HREF" ]; then
+                    log_info "Export is async, downloading from redirect..."
+                    DOWNLOAD_HTTP=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+                        "$EXPORT_HREF" -o "${MANIFEST_FILE}" -w "%{http_code}")
                 else
-                    log_warn "Manifest upload returned HTTP $HTTP_CODE"
+                    DOWNLOAD_HTTP=$(curl "${CURL_OPTS[@]}" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+                        "${RHSM_API}/allocations/${ALLOCATION_UUID}/export" \
+                        -o "${MANIFEST_FILE}" -w "%{http_code}")
                 fi
-            else
-                log_warn "Failed to download manifest"
+
+                if [ "$DOWNLOAD_HTTP" != "200" ]; then
+                    log_warn "Manifest download returned HTTP $DOWNLOAD_HTTP"
+                    rm -f "$MANIFEST_FILE"
+                fi
+
+                if [ -f "$MANIFEST_FILE" ] && [ -s "$MANIFEST_FILE" ]; then
+                    log_info "Uploading manifest to AAP..."
+                    MANIFEST_B64=$(base64 < "${MANIFEST_FILE}")
+                    UPLOAD_RESPONSE=$(curl "${CURL_OPTS[@]}" -X POST \
+                        -u "admin:${ADMIN_PASSWORD}" \
+                        -H "Content-Type: application/json" \
+                        -d "{\"manifest\":\"${MANIFEST_B64}\",\"eula\":true}" \
+                        "${API_BASE}/config/subscriptions/" \
+                        -w "\nHTTP_CODE:%{http_code}")
+
+                    HTTP_CODE=$(echo "$UPLOAD_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+                    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+                        log_info "Subscription manifest uploaded successfully"
+                    else
+                        log_warn "Manifest upload returned HTTP $HTTP_CODE (AAP 2.5 with SCA may not require it)"
+                    fi
+                else
+                    log_warn "Failed to download manifest"
+                fi
             fi
         fi
     fi
 else
     log_info "No RH_OFFLINE_TOKEN set - skipping automated subscription setup"
+fi
+
+# --- OAuth token generation ---
+OAUTH_TOKEN=""
+if [ -n "$ROUTE_URL" ] && [ -n "$ADMIN_PASSWORD" ]; then
+    log_info "Waiting for AAP API before generating token..."
+    API_TIMEOUT=600
+    API_ELAPSED=0
+    API_STATUS=""
+    while [ $API_ELAPSED -lt $API_TIMEOUT ]; do
+        API_STATUS=$(curl "${CURL_OPTS[@]}" -o /dev/null -w "%{http_code}" \
+            -u "admin:${ADMIN_PASSWORD}" "${AAP_URL}${API_PING_PATH}" 2>/dev/null)
+        if [ "$API_STATUS" = "200" ]; then break; fi
+        sleep 15
+        API_ELAPSED=$((API_ELAPSED + 15))
+        log_info "Waiting for API... (${API_ELAPSED}/${API_TIMEOUT}s) - HTTP ${API_STATUS}"
+    done
+
+    if [ "$API_STATUS" = "200" ]; then
+        log_info "Generating OAuth2 token for external integrations..."
+        TOKEN_RESPONSE=$(curl "${CURL_OPTS[@]}" -X POST \
+            -u "admin:${ADMIN_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            -d '{"scope":"write"}' \
+            "${API_BASE}/tokens/")
+        OAUTH_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token // empty')
+    else
+        log_warn "AAP API not ready (HTTP ${API_STATUS}) - skipping token generation"
+    fi
+
+    if [ -n "$OAUTH_TOKEN" ]; then
+        log_info "OAuth token generated successfully"
+        oc create secret generic "${PLATFORM_NAME}-oauth-token" \
+            -n "$AAP_NAMESPACE" \
+            --from-literal=token="$OAUTH_TOKEN" \
+            --from-literal=host="$ROUTE_URL" \
+            --dry-run=client -o yaml | oc apply -f -
+        log_info "Token stored in secret: ${PLATFORM_NAME}-oauth-token"
+    else
+        log_warn "Failed to generate OAuth token"
+    fi
 fi
 
 # --- Summary ---
@@ -378,6 +449,9 @@ log_info "Platform Name:    $PLATFORM_NAME"
 log_info "URL:              https://${ROUTE_URL}"
 log_info "Username:         admin"
 log_info "Password:         (retrieve via command below)"
+if [ -n "$OAUTH_TOKEN" ]; then
+    log_info "OAuth Secret:     ${PLATFORM_NAME}-oauth-token"
+fi
 echo ""
 log_info "Deployed Components:"
 if [ "$AAP_MODE" = "controller" ]; then
@@ -395,3 +469,7 @@ fi
 echo ""
 log_info "To retrieve the password later, run:"
 log_info "  oc get secret ${PLATFORM_NAME}-admin-password -n $AAP_NAMESPACE -o jsonpath='{.data.password}' | base64 -d"
+if [ -n "$OAUTH_TOKEN" ]; then
+    log_info "To retrieve the OAuth token later, run:"
+    log_info "  oc get secret ${PLATFORM_NAME}-oauth-token -n $AAP_NAMESPACE -o jsonpath='{.data.token}'"
+fi
