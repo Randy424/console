@@ -12,6 +12,7 @@ import { AcmActionGroup, AcmButton, AcmPage, AcmPageHeader, AcmSecondaryNav } fr
 import { useAddRemediationPolicies } from '../../common/useCustom'
 import { getPolicyDetailSourceLabel, getPolicySource } from '../../common/util'
 import { PolicyActionDropdown } from '../../components/PolicyActionDropdown'
+import { PolicyAnalysisModal } from '../../components/PolicyAnalysisModal'
 import { PolicyTableItem } from '../Policies'
 
 export type PolicyDetailsContext = {
@@ -28,6 +29,7 @@ export function PolicyDetailsPage() {
   const subscriptions = useRecoilValue(subscriptionsState)
   const channels = useRecoilValue(channelsState)
   const [modal, setModal] = useState<ReactNode | undefined>()
+  const [analysisOpen, setAnalysisOpen] = useState(false)
 
   const params = useParams()
   const policyNamespace = params.namespace ?? ''
@@ -110,8 +112,17 @@ export function PolicyDetailsPage() {
           actions={
             <>
               {modal !== undefined && modal}
+              <PolicyAnalysisModal
+                policy={selectedPolicy}
+                policies={policies}
+                isOpen={analysisOpen}
+                onClose={() => setAnalysisOpen(false)}
+              />
               <AcmActionGroup>
                 {[
+                  <AcmButton key="analyze-policy" variant="secondary" onClick={() => setAnalysisOpen(true)}>
+                    {t('Analyze')}
+                  </AcmButton>,
                   <PolicyActionDropdown
                     key={`${selectedPolicy?.metadata.name ?? 'policy'}-actions`}
                     setModal={setModal}
