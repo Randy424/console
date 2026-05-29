@@ -36,7 +36,8 @@
     "pluralize": "8.0.0",
     "prom-client": "^14.2.0",
     "raw-body": "2.5.3",
-    "ws": "^8.21.0"
+    "ws": "^8.21.0",
+    "acm-policy-analysis": "file:../../acm-policy-analysis"
   },
   "devDependencies": {
     "@types/eslint": "9.6.1",
@@ -91,7 +92,9 @@
     ],
     "moduleNameMapper": {
       "(\\.{1,2}/.*)\\.js$": "$1",
-      "got(.*)$": "<rootDir>/node_modules/got-11.8.2/dist/source/index.js"
+      "got(.*)$": "<rootDir>/node_modules/got-11.8.2/dist/source/index.js",
+      "^acm-policy-analysis/providers$": "<rootDir>/../../acm-policy-analysis/providers/index.ts",
+      "^acm-policy-analysis$": "<rootDir>/../../acm-policy-analysis/lib/index.ts"
     },
     "testTimeout": 60000,
     "testEnvironment": "node",
