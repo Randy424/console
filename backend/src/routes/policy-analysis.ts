@@ -34,28 +34,7 @@ export async function policyAnalysis(req: Http2ServerRequest, res: Http2ServerRe
         const fullResult = await analyzeWithProvider(parsed, result, analysisProvider)
 
         res.setHeader('Content-Type', 'application/json')
-        res.end(
-          JSON.stringify({
-            policy: { name: parsed.name, namespace: parsed.namespace, disabled: parsed.disabled },
-            provider: fullResult.provider,
-            riskScores: result.riskScores,
-            antiPatterns: result.antiPatterns,
-            fleetRisk: result.fleetRisk
-              ? {
-                  fleetScore: result.fleetRisk.fleetScore,
-                  fleetLevel: result.fleetRisk.fleetLevel,
-                  worstCluster: result.fleetRisk.worstCluster,
-                  mostViolatedPolicy: result.fleetRisk.mostViolatedPolicy,
-                  severityBuckets: result.fleetRisk.severityBuckets,
-                  riskDistribution: result.fleetRisk.riskDistribution,
-                }
-              : undefined,
-            summary: fullResult.summary,
-            riskExplanation: fullResult.riskExplanation,
-            catastrophicPrediction: fullResult.catastrophicPrediction,
-            accidentalScenarios: fullResult.accidentalScenarios,
-          })
-        )
+        res.end(JSON.stringify(fullResult))
       } catch (err) {
         logger.error({ msg: 'Policy analysis failed', error: err instanceof Error ? err.message : String(err) })
         respondInternalServerError(req, res)

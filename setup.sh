@@ -161,3 +161,8 @@ echo OBSERVABILITY_ROUTE=$OBSERVABILITY_ROUTE >> ./backend/.env
 
 PROMETHEUS_ROUTE=https://$(oc get route prometheus-k8s -n openshift-monitoring -o="jsonpath={.status.ingress[0].host}")
 echo PROMETHEUS_ROUTE=$PROMETHEUS_ROUTE >> ./backend/.env
+
+# Policy analysis LLM provider (optional)
+if [[ -n "$CLAUDE_API_KEY" ]]; then
+  echo CLAUDE_API_KEY=$CLAUDE_API_KEY >> ./backend/.env
+fi

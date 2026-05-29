@@ -3,17 +3,23 @@
 import {
   Alert,
   Button,
-  DescriptionList,
-  DescriptionListDescription,
-  DescriptionListGroup,
-  DescriptionListTerm,
+  Card,
+  CardBody,
+  CardTitle,
+  Divider,
+  Flex,
+  FlexItem,
   Label,
+  List,
+  ListItem,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
   ModalVariant,
   Skeleton,
+  Split,
+  SplitItem,
   Stack,
   StackItem,
   Title,
@@ -23,38 +29,237 @@ import { useTranslation } from '../../../lib/acm-i18next'
 import { Policy } from '../../../resources'
 import { getBackendUrl, postRequest } from '../../../resources/utils'
 
+interface StructuredRisk {
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  title: string
+  description: string
+  recommendation: string
+}
+
+interface StructuredCatastrophicAssessment {
+  severity: string
+  reasoning: string
+  cascadingFailures: { trigger: string; chain: string[]; finalImpact: string }[]
+}
+
+interface StructuredAccidentalScenario {
+  title: string
+  description: string
+  likelihood: string
+  impact: string
+  recommendation: string
+}
+
+interface StructuredAnalysis {
+  summary: string
+  risks: StructuredRisk[]
+  recommendations: string[]
+  catastrophicAssessment: StructuredCatastrophicAssessment
+  accidentalScenarios: StructuredAccidentalScenario[]
+}
+
 interface PolicyAnalysisResponse {
   policy: { name: string; namespace: string; disabled: boolean }
   provider: string
-  riskScores: { cluster: string; normalized: number; level: string }[]
-  antiPatterns: { id: string; riskLevel: string; category: string; finding: string; recommendation: string }[]
-  fleetRisk?: {
-    fleetScore: number
-    fleetLevel: string
-    worstCluster?: { name: string; score: number }
-    severityBuckets: Record<string, number>
-    riskDistribution: Record<string, number>
-  }
-  summary?: string
-  riskExplanation?: string
-  catastrophicPrediction?: {
-    confidence: number
-    reasoning: string
-    blastRadius: { affectedClusters: string[]; affectedResources: string[] }
-  }
-  accidentalScenarios?: { id: string; description: string; likelihood: string; impact: string }[]
+  impactedClusters: string[]
+  analysis: StructuredAnalysis
+  timestamp: string
 }
 
-const RISK_LEVEL_COLORS: Record<string, 'red' | 'orange' | 'yellow' | 'blue' | 'green' | 'grey'> = {
+const SEVERITY_COLORS: Record<string, 'red' | 'orange' | 'yellow' | 'blue' | 'green' | 'grey'> = {
   CRITICAL: 'red',
+  CATASTROPHIC: 'red',
   HIGH: 'orange',
   MEDIUM: 'yellow',
   LOW: 'blue',
   NONE: 'green',
 }
 
-function riskColor(level: string) {
-  return RISK_LEVEL_COLORS[level] ?? 'grey'
+function severityColor(level: string) {
+  return SEVERITY_COLORS[level] ?? 'grey'
+}
+
+function ImpactedClustersSection({
+  clusters,
+  t,
+}: {
+  clusters: string[]
+  t: (key: string) => string
+}) {
+  if (clusters.length === 0) return null
+
+  return (
+    <StackItem>
+      <Card isPlain isCompact>
+        <CardTitle>{t('Potentially impacted clusters')}</CardTitle>
+        <CardBody>
+          <Flex spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'wrap' }}>
+            {clusters.map((cluster) => (
+              <FlexItem key={cluster}>
+                <Label isCompact>{cluster}</Label>
+              </FlexItem>
+            ))}
+          </Flex>
+        </CardBody>
+      </Card>
+    </StackItem>
+  )
+}
+
+function RisksSection({
+  risks,
+  t,
+}: {
+  risks: StructuredRisk[]
+  t: (key: string) => string
+}) {
+  if (risks.length === 0) return null
+
+  return (
+    <StackItem>
+      <Title headingLevel="h3">{t('Risks')}</Title>
+      <Stack hasGutter style={{ marginTop: '8px' }}>
+        {risks.map((risk, idx) => (
+          <StackItem key={idx}>
+            <Card isPlain isCompact>
+              <CardBody>
+                <Split hasGutter>
+                  <SplitItem>
+                    <Label color={severityColor(risk.severity)} isCompact>
+                      {risk.severity}
+                    </Label>
+                  </SplitItem>
+                  <SplitItem isFilled>
+                    <Stack>
+                      <StackItem>
+                        <strong>{risk.title}</strong>
+                      </StackItem>
+                      <StackItem style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
+                        {risk.description}
+                      </StackItem>
+                      <StackItem>
+                        <Label color="blue" isCompact variant="outline">
+                          {t('Recommendation')}
+                        </Label>{' '}
+                        {risk.recommendation}
+                      </StackItem>
+                    </Stack>
+                  </SplitItem>
+                </Split>
+              </CardBody>
+            </Card>
+          </StackItem>
+        ))}
+      </Stack>
+    </StackItem>
+  )
+}
+
+function RecommendationsSection({
+  recommendations,
+  t,
+}: {
+  recommendations: string[]
+  t: (key: string) => string
+}) {
+  if (recommendations.length === 0) return null
+
+  return (
+    <StackItem>
+      <Title headingLevel="h3">{t('Recommendations')}</Title>
+      <List style={{ marginTop: '8px' }}>
+        {recommendations.map((rec, idx) => (
+          <ListItem key={idx}>{rec}</ListItem>
+        ))}
+      </List>
+    </StackItem>
+  )
+}
+
+function CatastrophicSection({
+  assessment,
+  t,
+}: {
+  assessment: StructuredCatastrophicAssessment
+  t: (key: string) => string
+}) {
+  if (assessment.severity === 'LOW' && assessment.cascadingFailures.length === 0) return null
+
+  return (
+    <StackItem>
+      <Alert
+        variant="danger"
+        title={t('Catastrophic placement risk')}
+        isInline
+        ouiaId="catastrophicAlert"
+      >
+        <Stack hasGutter>
+          <StackItem>
+            <Label color={severityColor(assessment.severity)} isCompact>
+              {assessment.severity}
+            </Label>
+          </StackItem>
+          <StackItem>{assessment.reasoning}</StackItem>
+          {assessment.cascadingFailures.map((failure, idx) => (
+            <StackItem key={idx}>
+              <Alert variant="warning" title={failure.trigger} isInline isPlain>
+                {failure.chain.join(' → ')} → {failure.finalImpact}
+              </Alert>
+            </StackItem>
+          ))}
+        </Stack>
+      </Alert>
+    </StackItem>
+  )
+}
+
+function AccidentalScenariosSection({
+  scenarios,
+  t,
+}: {
+  scenarios: StructuredAccidentalScenario[]
+  t: (key: string) => string
+}) {
+  if (scenarios.length === 0) return null
+
+  return (
+    <StackItem>
+      <Title headingLevel="h3">{t('Predicted unintended outcomes')}</Title>
+      <Stack hasGutter style={{ marginTop: '8px' }}>
+        {scenarios.map((scenario, idx) => (
+          <StackItem key={idx}>
+            <Alert variant="warning" title={scenario.title} isInline ouiaId={`scenario-${idx}`}>
+              <Stack>
+                <StackItem>{scenario.description}</StackItem>
+                <StackItem>
+                  <Flex spaceItems={{ default: 'spaceItemsMd' }}>
+                    <FlexItem>
+                      <strong>{t('Likelihood')}: </strong>
+                      <Label color={severityColor(scenario.likelihood)} isCompact>
+                        {scenario.likelihood}
+                      </Label>
+                    </FlexItem>
+                    <FlexItem>
+                      <strong>{t('Impact')}: </strong>
+                      <Label color={severityColor(scenario.impact)} isCompact>
+                        {scenario.impact}
+                      </Label>
+                    </FlexItem>
+                  </Flex>
+                </StackItem>
+                <StackItem>
+                  <Label color="blue" isCompact variant="outline">
+                    {t('Recommendation')}
+                  </Label>{' '}
+                  {scenario.recommendation}
+                </StackItem>
+              </Stack>
+            </Alert>
+          </StackItem>
+        ))}
+      </Stack>
+    </StackItem>
+  )
 }
 
 export function PolicyAnalysisModal({
@@ -85,7 +290,7 @@ export function PolicyAnalysisModal({
     const { promise, abort } = postRequest<
       { policy: Policy; allPolicies: Policy[]; provider: string },
       PolicyAnalysisResponse
-    >(url, { policy, allPolicies: policies, provider: 'deterministic' })
+    >(url, { policy, allPolicies: policies, provider: 'auto' })
 
     abortRef.current = abort
 
@@ -134,107 +339,32 @@ export function PolicyAnalysisModal({
           </Alert>
         )}
 
-        {!isFetching && result && !error && (
+        {!isFetching && result && !error && result.analysis && (
           <Stack hasGutter>
-            <StackItem>
-              <Title headingLevel="h3">{t('Risk overview')}</Title>
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginTop: '8px' }}>
-                {result.fleetRisk ? (
-                  <>
-                    <Label color={riskColor(result.fleetRisk.fleetLevel)}>
-                      {t('Fleet risk: {{score}}/100 ({{level}})', {
-                        score: result.fleetRisk.fleetScore,
-                        level: result.fleetRisk.fleetLevel,
-                      })}
-                    </Label>
-                    {result.fleetRisk.worstCluster && (
-                      <Label color="grey">
-                        {t('Worst cluster: {{name}}', { name: result.fleetRisk.worstCluster.name })}
-                      </Label>
-                    )}
-                  </>
-                ) : (
-                  result.riskScores.map((rs) => (
-                    <Label key={rs.cluster} color={riskColor(rs.level)}>
-                      {rs.cluster}: {rs.normalized}/100
-                    </Label>
-                  ))
-                )}
-              </div>
-            </StackItem>
+            <ImpactedClustersSection clusters={result.impactedClusters ?? []} t={t} />
 
-            {result.summary && (
+            {result.analysis.summary && (
               <StackItem>
                 <Title headingLevel="h3">{t('Summary')}</Title>
-                <p style={{ marginTop: '8px', whiteSpace: 'pre-wrap' }}>{result.summary}</p>
+                <p style={{ marginTop: '8px' }}>{result.analysis.summary}</p>
               </StackItem>
             )}
 
-            {result.antiPatterns && result.antiPatterns.length > 0 && (
-              <StackItem>
-                <Title headingLevel="h3">{t('Anti-pattern findings')}</Title>
-                <DescriptionList isHorizontal style={{ marginTop: '8px' }}>
-                  {result.antiPatterns.map((ap) => (
-                    <DescriptionListGroup key={ap.id}>
-                      <DescriptionListTerm>
-                        <Label color={riskColor(ap.riskLevel)} isCompact>
-                          {ap.riskLevel}
-                        </Label>{' '}
-                        {ap.id}
-                      </DescriptionListTerm>
-                      <DescriptionListDescription>
-                        <strong>{ap.finding}</strong>
-                        <br />
-                        {ap.recommendation}
-                      </DescriptionListDescription>
-                    </DescriptionListGroup>
-                  ))}
-                </DescriptionList>
-              </StackItem>
-            )}
+            <StackItem>
+              <Divider />
+            </StackItem>
 
-            {result.catastrophicPrediction && result.catastrophicPrediction.confidence > 0 && (
-              <StackItem>
-                <Alert variant="danger" title={t('Catastrophic placement risk')} ouiaId="catastrophicAlert">
-                  <p>
-                    {t('Confidence: {{confidence}}%', {
-                      confidence: Math.round(result.catastrophicPrediction.confidence * 100),
-                    })}
-                  </p>
-                  <p>{result.catastrophicPrediction.reasoning}</p>
-                  {result.catastrophicPrediction.blastRadius.affectedClusters.length > 0 && (
-                    <p>
-                      {t('Affected clusters: {{clusters}}', {
-                        clusters: result.catastrophicPrediction.blastRadius.affectedClusters.join(', '),
-                      })}
-                    </p>
-                  )}
-                </Alert>
-              </StackItem>
-            )}
+            <CatastrophicSection assessment={result.analysis.catastrophicAssessment} t={t} />
 
-            {result.accidentalScenarios && result.accidentalScenarios.length > 0 && (
-              <StackItem>
-                <Title headingLevel="h3">{t('Accidental scenarios')}</Title>
-                <Stack hasGutter style={{ marginTop: '8px' }}>
-                  {result.accidentalScenarios.map((scenario) => (
-                    <StackItem key={scenario.id}>
-                      <Alert
-                        variant="warning"
-                        title={`${scenario.id}: ${scenario.description}`}
-                        isInline
-                        ouiaId={`scenario-${scenario.id}`}
-                      >
-                        {t('Likelihood: {{likelihood}} | Impact: {{impact}}', {
-                          likelihood: scenario.likelihood,
-                          impact: scenario.impact,
-                        })}
-                      </Alert>
-                    </StackItem>
-                  ))}
-                </Stack>
-              </StackItem>
-            )}
+            <RisksSection risks={result.analysis.risks} t={t} />
+
+            <AccidentalScenariosSection scenarios={result.analysis.accidentalScenarios} t={t} />
+
+            <StackItem>
+              <Divider />
+            </StackItem>
+
+            <RecommendationsSection recommendations={result.analysis.recommendations} t={t} />
 
             <StackItem>
               <Label color="grey" isCompact>

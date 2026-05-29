@@ -3,6 +3,8 @@
 import {
   Alert,
   Button,
+  Flex,
+  FlexItem,
   Stack,
   Content,
   Title,
@@ -56,6 +58,8 @@ import { PlacementSection } from '../../Placement/PlacementSection'
 import { Specifications } from './specifications'
 import { useWizardStrings } from '../../../lib/wizardStrings'
 import { useTranslation } from '../../../lib/acm-i18next'
+import { Policy } from '../../../resources'
+import { PolicyAnalysisModal } from '../../../routes/Governance/components/PolicyAnalysisModal'
 
 export function PolicyWizard(props: {
   title: string
@@ -103,6 +107,7 @@ export function PolicyWizard(props: {
       editMode={props.editMode}
       defaultData={defaultData}
       isLoading={props.isSaving}
+      reviewExtra={<PolicyWizardAnalysis policies={props.policies} />}
     >
       <Step label={t('Details')} id="details">
         {props.editMode !== EditMode.Edit && (
@@ -260,6 +265,41 @@ export function PolicyWizard(props: {
         </WizItemSelector>
       </Step>
     </WizardPage>
+  )
+}
+
+function PolicyWizardAnalysis({ policies }: { policies: IResource[] }) {
+  const { t } = useTranslation()
+  const resources = useItem() as IResource[]
+  const policy = useMemo(
+    () => (Array.isArray(resources) ? resources.find((r) => r.kind === PolicyKind) : resources),
+    [resources]
+  ) as Policy | undefined
+  const [analysisOpen, setAnalysisOpen] = useState(false)
+
+  if (!policy) return null
+
+  return (
+    <Flex alignItems={{ default: 'alignItemsCenter' }} style={{ marginBottom: '16px' }}>
+      <FlexItem>
+        <Button variant="secondary" size="sm" onClick={() => setAnalysisOpen(true)}>
+          {t('Analyze')}
+        </Button>
+      </FlexItem>
+      <FlexItem>
+        <Content component="small">
+          {t(
+            'Run a pre-deployment analysis to detect anti-patterns, catastrophic placement risks, and accidental scenarios before deploying this policy.'
+          )}
+        </Content>
+      </FlexItem>
+      <PolicyAnalysisModal
+        policy={policy}
+        policies={policies as Policy[]}
+        isOpen={analysisOpen}
+        onClose={() => setAnalysisOpen(false)}
+      />
+    </Flex>
   )
 }
 
