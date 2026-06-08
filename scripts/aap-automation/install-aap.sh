@@ -38,6 +38,46 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# Wait for the AAP API to become ready, adapting patience to what we observe.
+# 503 = gateway is booting → keep waiting (up to hard ceiling).
+# Non-503 errors (000, 404, etc.) → bail after STALE_LIMIT consecutive failures.
+# Returns 0 on success (API_STATUS=200), 1 on timeout/failure.
+wait_for_aap_api() {
+    local label="${1:-AAP API}"
+    local hard_ceiling=1200
+    local stale_limit=8       # 8 × 15s = 120s of non-503 errors before bail
+    local elapsed=0
+    local stale_count=0
+
+    log_info "Waiting for ${label} to be ready..."
+    while [ $elapsed -lt $hard_ceiling ]; do
+        API_STATUS=$(curl "${CURL_OPTS[@]}" -o /dev/null -w "%{http_code}" \
+            -u "admin:${ADMIN_PASSWORD}" "${AAP_URL}${API_PING_PATH}" 2>/dev/null)
+
+        if [ "$API_STATUS" = "200" ]; then
+            log_info "${label} is ready (${elapsed}s elapsed)"
+            return 0
+        fi
+
+        if [ "$API_STATUS" = "503" ]; then
+            stale_count=0
+        else
+            stale_count=$((stale_count + 1))
+            if [ $stale_count -ge $stale_limit ]; then
+                log_warn "${label} returning HTTP ${API_STATUS} for $((stale_count * 15))s — not a boot delay, bailing"
+                return 1
+            fi
+        fi
+
+        sleep 15
+        elapsed=$((elapsed + 15))
+        log_info "Waiting for ${label}... (${elapsed}/${hard_ceiling}s) - HTTP ${API_STATUS}"
+    done
+
+    log_warn "${label} not ready after ${hard_ceiling}s (last HTTP ${API_STATUS})"
+    return 1
+}
+
 # Check prerequisites
 for cmd in oc curl jq base64; do
     if ! command -v "$cmd" &> /dev/null; then
@@ -279,25 +319,7 @@ elif [ -n "$RH_OFFLINE_TOKEN" ]; then
     MANIFEST_FILE=$(mktemp /tmp/manifest-XXXXXX.zip)
     trap 'rm -f "$MANIFEST_FILE"' EXIT
 
-    # Wait for API readiness before attempting subscription upload
-    log_info "Waiting for AAP API to accept requests..."
-    API_TIMEOUT=600
-    API_ELAPSED=0
-    while [ $API_ELAPSED -lt $API_TIMEOUT ]; do
-        API_STATUS=$(curl "${CURL_OPTS[@]}" -o /dev/null -w "%{http_code}" \
-            -u "admin:${ADMIN_PASSWORD}" "${AAP_URL}${API_PING_PATH}" 2>/dev/null)
-        if [ "$API_STATUS" = "200" ]; then
-            log_info "AAP API is ready"
-            break
-        fi
-        sleep 15
-        API_ELAPSED=$((API_ELAPSED + 15))
-        log_info "Waiting for API... (${API_ELAPSED}/${API_TIMEOUT}s) - HTTP ${API_STATUS}"
-    done
-
-    if [ "$API_STATUS" != "200" ]; then
-        log_warn "AAP API not responding (HTTP ${API_STATUS}) - skipping subscription setup"
-    else
+    if wait_for_aap_api "AAP API (subscription setup)"; then
         # Exchange offline token for access token
         log_info "Obtaining access token from Red Hat SSO..."
         ACCESS_TOKEN=$(curl "${CURL_OPTS[@]}" -X POST \
@@ -399,20 +421,7 @@ fi
 # --- OAuth token generation ---
 OAUTH_TOKEN=""
 if [ -n "$ROUTE_URL" ] && [ -n "$ADMIN_PASSWORD" ]; then
-    log_info "Waiting for AAP API before generating token..."
-    API_TIMEOUT=600
-    API_ELAPSED=0
-    API_STATUS=""
-    while [ $API_ELAPSED -lt $API_TIMEOUT ]; do
-        API_STATUS=$(curl "${CURL_OPTS[@]}" -o /dev/null -w "%{http_code}" \
-            -u "admin:${ADMIN_PASSWORD}" "${AAP_URL}${API_PING_PATH}" 2>/dev/null)
-        if [ "$API_STATUS" = "200" ]; then break; fi
-        sleep 15
-        API_ELAPSED=$((API_ELAPSED + 15))
-        log_info "Waiting for API... (${API_ELAPSED}/${API_TIMEOUT}s) - HTTP ${API_STATUS}"
-    done
-
-    if [ "$API_STATUS" = "200" ]; then
+    if wait_for_aap_api "AAP API (token generation)"; then
         log_info "Generating OAuth2 token for external integrations..."
         TOKEN_RESPONSE=$(curl "${CURL_OPTS[@]}" -X POST \
             -u "admin:${ADMIN_PASSWORD}" \
@@ -421,7 +430,7 @@ if [ -n "$ROUTE_URL" ] && [ -n "$ADMIN_PASSWORD" ]; then
             "${API_BASE}/tokens/")
         OAUTH_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token // empty')
     else
-        log_warn "AAP API not ready (HTTP ${API_STATUS}) - skipping token generation"
+        log_warn "AAP API not ready - skipping token generation"
     fi
 
     if [ -n "$OAUTH_TOKEN" ]; then
