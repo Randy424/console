@@ -166,3 +166,51 @@ echo PROMETHEUS_ROUTE=$PROMETHEUS_ROUTE >> ./backend/.env
 if [[ -n "$CLAUDE_API_KEY" ]]; then
   echo CLAUDE_API_KEY=$CLAUDE_API_KEY >> ./backend/.env
 fi
+
+# OpenShift Lightspeed integration (optional)
+if [[ -n "$LIGHTSPEED_API_URL" ]]; then
+  echo LIGHTSPEED_API_URL=$LIGHTSPEED_API_URL >> ./backend/.env
+  if [[ -n "$LIGHTSPEED_TOKEN" ]]; then
+    echo LIGHTSPEED_TOKEN=$LIGHTSPEED_TOKEN >> ./backend/.env
+  fi
+elif oc get svc lightspeed-app-server -n openshift-lightspeed &>/dev/null; then
+  echo "Lightspeed service detected — configuring access..."
+
+  oc create sa policy-analysis-client -n openshift-lightspeed 2>/dev/null || true
+
+  oc apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: lightspeed-user
+rules:
+- nonResourceURLs:
+  - "/ols-access"
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: policy-analysis-lightspeed-access
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: lightspeed-user
+subjects:
+- kind: ServiceAccount
+  name: policy-analysis-client
+  namespace: openshift-lightspeed
+EOF
+
+  LIGHTSPEED_TOKEN=$(oc create token policy-analysis-client -n openshift-lightspeed --duration=86400s)
+  echo LIGHTSPEED_TOKEN=$LIGHTSPEED_TOKEN >> ./backend/.env
+
+  LIGHTSPEED_ROUTE=$(oc get route lightspeed-api -n openshift-lightspeed -o jsonpath='https://{.spec.host}' 2>/dev/null)
+  if [[ -n "$LIGHTSPEED_ROUTE" ]]; then
+    echo LIGHTSPEED_API_URL=$LIGHTSPEED_ROUTE >> ./backend/.env
+    echo LIGHTSPEED_TLS_VERIFY=false >> ./backend/.env
+  else
+    echo LIGHTSPEED_API_URL=https://lightspeed-app-server.openshift-lightspeed.svc:8443 >> ./backend/.env
+  fi
+fi

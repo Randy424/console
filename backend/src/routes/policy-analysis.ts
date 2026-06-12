@@ -29,9 +29,9 @@ export async function policyAnalysis(req: Http2ServerRequest, res: Http2ServerRe
           return
         }
 
-        const { parsed, result } = analyzeRawPolicy(body.policy, body.allPolicies)
+        const { parsed, fleetContext } = analyzeRawPolicy(body.policy, body.allPolicies)
         const analysisProvider = await createProvider({ provider: body.provider as ProviderType })
-        const fullResult = await analyzeWithProvider(parsed, result, analysisProvider)
+        const fullResult = await analyzeWithProvider(parsed, analysisProvider, fleetContext)
 
         res.setHeader('Content-Type', 'application/json')
         res.end(JSON.stringify(fullResult))
