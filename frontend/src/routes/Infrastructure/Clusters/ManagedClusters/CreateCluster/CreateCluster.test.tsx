@@ -1313,6 +1313,7 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
         clusterNetwork: [
           {
             cidr: '10.132.0.0/14',
+            hostPrefix: 23,
           },
         ],
         serviceNetwork: [
@@ -1525,7 +1526,11 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
     const inputElement = screen.getByTestId('emanspace')
     expect(inputElement).toHaveValue('clusters')
 
-    // step 2 -- node pools
+    // step 2 -- networking
+    await clickByText('Next')
+    // step 3 -- proxy
+    await clickByText('Next')
+    // step 4 -- node pools
     await clickByText('Next')
     const nodePoolNameInput = screen.getByTestId('nodePoolName')
     fireEvent.change(nodePoolNameInput, { target: { value: 'nodepool' } })
@@ -1842,6 +1847,7 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
           clusterNetwork: [
             {
               cidr: '10.132.0.0/14',
+              hostPrefix: 23,
             },
           ],
           serviceNetwork: [
@@ -2000,7 +2006,11 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
     expect(controllerHighlyAvailable).not.toBeChecked()
     expect(infraHighlyAvailable).not.toBeChecked()
 
-    // step 2 -- node pools
+    // step 2 -- networking
+    await clickByText('Next')
+    // step 3 -- proxy
+    await clickByText('Next')
+    // step 4 -- node pools
     await clickByText('Next')
     const nodePoolNameInput = screen.getByTestId('nodePoolName')
     fireEvent.change(nodePoolNameInput, { target: { value: 'nodepool' } })
@@ -2263,6 +2273,7 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
         clusterNetwork: [
           {
             cidr: '10.132.0.0/14',
+            hostPrefix: 23,
           },
         ],
         serviceNetwork: [
@@ -2550,7 +2561,9 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
     // wait for kubevirt credential creation
     await waitForNocks([nockCreate(expectedKubevirtCredential)])
 
-    // transition to NodePools
+    // transition through Networking and Proxy to NodePools
+    await clickByText('Next')
+    await clickByText('Next')
     await clickByText('Next')
 
     const nodePoolNameInput = screen.getByTestId('nodePoolName')
@@ -2755,6 +2768,7 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
         clusterNetwork: [
           {
             cidr: '10.132.0.0/14',
+            hostPrefix: 23,
           },
         ],
         serviceNetwork: [
@@ -3037,7 +3051,9 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
     // wait for kubevirt credential creation
     await waitForNocks([nockCreate(expectedKubevirtCredentialWithNoEI)])
 
-    // transition to NodePools
+    // transition through Networking and Proxy to NodePools
+    await clickByText('Next')
+    await clickByText('Next')
     await clickByText('Next')
 
     const nodePoolNameInput = screen.getByTestId('nodePoolName')
@@ -3241,6 +3257,7 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
         clusterNetwork: [
           {
             cidr: '10.132.0.0/14',
+            hostPrefix: 23,
           },
         ],
         serviceNetwork: [
@@ -3549,7 +3566,9 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
     // wait for kubevirt credential creation
     await waitForNocks([nockCreate(expectedKubevirtCredentialWithNoEI)])
 
-    // transition to NodePools
+    // transition through Networking and Proxy to NodePools
+    await clickByText('Next')
+    await clickByText('Next')
     await clickByText('Next')
 
     const nodePoolNameInput = screen.getByTestId('nodePoolName')
@@ -3753,6 +3772,7 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
         clusterNetwork: [
           {
             cidr: '10.132.0.0/14',
+            hostPrefix: 23,
           },
         ],
         serviceNetwork: [
@@ -4103,7 +4123,9 @@ describe('CreateCluster KubeVirt with RH OpenShift Virtualization credential tha
     // wait for kubevirt credential creation
     await waitForNocks([nockCreate(expectedKubevirtCredentialWithNoEI)])
 
-    // transition to NodePools step 2 -- node pools
+    // transition through Networking and Proxy to NodePools
+    await clickByText('Next')
+    await clickByText('Next')
     // add node pool1
     await clickByText('Next')
     const nodePoolNameInput1 = screen.getByTestId('nodePoolName')

@@ -3,6 +3,7 @@ import { Alert } from '@patternfly/react-core'
 import { ExternalLinkAltIcon } from '@patternfly/react-icons'
 import { CreateCredentialModal } from '../../../../../../components/CreateCredentialModal'
 import {
+  getCIDRValidator,
   getNumericValidator,
   getNumericGTValidator,
   VALID_DNS_LABEL,
@@ -17,6 +18,7 @@ import {
   numberedControlNameFunction,
   onChangeConnection,
   onImageChange,
+  proxyControlData,
   reverseImageSet,
   reverseStorageClass,
   updateDefaultPodNetwork,
@@ -209,6 +211,56 @@ export const getControlDataKubeVirt = (
         'Use labels to organize and place application subscriptions and policies on this cluster. The placement of resources are controlled by label selectors. If your cluster has the labels that match the resource placement’s label selector, the resource will be installed on your cluster after creation.'
       ),
     },
+    ///////////////////////////// Networking Step /////////////////////////////
+    {
+      id: 'networkStep',
+      type: 'step',
+      title: t('Networking'),
+    },
+    {
+      id: 'networkInfo',
+      type: 'title',
+      info: t(
+        'Configure network access for your cluster. KubeVirt hosted clusters use offset CIDR defaults to avoid collisions with the management cluster.'
+      ),
+    },
+    {
+      id: 'clusterNetwork',
+      type: 'text',
+      name: t('creation.ocp.cluster.network'),
+      tooltip: t(
+        'The block of IP addresses from which pod IP addresses are allocated. The default is offset from the standard OpenShift default to avoid overlapping with the management cluster network.'
+      ),
+      placeholder: t('creation.ocp.cluster.network.placeholder'),
+      active: '10.132.0.0/14',
+      validation: getCIDRValidator(t),
+    },
+    {
+      id: 'hostPrefix',
+      type: 'text',
+      name: t('creation.ocp.cluster.network.host.prefix'),
+      tooltip: t('tooltip.creation.ocp.cluster.network.host.prefix'),
+      placeholder: t('creation.ocp.cluster.network.host.prefix.placeholder'),
+      active: '23',
+      validation: getNumericValidator(t),
+    },
+    {
+      id: 'serviceNetwork',
+      type: 'text',
+      name: t('creation.ocp.service.network'),
+      tooltip: t(
+        'The block of IP addresses for services. The default is offset from the standard OpenShift default to avoid overlapping with the management cluster network.'
+      ),
+      placeholder: t('creation.ocp.service.network.placeholder'),
+      active: '172.31.0.0/16',
+      validation: getCIDRValidator(t),
+    },
+    {
+      id: 'networkType',
+      type: 'hidden',
+      active: 'OVNKubernetes',
+    },
+    ...proxyControlData(t),
     ///////////////////////////// Node Pools Step /////////////////////////////
     {
       id: 'nodepoolsStep',

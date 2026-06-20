@@ -172,6 +172,133 @@ exports[`Cluster creation control data for KubeVirt generates correctly 1`] = `
     "type": "labels",
   },
   {
+    "id": "networkStep",
+    "title": "Networking",
+    "type": "step",
+  },
+  {
+    "id": "networkInfo",
+    "info": "Configure network access for your cluster. KubeVirt hosted clusters use offset CIDR defaults to avoid collisions with the management cluster.",
+    "type": "title",
+  },
+  {
+    "active": "10.132.0.0/14",
+    "id": "clusterNetwork",
+    "name": "Cluster network CIDR",
+    "placeholder": "Enter cluster network CIDR",
+    "tooltip": "The block of IP addresses from which pod IP addresses are allocated. The default is offset from the standard OpenShift default to avoid overlapping with the management cluster network.",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be a valid IPv4 or IPv6 CIDR.",
+      "required": true,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "active": "23",
+    "id": "hostPrefix",
+    "name": "Network host prefix",
+    "placeholder": "Enter network host prefix",
+    "tooltip": "The subnet prefix length to assign to each individual node. For example, if hostPrefix is set to 23, then each node is assigned a /23 subnet out of the given CIDR, allowing for 510 (2^(32 - 23) - 2) pod IP addresses. The default is 23.",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be integer.",
+      "required": true,
+      "tester": /\\^\\\\d\\+\\$/,
+    },
+  },
+  {
+    "active": "172.31.0.0/16",
+    "id": "serviceNetwork",
+    "name": "Service network CIDR",
+    "placeholder": "Enter service network CIDR",
+    "tooltip": "The block of IP addresses for services. The default is offset from the standard OpenShift default to avoid overlapping with the management cluster network.",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be a valid IPv4 or IPv6 CIDR.",
+      "required": true,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "active": "OVNKubernetes",
+    "id": "networkType",
+    "type": "hidden",
+  },
+  {
+    "id": "proxyStep",
+    "title": "Proxy",
+    "type": "step",
+  },
+  {
+    "id": "proxyInfo",
+    "info": "Production environments can deny direct access to the Internet and instead have an HTTP or HTTPS proxy available. You can configure a new OpenShift Container Platform cluster to use a proxy by configuring the proxy settings.",
+    "type": "title",
+  },
+  {
+    "active": false,
+    "id": "hasProxy",
+    "name": "Use proxy",
+    "onSelect": [Function],
+    "type": "checkbox",
+  },
+  {
+    "disabled": true,
+    "id": "httpProxy",
+    "name": "HTTP proxy",
+    "tip": "Requires this format: http://<username>:<pswd>@<ip>:<port>",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be a valid URL format.",
+      "required": true,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "disabled": true,
+    "id": "httpsProxy",
+    "name": "HTTPS proxy",
+    "tip": "Requires this format: https://<username>:<pswd>@<ip>:<port>",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be a valid URL format.",
+      "required": true,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "active": [],
+    "disabled": true,
+    "id": "noProxy",
+    "name": "No proxy",
+    "tip": "Add a comma-separated list of sites that bypass the proxy. The hub API server address must be included in this list. By default, all cluster egress traffic is sent through the proxy, including calls to hosting and cloud provider APIs.",
+    "type": "values",
+    "validation": {
+      "notification": "Each value must be a domain name (optionally prefaced with '.' to match subdomains only), IP address, other network CIDR, or '*'.",
+      "required": false,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "disabled": true,
+    "id": "additionalTrustBundle",
+    "name": "Additional trust bundle",
+    "placeholder": "-----BEGIN CERTIFICATE-----
+<MY_TRUSTED_CA_CERT>
+-----END CERTIFICATE-----",
+    "type": "textarea",
+  },
+  {
     "id": "nodepoolsStep",
     "title": "Node pools",
     "type": "step",
@@ -638,6 +765,133 @@ exports[`Cluster creation control data for KubeVirt generates correctly for MCE 
     "name": "Additional labels",
     "tooltip": "Use labels to organize and place application subscriptions and policies on this cluster. The placement of resources are controlled by label selectors. If your cluster has the labels that match the resource placement’s label selector, the resource will be installed on your cluster after creation.",
     "type": "labels",
+  },
+  {
+    "id": "networkStep",
+    "title": "Networking",
+    "type": "step",
+  },
+  {
+    "id": "networkInfo",
+    "info": "Configure network access for your cluster. KubeVirt hosted clusters use offset CIDR defaults to avoid collisions with the management cluster.",
+    "type": "title",
+  },
+  {
+    "active": "10.132.0.0/14",
+    "id": "clusterNetwork",
+    "name": "Cluster network CIDR",
+    "placeholder": "Enter cluster network CIDR",
+    "tooltip": "The block of IP addresses from which pod IP addresses are allocated. The default is offset from the standard OpenShift default to avoid overlapping with the management cluster network.",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be a valid IPv4 or IPv6 CIDR.",
+      "required": true,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "active": "23",
+    "id": "hostPrefix",
+    "name": "Network host prefix",
+    "placeholder": "Enter network host prefix",
+    "tooltip": "The subnet prefix length to assign to each individual node. For example, if hostPrefix is set to 23, then each node is assigned a /23 subnet out of the given CIDR, allowing for 510 (2^(32 - 23) - 2) pod IP addresses. The default is 23.",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be integer.",
+      "required": true,
+      "tester": /\\^\\\\d\\+\\$/,
+    },
+  },
+  {
+    "active": "172.31.0.0/16",
+    "id": "serviceNetwork",
+    "name": "Service network CIDR",
+    "placeholder": "Enter service network CIDR",
+    "tooltip": "The block of IP addresses for services. The default is offset from the standard OpenShift default to avoid overlapping with the management cluster network.",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be a valid IPv4 or IPv6 CIDR.",
+      "required": true,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "active": "OVNKubernetes",
+    "id": "networkType",
+    "type": "hidden",
+  },
+  {
+    "id": "proxyStep",
+    "title": "Proxy",
+    "type": "step",
+  },
+  {
+    "id": "proxyInfo",
+    "info": "Production environments can deny direct access to the Internet and instead have an HTTP or HTTPS proxy available. You can configure a new OpenShift Container Platform cluster to use a proxy by configuring the proxy settings.",
+    "type": "title",
+  },
+  {
+    "active": false,
+    "id": "hasProxy",
+    "name": "Use proxy",
+    "onSelect": [Function],
+    "type": "checkbox",
+  },
+  {
+    "disabled": true,
+    "id": "httpProxy",
+    "name": "HTTP proxy",
+    "tip": "Requires this format: http://<username>:<pswd>@<ip>:<port>",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be a valid URL format.",
+      "required": true,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "disabled": true,
+    "id": "httpsProxy",
+    "name": "HTTPS proxy",
+    "tip": "Requires this format: https://<username>:<pswd>@<ip>:<port>",
+    "type": "text",
+    "validation": {
+      "notification": "Value must be a valid URL format.",
+      "required": true,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "active": [],
+    "disabled": true,
+    "id": "noProxy",
+    "name": "No proxy",
+    "tip": "Add a comma-separated list of sites that bypass the proxy. The hub API server address must be included in this list. By default, all cluster egress traffic is sent through the proxy, including calls to hosting and cloud provider APIs.",
+    "type": "values",
+    "validation": {
+      "notification": "Each value must be a domain name (optionally prefaced with '.' to match subdomains only), IP address, other network CIDR, or '*'.",
+      "required": false,
+      "tester": {
+        "test": [Function],
+      },
+    },
+  },
+  {
+    "disabled": true,
+    "id": "additionalTrustBundle",
+    "name": "Additional trust bundle",
+    "placeholder": "-----BEGIN CERTIFICATE-----
+<MY_TRUSTED_CA_CERT>
+-----END CERTIFICATE-----",
+    "type": "textarea",
   },
   {
     "id": "nodepoolsStep",

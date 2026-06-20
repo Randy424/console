@@ -34,10 +34,28 @@ spec:
     name: sshkey-cluster-{{{clusterName}}}
   networking:
     clusterNetwork:
-      - cidr: 10.132.0.0/14
+      - cidr: {{{clusterNetwork}}}
+        hostPrefix: {{{hostPrefix}}}
     serviceNetwork:
-      - cidr: 172.31.0.0/16
-    networkType: OVNKubernetes
+      - cidr: {{{serviceNetwork}}}
+    networkType: {{{networkType}}}
+{{#if hasProxy}}
+  configuration:
+    proxy:
+      {{#if httpProxy}}
+      httpProxy: '{{{httpProxy}}}'
+      {{/if}}
+      {{#if httpsProxy}}
+      httpsProxy: '{{{httpsProxy}}}'
+      {{/if}}
+      {{#if noProxy}}
+      noProxy: '{{{noProxy}}}'
+      {{/if}}
+      {{#if additionalTrustBundle}}
+      trustedCA:
+        name: user-ca-bundle-{{{clusterName}}}
+      {{/if}}
+{{/if}}
   controllerAvailabilityPolicy: {{{availabilityOptions.controllerAvailabilityPolicy}}}
   infrastructureAvailabilityPolicy: {{{availabilityOptions.infrastructureAvailabilityPolicy}}}
   platform:
@@ -135,6 +153,17 @@ stringData:
   {{else}}
   'id_rsa.pub': #injected on create
   {{/if}}
+{{#if (and hasProxy additionalTrustBundle)}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-ca-bundle-{{{clusterName}}}
+  namespace: '{{namespace}}'
+data:
+  ca-bundle.crt: |
+    {{{additionalTrustBundle}}}
+{{/if}}
 {{#each nodepools}}
 ---
 apiVersion: hypershift.openshift.io/v1beta1
