@@ -25,7 +25,7 @@ export const addRowsForHasVapb = (
       value: <Skeleton width="100%" screenreaderText="Fetching ValidatingAdmissionPolicyBinding" />,
     })
   } else if (vapbItems && vapbItems.length > 0 && !loading) {
-    const vapbName = apiGroup === 'constraints.gatekeeper.sh' ? `gatekeeper-${name}` : name + '-binding'
+    const vapbName = vapbItems[0].name
     cols.push({
       key: 'Validating Admission Policy Binding',
       value: (

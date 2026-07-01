@@ -372,7 +372,7 @@ describe('Policy Template Details Page', () => {
                   created: '2024-10-28T15:15:59Z',
                   kind: 'ValidatingAdmissionPolicyBinding',
                   kind_plural: 'validatingadmissionpolicybindings',
-                  name: 'gatekeeper-all-must-have-owner',
+                  name: 'gatekeeper-ns-must-have-gk',
                   policyName: 'gatekeeper-k8srequiredlabels',
                   validationActions: 'deny',
                 },
@@ -1602,6 +1602,334 @@ describe('Policy Template Details Page', () => {
     waitForText('Audit violations')
     const view = screen.getByText('Audit violations')
     within(view).getByText('2')
+  })
+
+  test('Should render Kyverno policy page with new cpol- VAPB naming convention', async () => {
+    ;(useSearchResultRelatedItemsLazyQuery as jest.Mock).mockReturnValue([
+      jest.fn(),
+      { data: undefined, loading: false, error: undefined },
+    ])
+    ;(useSearchResultItemsLazyQuery as jest.Mock).mockReturnValue([
+      jest.fn(),
+      {
+        data: {
+          searchResult: [
+            {
+              items: [
+                {
+                  _hubClusterResource: 'true',
+                  _uid: 'local-cluster/new-vapb-uid',
+                  apigroup: 'admissionregistration.k8s.io',
+                  apiversion: 'v1',
+                  cluster: 'local-cluster',
+                  created: '2024-10-28T15:15:59Z',
+                  kind: 'ValidatingAdmissionPolicyBinding',
+                  kind_plural: 'validatingadmissionpolicybindings',
+                  name: 'cpol-require-owner-labels-binding',
+                  policyName: 'cpol-require-owner-labels-binding',
+                  validationActions: 'audit',
+                },
+              ],
+              __typename: 'SearchResult',
+            },
+          ],
+        },
+        loading: false,
+        error: undefined,
+      },
+    ])()
+
+    const kyvernoScope = {
+      name: 'require-owner-labels',
+      resource: 'clusterpolicy.v1.kyverno.io',
+    }
+    const kyvernoStatus = {
+      conditions: [
+        {
+          message: 'Watching resources successfully',
+          reason: 'GetResourceProcessing',
+          status: 'True',
+          type: 'Processing',
+        },
+      ],
+      result: {
+        apiVersion: 'kyverno.io/v1',
+        kind: 'ClusterPolicy',
+        metadata: {
+          name: 'require-owner-labels',
+        },
+        spec: {
+          validationFailureAction: 'Audit',
+          background: true,
+          rules: [
+            {
+              name: 'require-labels',
+              match: {
+                any: [{ resources: { kinds: ['Namespace'] } }],
+              },
+              validate: {
+                message: 'The label `owner` is required',
+                pattern: { metadata: { labels: { owner: '?*' } } },
+              },
+            },
+          ],
+        },
+      },
+    }
+    mockUuidV4.mockReturnValue(MOCKED_UUID_1)
+    const mcvNocks = nockManagedClusterView(MOCKED_UUID_1, 'test-cluster', kyvernoScope, kyvernoStatus)
+
+    nockIgnoreRBAC()
+    render(
+      <RecoilRoot
+        initializeState={(snapshot) => {
+          snapshot.set(managedClusterAddonsState, {})
+        }}
+      >
+        <MemoryRouter
+          initialEntries={[
+            generatePath(NavigationPath.discoveredPolicyDetails, {
+              clusterName: 'test-cluster',
+              apiGroup: 'kyverno.io',
+              apiVersion: 'v1',
+              kind: 'ClusterPolicy',
+              templateName: 'require-owner-labels',
+              templateNamespace: '',
+            }),
+          ]}
+        >
+          <Routes>
+            <Route element={<PolicyTemplateDetailsPage />}>
+              <Route path={NavigationPath.discoveredPolicyDetails} element={<PolicyTemplateDetails />} />
+              <Route path={NavigationPath.discoveredPolicyYaml} element={<PolicyTemplateYaml />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </RecoilRoot>
+    )
+
+    await waitForNocks(mcvNocks)
+    await waitForText('Discovered policies')
+    await waitForText('ClusterPolicy details')
+
+    // VAPB link should use the new cpol- naming convention from search results
+    expect(screen.getByRole('link', { name: 'cpol-require-owner-labels-binding' })).toBeInTheDocument()
+  })
+
+  test('Should render Kyverno ClusterPolicy page with dash when no VAPB exists', async () => {
+    ;(useSearchResultRelatedItemsLazyQuery as jest.Mock).mockReturnValue([
+      jest.fn(),
+      { data: undefined, loading: false, error: undefined },
+    ])
+    ;(useSearchResultItemsLazyQuery as jest.Mock).mockReturnValue([
+      jest.fn(),
+      {
+        data: {
+          searchResult: [
+            {
+              items: [],
+              __typename: 'SearchResult',
+            },
+          ],
+        },
+        loading: false,
+        error: undefined,
+      },
+    ])()
+
+    const kyvernoScope = {
+      name: 'no-vapb-policy',
+      resource: 'clusterpolicy.v1.kyverno.io',
+    }
+    const kyvernoStatus = {
+      conditions: [
+        {
+          message: 'Watching resources successfully',
+          reason: 'GetResourceProcessing',
+          status: 'True',
+          type: 'Processing',
+        },
+      ],
+      result: {
+        apiVersion: 'kyverno.io/v1',
+        kind: 'ClusterPolicy',
+        metadata: {
+          name: 'no-vapb-policy',
+        },
+        spec: {
+          validationFailureAction: 'Audit',
+          background: true,
+          rules: [
+            {
+              name: 'require-labels',
+              match: {
+                any: [{ resources: { kinds: ['Namespace'] } }],
+              },
+              validate: {
+                message: 'The label `owner` is required',
+                pattern: { metadata: { labels: { owner: '?*' } } },
+              },
+            },
+          ],
+        },
+      },
+    }
+    mockUuidV4.mockReturnValue(MOCKED_UUID_1)
+    const mcvNocks = nockManagedClusterView(MOCKED_UUID_1, 'test-cluster', kyvernoScope, kyvernoStatus)
+
+    nockIgnoreRBAC()
+    render(
+      <RecoilRoot
+        initializeState={(snapshot) => {
+          snapshot.set(managedClusterAddonsState, {})
+        }}
+      >
+        <MemoryRouter
+          initialEntries={[
+            generatePath(NavigationPath.discoveredPolicyDetails, {
+              clusterName: 'test-cluster',
+              apiGroup: 'kyverno.io',
+              apiVersion: 'v1',
+              kind: 'ClusterPolicy',
+              templateName: 'no-vapb-policy',
+              templateNamespace: '',
+            }),
+          ]}
+        >
+          <Routes>
+            <Route element={<PolicyTemplateDetailsPage />}>
+              <Route path={NavigationPath.discoveredPolicyDetails} element={<PolicyTemplateDetails />} />
+              <Route path={NavigationPath.discoveredPolicyYaml} element={<PolicyTemplateYaml />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </RecoilRoot>
+    )
+
+    await waitForNocks(mcvNocks)
+    await waitForText('Discovered policies')
+    await waitForText('ClusterPolicy details')
+
+    // VAPB row should show dash when no VAPB exists
+    await waitForText('Validating Admission Policy Binding')
+    const vapbRow = screen.getByText('Validating Admission Policy Binding').closest('div')
+    expect(vapbRow?.parentElement).toHaveTextContent('-')
+    // No VAPB link should exist
+    expect(screen.queryByRole('link', { name: /binding/i })).not.toBeInTheDocument()
+  })
+
+  test('Should render Kyverno namespace-scoped Policy page with pol- VAPB naming convention', async () => {
+    ;(useSearchResultRelatedItemsLazyQuery as jest.Mock).mockReturnValue([
+      jest.fn(),
+      { data: undefined, loading: false, error: undefined },
+    ])
+    ;(useSearchResultItemsLazyQuery as jest.Mock).mockReturnValue([
+      jest.fn(),
+      {
+        data: {
+          searchResult: [
+            {
+              items: [
+                {
+                  _hubClusterResource: 'true',
+                  _uid: 'local-cluster/pol-vapb-uid',
+                  apigroup: 'admissionregistration.k8s.io',
+                  apiversion: 'v1',
+                  cluster: 'local-cluster',
+                  created: '2024-10-28T15:15:59Z',
+                  kind: 'ValidatingAdmissionPolicyBinding',
+                  kind_plural: 'validatingadmissionpolicybindings',
+                  name: 'pol-require-team-label-binding',
+                  policyName: 'pol-require-team-label-binding',
+                  validationActions: 'audit',
+                },
+              ],
+              __typename: 'SearchResult',
+            },
+          ],
+        },
+        loading: false,
+        error: undefined,
+      },
+    ])()
+
+    const kyvernoScope = {
+      name: 'require-team-label',
+      namespace: 'kyverno-test',
+      resource: 'policy.v1.kyverno.io',
+    }
+    const kyvernoStatus = {
+      conditions: [
+        {
+          message: 'Watching resources successfully',
+          reason: 'GetResourceProcessing',
+          status: 'True',
+          type: 'Processing',
+        },
+      ],
+      result: {
+        apiVersion: 'kyverno.io/v1',
+        kind: 'Policy',
+        metadata: {
+          name: 'require-team-label',
+          namespace: 'kyverno-test',
+        },
+        spec: {
+          validationFailureAction: 'Audit',
+          background: true,
+          rules: [
+            {
+              name: 'check-team-label',
+              match: {
+                any: [{ resources: { kinds: ['Pod'] } }],
+              },
+              validate: {
+                message: 'The label `team` is required',
+                pattern: { metadata: { labels: { team: '?*' } } },
+              },
+            },
+          ],
+        },
+      },
+    }
+    mockUuidV4.mockReturnValue(MOCKED_UUID_1)
+    const mcvNocks = nockManagedClusterView(MOCKED_UUID_1, 'test-cluster', kyvernoScope, kyvernoStatus)
+
+    nockIgnoreRBAC()
+    render(
+      <RecoilRoot
+        initializeState={(snapshot) => {
+          snapshot.set(managedClusterAddonsState, {})
+        }}
+      >
+        <MemoryRouter
+          initialEntries={[
+            generatePath(NavigationPath.discoveredPolicyDetails, {
+              clusterName: 'test-cluster',
+              apiGroup: 'kyverno.io',
+              apiVersion: 'v1',
+              kind: 'Policy',
+              templateName: 'require-team-label',
+              templateNamespace: 'kyverno-test',
+            }),
+          ]}
+        >
+          <Routes>
+            <Route element={<PolicyTemplateDetailsPage />}>
+              <Route path={NavigationPath.discoveredPolicyDetails} element={<PolicyTemplateDetails />} />
+              <Route path={NavigationPath.discoveredPolicyYaml} element={<PolicyTemplateYaml />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </RecoilRoot>
+    )
+
+    await waitForNocks(mcvNocks)
+    await waitForText('Discovered policies')
+    await waitForText('Policy details')
+
+    // VAPB link should use the pol- naming convention for namespace-scoped Policy
+    expect(screen.getByRole('link', { name: 'pol-require-team-label-binding' })).toBeInTheDocument()
   })
 
   test('Should render ValidatingAdmissionPolicyBinding with paramRefs successfully', async () => {
