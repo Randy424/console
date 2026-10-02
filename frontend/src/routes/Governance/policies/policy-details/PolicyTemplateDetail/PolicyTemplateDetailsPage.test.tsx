@@ -1,6 +1,7 @@
 /* Copyright Contributors to the Open Cluster Management project */
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { generatePath, MemoryRouter, Route, Routes } from 'react-router'
+import { StateProvider } from '~/lib/state-provider'
 import { RecoilRoot } from 'recoil'
 import { v4 as uuidv4 } from 'uuid'
 import { managedClusterAddonsState } from '../../../../../atoms'
@@ -1998,9 +1999,9 @@ describe('Policy Template Details Page', () => {
 
     nockIgnoreRBAC()
     render(
-      <StateProvider
-        initializeStore={(store) => {
-          store.set(managedClusterAddonsState, {})
+      <RecoilRoot
+        initializeState={(snapshot) => {
+          snapshot.set(managedClusterAddonsState, {})
         }}
       >
         <MemoryRouter
@@ -2022,7 +2023,7 @@ describe('Policy Template Details Page', () => {
             </Route>
           </Routes>
         </MemoryRouter>
-      </StateProvider>
+      </RecoilRoot>
     )
 
     await waitForNocks(mcvNocks)
@@ -2093,9 +2094,9 @@ describe('Policy Template Details Page', () => {
 
     nockIgnoreRBAC()
     render(
-      <StateProvider
-        initializeStore={(store) => {
-          store.set(managedClusterAddonsState, {})
+      <RecoilRoot
+        initializeState={(snapshot) => {
+          snapshot.set(managedClusterAddonsState, {})
         }}
       >
         <MemoryRouter
@@ -2117,7 +2118,7 @@ describe('Policy Template Details Page', () => {
             </Route>
           </Routes>
         </MemoryRouter>
-      </StateProvider>
+      </RecoilRoot>
     )
 
     await waitForNocks(mcvNocks)
