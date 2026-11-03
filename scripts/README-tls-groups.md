@@ -2,6 +2,12 @@
 
 This `test/ACM-47232-tls-groups-review` branch holds review-only test files for [PR #7071](https://github.com/stolostron/console/pull/7071). It has the same backend source as the PR branch; the test files are not part of the PR.
 
+## Story objective and delivered change
+
+ACM 5.0's Node Console followed the cluster's selected TLS groups. ACM 5.1's Go Console needs to keep doing so when the cluster profile changes. [ACM-42599 / #6931](https://github.com/stolostron/console/pull/6931) already added profile hot-reload and basic group filtering. PR #7071 builds on it: library-go maps group names, and the Go listener matches the prior Node behavior for defaults, FIPS filtering, and groups that cannot be used. An RSA-only TLS 1.2 connection remains possible when the profile allows its cipher, using HTTP/1.1.
+
+This script checks supported group choices and live profile changes in the deployed ACM and MCE Consoles. Go tests cover unknown or unusable groups and the RSA fallback. The cipher policy inherited from #6931 is unchanged.
+
 The shared `cs-aws-51` cluster pool has a test environment under claim **`rbrunopi-groups`** in the `console-squad` namespace. It has ACM and MCE 5.1 and the `TLSGroupPreferences` gate. Check out this test branch and use the claim's kubeconfig:
 
 ```sh
