@@ -1,8 +1,12 @@
 # ACM-47232 managed Console test
 
-The shared `cs-aws-51` cluster pool has a test environment under claim **`rbrunopi-groups`** in the `console-squad` namespace. It has ACM and MCE 5.1 and the `TLSGroupPreferences` gate. Check out this PR branch and use the claim's kubeconfig:
+This `test/ACM-47232-tls-groups-review` branch holds review-only test files for [PR #7071](https://github.com/stolostron/console/pull/7071). It has the same backend source as the PR branch; the test files are not part of the PR.
+
+The shared `cs-aws-51` cluster pool has a test environment under claim **`rbrunopi-groups`** in the `console-squad` namespace. It has ACM and MCE 5.1 and the `TLSGroupPreferences` gate. Check out this test branch and use the claim's kubeconfig:
 
 ```sh
+git fetch https://github.com/Randy424/console.git test/ACM-47232-tls-groups-review
+git switch --detach FETCH_HEAD
 export TLS_GROUP_KUBECONFIG="$HOME/Repositories/cluster-keeper/dependencies/lifeguard/clusterclaims/rbrunopi-groups/kubeconfig"
 ./scripts/test-tls-groups.sh all | tee tls-groups-result.log
 ```
